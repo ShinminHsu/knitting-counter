@@ -2,14 +2,10 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import { 
-  formatDate, 
   formatDuration, 
   getProjectProgressPercentage, 
   getProjectTotalRounds, 
-  getProjectTotalStitches, 
-  getProjectCompletedStitches,
-  getRoundTotalStitches,
-  getExpandedStitches
+  getRoundTotalStitches
 } from '../utils'
 import { StitchTypeInfo } from '../types'
 

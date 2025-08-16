@@ -13,12 +13,10 @@ function App() {
   const { loadProjects, setError, error } = useAppStore()
 
   useEffect(() => {
-    try {
-      loadProjects()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '載入專案時發生錯誤')
-    }
-  }, [loadProjects, setError])
+    loadProjects().catch((err: any) => {
+      setError(err instanceof Error ? err.message : '載入專案時發生錯誤');
+    });
+  }, [loadProjects, setError]);
 
   return (
     <div className="min-h-screen bg-background-primary">

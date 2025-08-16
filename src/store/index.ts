@@ -19,7 +19,7 @@ interface AppStore {
   updateProject: (project: Project) => void
   deleteProject: (id: string) => void
   setCurrentProject: (id: string) => void
-  loadProjects: () => void
+  loadProjects: () => Promise<void>
   
   // 編織進度
   nextStitch: () => void
@@ -106,7 +106,7 @@ export const useAppStore = create<AppStore>()(
         }
       },
 
-      loadProjects: () => {
+      loadProjects: async () => {
         // 如果沒有專案，建立樣本專案
         const { projects } = get()
         if (projects.length === 0) {
