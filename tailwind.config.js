@@ -13,8 +13,8 @@ export default {
           dark: '#B85A7F'
         },
         background: {
-          primary: '#FEFCFA',
-          secondary: '#F8F6F4',
+          primary: '#faf5f0',
+          secondary: '#FCF7F2',
           tertiary: '#F2F0EE'
         },
         text: {
