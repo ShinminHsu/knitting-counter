@@ -5,7 +5,10 @@ import {
   formatDuration, 
   getProjectProgressPercentage, 
   getProjectTotalRounds, 
-  getRoundTotalStitches
+  getProjectTotalStitches,
+  getProjectCompletedStitches,
+  getRoundTotalStitches,
+  getExpandedStitches
 } from '../utils'
 import { StitchTypeInfo } from '../types'
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppStore } from '../store'
+import UserProfile from './UserProfile'
 import { formatDate, getProjectProgressPercentage, getProjectTotalRounds, getProjectTotalStitches, getProjectCompletedStitches } from '../utils'
 
 export default function ProjectListView() {
@@ -8,6 +9,8 @@ export default function ProjectListView() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectSource, setNewProjectSource] = useState('')
+  
+  console.log('ProjectListView 渲染，專案數量:', projects.length)
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,12 +29,15 @@ export default function ProjectListView() {
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-text-primary">編織專案</h1>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="btn btn-primary"
-            >
-              新增專案
-            </button>
+            <div className="flex items-center gap-4">
+              <UserProfile />
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="btn btn-primary"
+              >
+                新增專案
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -408,7 +408,51 @@ export const useAppStore = create<AppStore>()(
       partialize: (state) => ({
         projects: state.projects,
         currentProject: state.currentProject
-      })
+      }),
+      // 自定義序列化和反序列化來處理日期
+      storage: {
+        getItem: (name) => {
+          const str = localStorage.getItem(name)
+          if (!str) return null
+          try {
+            const data = JSON.parse(str)
+            // 轉換日期字符串回Date對象
+            if (data.state) {
+              if (data.state.projects) {
+                data.state.projects = data.state.projects.map((project: any) => ({
+                  ...project,
+                  createdDate: new Date(project.createdDate),
+                  lastModified: new Date(project.lastModified),
+                  sessions: project.sessions?.map((session: any) => ({
+                    ...session,
+                    startTime: new Date(session.startTime)
+                  })) || []
+                }))
+              }
+              if (data.state.currentProject) {
+                data.state.currentProject = {
+                  ...data.state.currentProject,
+                  createdDate: new Date(data.state.currentProject.createdDate),
+                  lastModified: new Date(data.state.currentProject.lastModified),
+                  sessions: data.state.currentProject.sessions?.map((session: any) => ({
+                    ...session,
+                    startTime: new Date(session.startTime)
+                  })) || []
+                }
+              }
+            }
+            return data
+          } catch {
+            return null
+          }
+        },
+        setItem: (name, value) => {
+          localStorage.setItem(name, JSON.stringify(value))
+        },
+        removeItem: (name) => {
+          localStorage.removeItem(name)
+        }
+      }
     }
   )
 )
