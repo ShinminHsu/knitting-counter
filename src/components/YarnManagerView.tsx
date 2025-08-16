@@ -117,20 +117,20 @@ export default function YarnManagerView() {
   return (
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       <div className="bg-background-secondary border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Link
                 to={`/project/${projectId}`}
-                className="text-text-secondary hover:text-text-primary transition-colors"
+                className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
               >
                 ← 返回
               </Link>
-              <h1 className="text-xl font-semibold text-text-primary">毛線管理</h1>
+              <h1 className="text-base sm:text-xl font-semibold text-text-primary">毛線管理</h1>
             </div>
             <button
               onClick={handleAddYarn}
-              className="btn btn-primary"
+              className="btn btn-primary w-full sm:w-auto"
             >
               + 新增毛線
             </button>
@@ -138,7 +138,7 @@ export default function YarnManagerView() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 毛線列表 */}
         {currentProject.yarns.length === 0 ? (
           <div className="text-center py-12">

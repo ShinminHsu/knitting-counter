@@ -4,14 +4,14 @@ export default function GoogleSignIn() {
   const { signInWithGoogle, isLoading, error } = useAuthStore()
 
   return (
-    <div className="min-h-screen bg-background-primary flex items-center justify-center">
-      <div className="card max-w-md w-full mx-4">
+    <div className="min-h-screen bg-background-primary flex items-center justify-center px-4">
+      <div className="card max-w-sm sm:max-w-md w-full">
         <div className="text-center mb-6">
-          <div className="text-4xl mb-3">🧶</div>
-          <h1 className="text-2xl font-bold text-text-primary mb-2">
+          <div className="text-3xl sm:text-4xl mb-3">🧶</div>
+          <h1 className="text-xl sm:text-2xl font-bold text-text-primary mb-2">
             編織計數器
           </h1>
-          <p className="text-text-secondary">
+          <p className="text-sm sm:text-base text-text-secondary">
             使用 Google 帳戶登入以同步您的編織專案
           </p>
         </div>

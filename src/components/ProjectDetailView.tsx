@@ -34,22 +34,22 @@ export default function ProjectDetailView() {
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border">
-        <div className="container mx-auto px-4 py-4 max-w-6xl">
-          <div className="flex items-center gap-4">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <Link
               to="/"
-              className="text-text-secondary hover:text-text-primary transition-colors"
+              className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
             >
               ← 返回
             </Link>
-            <h1 className="text-xl font-semibold text-text-primary truncate">
+            <h1 className="text-lg sm:text-xl font-semibold text-text-primary truncate">
               {currentProject.name}
             </h1>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6 space-y-6 max-w-6xl">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 專案資訊 */}
         <div className="card">
           <h2 className="text-xl font-semibold text-text-primary mb-4">專案資訊</h2>
@@ -109,7 +109,7 @@ export default function ProjectDetailView() {
         </div>
 
         {/* 快捷操作 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Link
             to={`/project/${currentProject.id}/progress`}
             className="card hover:shadow-md transition-shadow cursor-pointer"
