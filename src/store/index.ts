@@ -42,6 +42,12 @@ interface AppStore {
   deleteRound: (roundNumber: number) => void
   addStitchToRound: (roundNumber: number, stitch: StitchInfo) => void
   addStitchGroupToRound: (roundNumber: number, group: StitchGroup) => void
+  updateStitchInRound: (roundNumber: number, stitchId: string, updatedStitch: StitchInfo) => void
+  deleteStitchFromRound: (roundNumber: number, stitchId: string) => void
+  reorderStitchesInRound: (roundNumber: number, fromIndex: number, toIndex: number) => void
+  updateStitchGroupInRound: (roundNumber: number, groupId: string, updatedGroup: StitchGroup) => void
+  deleteStitchGroupFromRound: (roundNumber: number, groupId: string) => void
+  reorderStitchGroupsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => void
   
   // 毛線管理
   addYarn: (yarn: Yarn) => void
@@ -486,6 +492,156 @@ export const useAppStore = create<AppStore>()(
             return {
               ...round,
               stitchGroups: [...round.stitchGroups, group]
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      updateStitchInRound: (roundNumber, stitchId, updatedStitch) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return {
+              ...round,
+              stitches: round.stitches.map(stitch => 
+                stitch.id === stitchId ? updatedStitch : stitch
+              )
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      deleteStitchFromRound: (roundNumber, stitchId) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return {
+              ...round,
+              stitches: round.stitches.filter(stitch => stitch.id !== stitchId)
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      reorderStitchesInRound: (roundNumber, fromIndex, toIndex) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            const newStitches = [...round.stitches]
+            const [removed] = newStitches.splice(fromIndex, 1)
+            newStitches.splice(toIndex, 0, removed)
+            
+            return {
+              ...round,
+              stitches: newStitches
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      updateStitchGroupInRound: (roundNumber, groupId, updatedGroup) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return {
+              ...round,
+              stitchGroups: round.stitchGroups.map(group => 
+                group.id === groupId ? updatedGroup : group
+              )
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      deleteStitchGroupFromRound: (roundNumber, groupId) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return {
+              ...round,
+              stitchGroups: round.stitchGroups.filter(group => group.id !== groupId)
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      reorderStitchGroupsInRound: (roundNumber, fromIndex, toIndex) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            const newGroups = [...round.stitchGroups]
+            const [removed] = newGroups.splice(fromIndex, 1)
+            newGroups.splice(toIndex, 0, removed)
+            
+            return {
+              ...round,
+              stitchGroups: newGroups
             }
           }
           return round
