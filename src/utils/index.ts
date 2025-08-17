@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { Project, Round, StitchInfo, StitchGroup, Yarn, YarnColor, StitchType } from '../types'
+import { Project, Round, StitchGroup, Yarn, StitchType, StitchTypeInfo } from '../types'
 
 // CSS 類名合併工具
 export function cn(...inputs: ClassValue[]) {
@@ -36,14 +36,27 @@ export function formatFileSize(bytes: number): string {
 }
 
 // 格式化日期
-export function formatDate(date: Date): string {
+export function formatDate(date: Date | string | number): string {
+  let dateObj: Date
+  
+  if (date instanceof Date) {
+    dateObj = date
+  } else {
+    dateObj = new Date(date)
+  }
+  
+  // 檢查日期是否有效
+  if (isNaN(dateObj.getTime())) {
+    return '無效日期'
+  }
+  
   return new Intl.DateTimeFormat('zh-TW', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  }).format(date)
+  }).format(dateObj)
 }
 
 // 建立樣本資料

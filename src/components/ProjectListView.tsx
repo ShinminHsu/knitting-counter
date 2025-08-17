@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppStore } from '../store'
+import UserProfile from './UserProfile'
 import { formatDate, getProjectProgressPercentage, getProjectTotalRounds, getProjectTotalStitches, getProjectCompletedStitches } from '../utils'
 
 export default function ProjectListView() {
@@ -8,6 +9,8 @@ export default function ProjectListView() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectSource, setNewProjectSource] = useState('')
+  
+  console.log('ProjectListView 渲染，專案數量:', projects.length)
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,69 +26,72 @@ export default function ProjectListView() {
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-text-primary">編織專案</h1>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="btn btn-primary"
-            >
-              新增專案
-            </button>
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">編織專案</h1>
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
+              <UserProfile />
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="btn btn-primary text-xs sm:text-sm"
+              >
+                新增專案
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* 專案列表 */}
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {projects.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🧶</div>
-            <h2 className="text-xl font-semibold text-text-primary mb-2">
+          <div className="text-center py-8 sm:py-12">
+            <div className="text-4xl sm:text-6xl mb-4">🧶</div>
+            <h2 className="text-lg sm:text-xl font-semibold text-text-primary mb-2">
               還沒有編織專案
             </h2>
-            <p className="text-text-secondary mb-6">
+            <p className="text-sm sm:text-base text-text-secondary mb-6">
               建立你的第一個編織專案開始記錄進度
             </p>
             <button
               onClick={() => setShowCreateForm(true)}
-              className="btn btn-primary"
+              className="btn btn-primary text-sm sm:text-base"
             >
               建立新專案
             </button>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {projects.map((project) => (
               <div key={project.id} className="card hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-text-primary truncate">
+                  <h3 className="text-base sm:text-lg font-semibold text-text-primary truncate pr-2">
                     {project.name}
                   </h3>
                   <button
                     onClick={() => deleteProject(project.id)}
-                    className="text-text-tertiary hover:text-red-500 transition-colors"
+                    className="text-text-tertiary hover:text-red-500 transition-colors text-sm sm:text-base"
                   >
                     ✕
                   </button>
                 </div>
                 
                 <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-text-secondary">進度</span>
                     <span className="text-text-primary">
                       {Math.round(getProjectProgressPercentage(project) * 100)}%
                     </span>
                   </div>
-                  <div className="w-full bg-background-tertiary rounded-full h-2">
+                  <div className="w-full bg-background-tertiary rounded-full h-1.5 sm:h-2">
                     <div
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      className="bg-primary h-1.5 sm:h-2 rounded-full transition-all duration-300"
                       style={{ width: `${getProjectProgressPercentage(project) * 100}%` }}
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1 mb-4 text-sm text-text-secondary">
+                <div className="space-y-1 mb-4 text-xs sm:text-sm text-text-secondary">
                   <div>圈數: {project.currentRound}/{getProjectTotalRounds(project)}</div>
                   <div>針數: {getProjectCompletedStitches(project)}/{getProjectTotalStitches(project)}</div>
                   <div>更新: {formatDate(project.lastModified)}</div>

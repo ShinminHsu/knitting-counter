@@ -2,14 +2,10 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import { 
-  formatDate, 
   formatDuration, 
   getProjectProgressPercentage, 
   getProjectTotalRounds, 
-  getProjectTotalStitches, 
-  getProjectCompletedStitches,
-  getRoundTotalStitches,
-  getExpandedStitches
+  getRoundTotalStitches
 } from '../utils'
 import { StitchTypeInfo } from '../types'
 
@@ -70,12 +66,7 @@ export default function ProgressTrackingView() {
   const displayRoundNumber = viewingRound ?? currentProject.currentRound
   const displayRound = currentProject.pattern.find(r => r.roundNumber === displayRoundNumber)
   
-  const totalStitches = getProjectTotalStitches(currentProject)
-  const completedStitches = getProjectCompletedStitches(currentProject)
   const progressPercentage = getProjectProgressPercentage(currentProject)
-  
-  // 獲取顯示圈的展開針目
-  const expandedStitches = displayRound ? getExpandedStitches(displayRound) : []
   const currentStitchInRound = isViewMode ? 0 : currentProject.currentStitch // 查看模式下不顯示進度
   const totalStitchesInCurrentRound = displayRound ? getRoundTotalStitches(displayRound) : 0
 
@@ -172,7 +163,7 @@ export default function ProgressTrackingView() {
       )
     }
 
-    const stitchElements = []
+    const stitchElements: JSX.Element[] = []
     let stitchIndex = 0
 
     // 渲染個別針法
@@ -270,16 +261,16 @@ export default function ProgressTrackingView() {
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 max-w-6xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Link
                 to={`/project/${projectId}`}
-                className="text-text-secondary hover:text-text-primary transition-colors"
+                className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
               >
                 ← 返回
               </Link>
-              <h1 className="text-xl font-semibold text-text-primary truncate">
+              <h1 className="text-base sm:text-xl font-semibold text-text-primary truncate">
                 {currentProject.name}
               </h1>
             </div>
@@ -312,7 +303,7 @@ export default function ProgressTrackingView() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6 space-y-6 max-w-6xl">
+      <div className="w-full px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 總體進度 */}
         <div className="card">
           <div className="flex items-center justify-between mb-3">
