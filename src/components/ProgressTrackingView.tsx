@@ -20,7 +20,8 @@ export default function ProgressTrackingView() {
     previousStitch, 
     setCurrentRound,
     startSession,
-    endSession
+    endSession,
+    updateProject
   } = useAppStore()
 
   const [isSessionActive, setIsSessionActive] = useState(false)
@@ -105,9 +106,23 @@ export default function ProgressTrackingView() {
   const handleCompleteRound = () => {
     if (!displayRound) return
     
-    // 將進度設置到下一圈的開始
-    const nextRoundNumber = displayRoundNumber + 1
-    setCurrentRound(nextRoundNumber)
+    // 檢查是否為最後一圈
+    const maxRoundNumber = Math.max(...currentProject.pattern.map(r => r.roundNumber))
+    
+    if (displayRoundNumber >= maxRoundNumber) {
+      // 如果是最後一圈，標記為完成
+      const updatedProject = {
+        ...currentProject,
+        isCompleted: true,
+        currentStitch: getRoundTotalStitches(displayRound), // 設置到最後一針
+        lastModified: new Date()
+      }
+      updateProject(updatedProject)
+    } else {
+      // 將進度設置到下一圈的開始
+      const nextRoundNumber = displayRoundNumber + 1
+      setCurrentRound(nextRoundNumber)
+    }
     setViewingRound(null) // 退出查看模式
   }
 
@@ -399,6 +414,47 @@ export default function ProgressTrackingView() {
                 返回編織進度
               </button>
             </div>
+          ) : currentProject.isCompleted ? (
+            <div className="text-center py-8">
+              <h2 className="text-2xl font-bold text-text-primary mb-2">
+                編織完成！
+              </h2>
+              <p className="text-text-secondary mb-6">
+                恭喜您完成了「{currentProject.name}」的編織！
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={() => {
+                    const updatedProject = {
+                      ...currentProject,
+                      isCompleted: false,
+                      currentRound: 1,
+                      currentStitch: 0,
+                      lastModified: new Date()
+                    }
+                    updateProject(updatedProject)
+                  }}
+                  className="btn btn-secondary"
+                >
+                  重新編織
+                </button>
+                <button
+                  onClick={() => {
+                    // 可以在這裡添加分享功能
+                    navigator.share?.({
+                      title: `我完成了編織作品：${currentProject.name}`,
+                      text: `使用編織計數器完成了「${currentProject.name}」的編織！`,
+                    }).catch(() => {
+                      // 如果不支持分享，可以複製到剪貼板
+                      alert('編織完成！')
+                    })
+                  }}
+                  className="btn btn-primary"
+                >
+                  分享成果
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -419,8 +475,8 @@ export default function ProgressTrackingView() {
                 </button>
               </div>
 
-              {/* 完成此圈按鈕 - 只在非查看模式且當前圈有進度時顯示 */}
-              {displayRoundNumber === currentProject.currentRound && currentStitchInRound > 0 && (
+              {/* 完成此圈按鈕 - 只在非查看模式且為當前圈時顯示 */}
+              {displayRoundNumber === currentProject.currentRound && (
                 <button
                   onClick={handleCompleteRound}
                   className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-colors"

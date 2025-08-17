@@ -46,7 +46,6 @@ export default function ProjectListView() {
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {projects.length === 0 ? (
           <div className="text-center py-8 sm:py-12">
-            <div className="text-4xl sm:text-6xl mb-4">🧶</div>
             <h2 className="text-lg sm:text-xl font-semibold text-text-primary mb-2">
               還沒有編織專案
             </h2>
@@ -63,16 +62,21 @@ export default function ProjectListView() {
         ) : (
           <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {projects.map((project) => (
-              <div key={project.id} className="card hover:shadow-md transition-shadow">
+              <div key={project.id} className={`card hover:shadow-md transition-shadow ${project.isCompleted ? 'ring-2 ring-green-200 bg-green-50' : ''}`}>
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-base sm:text-lg font-semibold text-text-primary truncate pr-2">
-                    {project.name}
-                  </h3>
+                  <div className="flex items-center gap-2 flex-1">
+                    <h3 className="text-base sm:text-lg font-semibold text-text-primary truncate">
+                      {project.name}
+                    </h3>
+                    {project.isCompleted && (
+                      <span className="text-green-600 text-sm font-medium">完成</span>
+                    )}
+                  </div>
                   <button
                     onClick={() => deleteProject(project.id)}
-                    className="text-text-tertiary hover:text-red-500 transition-colors text-sm sm:text-base"
+                    className="text-text-tertiary hover:text-red-500 transition-colors text-sm sm:text-base ml-2"
                   >
-                    ✕
+                    刪除
                   </button>
                 </div>
                 
@@ -80,13 +84,13 @@ export default function ProjectListView() {
                   <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-text-secondary">進度</span>
                     <span className="text-text-primary">
-                      {Math.round(getProjectProgressPercentage(project) * 100)}%
+                      {project.isCompleted ? '100' : Math.round(getProjectProgressPercentage(project) * 100)}%
                     </span>
                   </div>
                   <div className="w-full bg-background-tertiary rounded-full h-1.5 sm:h-2">
                     <div
-                      className="bg-primary h-1.5 sm:h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${getProjectProgressPercentage(project) * 100}%` }}
+                      className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${project.isCompleted ? 'bg-green-500' : 'bg-primary'}`}
+                      style={{ width: `${project.isCompleted ? 100 : getProjectProgressPercentage(project) * 100}%` }}
                     />
                   </div>
                 </div>

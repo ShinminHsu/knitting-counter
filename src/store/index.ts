@@ -213,25 +213,72 @@ export const useAppStore = create<AppStore>()(
       // 編織進度管理
       nextStitch: () => {
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[DEBUG] nextStitch: No current project')
+          return
+        }
+
+        // 如果已經完成，不允許繼續
+        if (currentProject.isCompleted) {
+          console.log('[DEBUG] nextStitch: Project already completed')
+          return
+        }
 
         const currentRound = currentProject.pattern.find(r => r.roundNumber === currentProject.currentRound)
-        if (!currentRound) return
+        if (!currentRound) {
+          console.log('[DEBUG] nextStitch: Current round not found', currentProject.currentRound)
+          return
+        }
 
         const totalStitchesInRound = getRoundTotalStitches(currentRound)
         let newStitch = currentProject.currentStitch + 1
         let newRound = currentProject.currentRound
+        let isCompleted = false
 
-        // 如果超過當前圈數的針數，移到下一圈
+        console.log('[DEBUG] nextStitch: Current state', {
+          currentRound: currentProject.currentRound,
+          currentStitch: currentProject.currentStitch,
+          newStitch,
+          totalStitchesInRound,
+          patternRounds: currentProject.pattern.map(r => r.roundNumber)
+        })
+
+        // 如果超過當前圈數的針數，檢查是否完成或移到下一圈
         if (newStitch >= totalStitchesInRound) {
-          newStitch = 0
-          newRound = currentProject.currentRound + 1
+          // 檢查是否還有更多圈數
+          const maxRoundNumber = Math.max(...currentProject.pattern.map(r => r.roundNumber))
+          
+          console.log('[DEBUG] nextStitch: Checking completion', {
+            currentRound: currentProject.currentRound,
+            maxRoundNumber,
+            shouldComplete: currentProject.currentRound >= maxRoundNumber
+          })
+          
+          if (currentProject.currentRound >= maxRoundNumber) {
+            // 已完成所有圈數
+            console.log('[DEBUG] nextStitch: Setting project as completed')
+            isCompleted = true
+            newStitch = totalStitchesInRound // 保持在最後一針
+            newRound = currentProject.currentRound // 保持在最後一圈
+          } else {
+            // 移到下一圈
+            console.log('[DEBUG] nextStitch: Moving to next round')
+            newStitch = 0
+            newRound = currentProject.currentRound + 1
+          }
         }
+
+        console.log('[DEBUG] nextStitch: Final state', {
+          newRound,
+          newStitch,
+          isCompleted
+        })
 
         const updatedProject = {
           ...currentProject,
           currentRound: newRound,
           currentStitch: newStitch,
+          isCompleted,
           lastModified: new Date()
         }
 

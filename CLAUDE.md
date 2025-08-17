@@ -19,6 +19,14 @@
 - 不在commit message中包含 "with claude" 等AI相關字詞
 - 使用標準的conventional commit格式（如：feat:, fix:, refactor:等）
 
+### UI/UX 設計規範
+- **不使用任何 emoji 或 icon** - 包括但不限於：
+  - 慶祝或狀態表情符號（🎉, ✅, ❌ 等）
+  - 功能性圖標（📊, 🧶, 🔧 等）
+  - 裝飾性符號（→, ←, ↑, ↓ 等）
+  - 統一使用純文字表達所有資訊和狀態
+- 保持簡潔的文字界面，重視可讀性和可訪問性
+
 ### 測試與構建
 - 開發完成後運行 `npm run lint` 檢查代碼規範
 - 運行 `npm run build` 確保構建成功
