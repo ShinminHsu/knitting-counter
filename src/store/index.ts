@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Project, WorkSession, Yarn, Round, StitchInfo, StitchGroup } from '../types'
 import { generateId, createSampleProject, getRoundTotalStitches } from '../utils'
+// import { clearUserData as clearStoredUserData } from '../utils/userStorage'
+import { useAuthStore } from './authStore'
 
 interface AppStore {
   // 狀態
@@ -13,6 +15,11 @@ interface AppStore {
   // 動作
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
+  
+  // 用戶數據管理
+  clearUserData: () => void
+  clearUserDataSilently: () => void
+  loadUserProjects: () => Promise<void>
   
   // 專案管理
   createProject: (name: string, source?: string) => void
@@ -54,6 +61,91 @@ export const useAppStore = create<AppStore>()(
       // 基本動作
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
+      
+      // 用戶數據管理
+      clearUserData: () => {
+        // 這個方法會觸發持久化，用於登出時清空界面
+        set({
+          projects: [],
+          currentProject: null,
+          error: null
+        })
+      },
+      
+      clearUserDataSilently: () => {
+        // 這個方法不會觸發持久化，只清空內存狀態
+        // 用於用戶切換時的臨時清空
+        const currentState = get()
+        Object.assign(currentState, {
+          projects: [],
+          currentProject: null,
+          error: null
+        })
+      },
+      
+      loadUserProjects: async () => {
+        const { user } = useAuthStore.getState()
+        if (!user) {
+          // 如果沒有用戶，清空數據
+          get().clearUserDataSilently()
+          return
+        }
+        
+        // 手動從 localStorage 加載用戶數據
+        const userStorageKey = `user_${user.uid}_knitting-counter-storage`
+        const savedData = localStorage.getItem(userStorageKey)
+        
+        console.log('Manual loading for user:', user.uid, 'hasData:', !!savedData)
+        
+        if (savedData) {
+          try {
+            const parsed = JSON.parse(savedData)
+            const state = parsed.state || parsed
+            
+            // 轉換日期
+            if (state.projects) {
+              state.projects = state.projects.map((project: any) => ({
+                ...project,
+                createdDate: new Date(project.createdDate),
+                lastModified: new Date(project.lastModified),
+                sessions: project.sessions?.map((session: any) => ({
+                  ...session,
+                  startTime: new Date(session.startTime)
+                })) || []
+              }))
+            }
+            
+            if (state.currentProject) {
+              state.currentProject = {
+                ...state.currentProject,
+                createdDate: new Date(state.currentProject.createdDate),
+                lastModified: new Date(state.currentProject.lastModified),
+                sessions: state.currentProject.sessions?.map((session: any) => ({
+                  ...session,
+                  startTime: new Date(session.startTime)
+                })) || []
+              }
+            }
+            
+            console.log('Loaded projects:', state.projects?.length || 0)
+            set({
+              projects: state.projects || [],
+              currentProject: state.currentProject || null
+            })
+            return
+          } catch (error) {
+            console.error('Error parsing saved data:', error)
+          }
+        }
+        
+        // 如果沒有數據，建立樣本專案
+        console.log('No saved data, creating sample project')
+        const sampleProject = createSampleProject()
+        set({
+          projects: [sampleProject],
+          currentProject: sampleProject
+        })
+      },
 
       // 專案管理
       createProject: (name, source) => {
@@ -409,11 +501,40 @@ export const useAppStore = create<AppStore>()(
         projects: state.projects,
         currentProject: state.currentProject
       }),
-      // 自定義序列化和反序列化來處理日期
+      // 自定義序列化和反序列化來處理日期和用戶隔離
       storage: {
         getItem: (name) => {
-          const str = localStorage.getItem(name)
-          if (!str) return null
+          const { user } = useAuthStore.getState()
+          console.log('getItem called:', { name, user: user?.uid })
+          
+          if (!user) {
+            console.log('No user - returning empty state')
+            // 沒有用戶時返回空狀態，而不是 null
+            return JSON.stringify({
+              state: {
+                projects: [],
+                currentProject: null
+              },
+              version: 0
+            })
+          }
+          
+          const userStorageKey = `user_${user.uid}_${name}`
+          const str = localStorage.getItem(userStorageKey)
+          console.log('Loading from storage:', { userStorageKey, hasData: !!str })
+          
+          if (!str) {
+            console.log('No data found - returning empty state')
+            // 沒有數據時返回空狀態
+            return JSON.stringify({
+              state: {
+                projects: [],
+                currentProject: null
+              },
+              version: 0
+            })
+          }
+          
           try {
             const data = JSON.parse(str)
             // 轉換日期字符串回Date對象
@@ -447,10 +568,25 @@ export const useAppStore = create<AppStore>()(
           }
         },
         setItem: (name, value) => {
-          localStorage.setItem(name, JSON.stringify(value))
+          const { user } = useAuthStore.getState()
+          if (!user) {
+            console.log('No user - skipping save to localStorage')
+            return
+          }
+          
+          const userStorageKey = `user_${user.uid}_${name}`
+          console.log(`Saving to ${userStorageKey}`, { 
+            projects: value?.state?.projects?.length || 0,
+            currentProject: value?.state?.currentProject?.name || 'none'
+          })
+          localStorage.setItem(userStorageKey, JSON.stringify(value))
         },
         removeItem: (name) => {
-          localStorage.removeItem(name)
+          const { user } = useAuthStore.getState()
+          if (!user) return
+          
+          const userStorageKey = `user_${user.uid}_${name}`
+          localStorage.removeItem(userStorageKey)
         }
       }
     }

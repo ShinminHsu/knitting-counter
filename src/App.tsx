@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAppStore } from './store'
 import { useAuthStore } from './store/authStore'
+import { cleanupLegacyData, migrateLegacyUserData, debugStorageInfo } from './utils/migrateLegacyData'
 import ProjectListView from './components/ProjectListView'
 import ProjectDetailView from './components/ProjectDetailView'
 import PatternEditorView from './components/PatternEditorView'
@@ -12,27 +13,44 @@ import NotFoundView from './components/NotFoundView'
 import GoogleSignIn from './components/GoogleSignIn'
 
 function App() {
-  const { loadProjects, setError, error } = useAppStore()
+  const { loadUserProjects, clearUserDataSilently, setError, error } = useAppStore()
   const { user, isLoading, initialize } = useAuthStore()
 
   useEffect(() => {
     const unsubscribe = initialize()
+    
+    // 清理舊的共享數據
+    cleanupLegacyData()
+    
+    // 開發環境下顯示存儲調試信息
+    if (import.meta.env.DEV) {
+      debugStorageInfo()
+    }
+    
     return () => unsubscribe()
   }, [initialize])
 
   useEffect(() => {
     if (user) {
-      console.log('使用者已登入，載入專案...')
-      // 清除舊的localStorage數據（僅在開發時）
-      if (import.meta.env.DEV) {
-        localStorage.removeItem('knitting-counter-storage')
-      }
-      loadProjects().catch((err: any) => {
+      console.log(`使用者已登入 (${user.uid})，載入專案...`)
+      
+      // 嘗試遷移舊數據（如果存在）
+      migrateLegacyUserData(user.uid)
+      
+      loadUserProjects().catch((err: any) => {
         console.error('載入專案錯誤:', err)
         setError(err instanceof Error ? err.message : '載入專案時發生錯誤');
       });
+      
+      // 開發環境下顯示用戶切換後的存儲狀態
+      if (import.meta.env.DEV) {
+        setTimeout(() => debugStorageInfo(), 500)
+      }
+    } else {
+      console.log('使用者已登出，清空界面數據...')
+      clearUserDataSilently()
     }
-  }, [user, loadProjects, setError]);
+  }, [user, loadUserProjects, clearUserDataSilently, setError]);
 
   // 載入中狀態
   if (isLoading) {
