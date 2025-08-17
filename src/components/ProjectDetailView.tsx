@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
-import { formatDate, formatDuration, getProjectProgressPercentage, getProjectTotalRounds, getProjectTotalStitches, getProjectCompletedStitches, getProjectTotalTime, describeRound, getRoundTotalStitches } from '../utils'
+import { formatDate, getProjectTotalRounds, getProjectTotalStitches, describeRound, getRoundTotalStitches } from '../utils'
 
 export default function ProjectDetailView() {
   const { projectId } = useParams<{ projectId: string }>()

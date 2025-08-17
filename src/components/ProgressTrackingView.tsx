@@ -5,10 +5,7 @@ import {
   formatDuration, 
   getProjectProgressPercentage, 
   getProjectTotalRounds, 
-  getProjectTotalStitches,
-  getProjectCompletedStitches,
-  getRoundTotalStitches,
-  getExpandedStitches
+  getRoundTotalStitches
 } from '../utils'
 import { StitchTypeInfo } from '../types'
 
@@ -69,12 +66,7 @@ export default function ProgressTrackingView() {
   const displayRoundNumber = viewingRound ?? currentProject.currentRound
   const displayRound = currentProject.pattern.find(r => r.roundNumber === displayRoundNumber)
   
-  const totalStitches = getProjectTotalStitches(currentProject)
-  const completedStitches = getProjectCompletedStitches(currentProject)
   const progressPercentage = getProjectProgressPercentage(currentProject)
-  
-  // 獲取顯示圈的展開針目
-  const expandedStitches = displayRound ? getExpandedStitches(displayRound) : []
   const currentStitchInRound = isViewMode ? 0 : currentProject.currentStitch // 查看模式下不顯示進度
   const totalStitchesInCurrentRound = displayRound ? getRoundTotalStitches(displayRound) : 0
 
@@ -171,7 +163,7 @@ export default function ProgressTrackingView() {
       )
     }
 
-    const stitchElements = []
+    const stitchElements: JSX.Element[] = []
     let stitchIndex = 0
 
     // 渲染個別針法

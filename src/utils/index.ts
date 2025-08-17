@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { Project, Round, StitchInfo, StitchGroup, Yarn, YarnColor, StitchType, StitchTypeInfo } from '../types'
+import { Project, Round, StitchGroup, Yarn, StitchType, StitchTypeInfo } from '../types'
 
 // CSS 類名合併工具
 export function cn(...inputs: ClassValue[]) {

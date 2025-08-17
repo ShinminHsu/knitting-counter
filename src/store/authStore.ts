@@ -20,7 +20,7 @@ interface AuthStore extends AuthState {
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       // 初始狀態
       user: null,
       isLoading: false,
