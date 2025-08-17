@@ -4,6 +4,7 @@ import { Project, WorkSession, Yarn, Round, StitchInfo, StitchGroup } from '../t
 import { generateId, createSampleProject, getRoundTotalStitches } from '../utils'
 // import { clearUserData as clearStoredUserData } from '../utils/userStorage'
 import { useAuthStore } from './authStore'
+// import { firestoreService, UserProfile } from '../services/firestoreService'
 
 interface AppStore {
   // 狀態
@@ -63,6 +64,8 @@ export const useAppStore = create<AppStore>()(
       currentProject: null,
       isLoading: false,
       error: null,
+      isSyncing: false,
+      lastSyncTime: null,
 
       // 基本動作
       setLoading: (loading) => set({ isLoading: loading }),

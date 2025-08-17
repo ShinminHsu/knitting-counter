@@ -16,7 +16,7 @@
 ### Commit 規範
 - 使用英文撰寫commit message
 - 保持簡潔，一句話描述更改
-- 不在commit message中包含 "with claude" 等AI相關字詞
+- 不在commit message中包含 "with claude"、"Co-Authored-By: Claude" 等AI相關字詞
 - 使用標準的conventional commit格式（如：feat:, fix:, refactor:等）
 
 ### UI/UX 設計規範

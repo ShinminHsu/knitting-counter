@@ -5,6 +5,8 @@ import {
   formatDuration, 
   getProjectProgressPercentage, 
   getProjectTotalRounds, 
+  getProjectTotalStitches,
+  getProjectCompletedStitches,
   getRoundTotalStitches
 } from '../utils'
 import { StitchTypeInfo } from '../types'
@@ -137,6 +139,7 @@ export default function ProgressTrackingView() {
   }
 
   // 獲取當前針目使用的毛線
+  /*
   const getCurrentStitchYarn = (): string | null => {
     if (isViewMode || !displayRound) return null
     
@@ -164,9 +167,10 @@ export default function ProgressTrackingView() {
     
     return null
   }
+  */
 
-  const currentYarnId = getCurrentStitchYarn()
-  const currentYarnColor = currentYarnId ? getYarnColor(currentYarnId) : '#000000'
+  // const currentYarnId = getCurrentStitchYarn()
+  // const currentYarnColor = currentYarnId ? getYarnColor(currentYarnId) : '#000000'
 
   // 渲染針目進度視覺化
   const renderStitchProgress = () => {
@@ -205,12 +209,14 @@ export default function ProgressTrackingView() {
             </div>
             <div 
               className={`text-xs font-bold transition-colors duration-300 ${
-                isCompleted || isCurrent 
-                  ? '' 
+                isCompleted 
+                  ? 'text-text-primary'
+                  : isCurrent 
+                  ? ''
                   : 'text-text-tertiary/50'
               }`}
               style={{ 
-                color: isCompleted || isCurrent ? yarnColor : undefined 
+                color: isCurrent ? yarnColor : undefined 
               }}
             >
               {stitchIndex + 1}
@@ -247,12 +253,14 @@ export default function ProgressTrackingView() {
                 </div>
                 <div 
                   className={`text-xs font-bold transition-colors duration-300 ${
-                    isCompleted || isCurrent 
-                      ? '' 
+                    isCompleted 
+                      ? 'text-text-primary'
+                      : isCurrent 
+                      ? ''
                       : 'text-text-tertiary/50'
                   }`}
                   style={{ 
-                    color: isCompleted || isCurrent ? yarnColor : undefined 
+                    color: isCurrent ? yarnColor : undefined 
                   }}
                 >
                   {stitchIndex + 1}
@@ -327,80 +335,112 @@ export default function ProgressTrackingView() {
               {Math.round(progressPercentage * 100)}%
             </span>
           </div>
-          <div className="w-full bg-background-tertiary rounded-full h-2">
+          <div className="w-full bg-background-tertiary rounded-full h-3 mb-4">
             <div
-              className="bg-gray-600 h-2 rounded-full transition-all duration-500"
+              className="bg-primary h-3 rounded-full transition-all duration-500"
               style={{ width: `${progressPercentage * 100}%` }}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-text-secondary">圈數進度</div>
+              <div className="font-semibold text-text-primary">
+                {Math.max(0, currentProject.currentRound - 1)} / {getProjectTotalRounds(currentProject)} 圈
+              </div>
+            </div>
+            <div>
+              <div className="text-text-secondary">針數進度</div>
+              <div className="font-semibold text-text-primary">
+                {getProjectCompletedStitches(currentProject)} / {getProjectTotalStitches(currentProject)} 針
+              </div>
+            </div>
           </div>
         </div>
 
         {/* 快速跳轉圈數 */}
         <div className="card">
           <h2 className="text-xl font-semibold text-text-primary mb-3">快速跳轉</h2>
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2">
-            {Array.from({ length: getProjectTotalRounds(currentProject) }, (_, i) => i + 1).map(roundNumber => {
-              const isCurrentRound = roundNumber === currentProject.currentRound
-              const isViewingRound = roundNumber === displayRoundNumber && isViewMode
-              
-              return (
-                <button
-                  key={roundNumber}
-                  onClick={() => handleJumpToRound(roundNumber)}
-                  className={`p-3 rounded-lg text-sm font-medium transition-colors ${
-                    isCurrentRound && !isViewMode
-                      ? 'bg-gray-600 text-white shadow-md'
-                      : isViewingRound
-                      ? 'bg-yellow-500 text-white shadow-md'
-                      : 'bg-background-tertiary text-text-secondary hover:bg-background-secondary'
-                  }`}
-                >
-                  R{roundNumber}
-                  {isViewingRound && <div className="text-xs">查看中</div>}
-                </button>
-              )
-            })}
+          <div className="flex items-center gap-4">
+            <label className="text-sm text-text-secondary">跳轉到第</label>
+            <select
+              value={displayRoundNumber}
+              onChange={(e) => handleJumpToRound(parseInt(e.target.value))}
+              className="input w-auto min-w-0 flex-shrink-0"
+            >
+              {Array.from({ length: getProjectTotalRounds(currentProject) }, (_, i) => i + 1).map(roundNumber => (
+                <option key={roundNumber} value={roundNumber}>
+                  {roundNumber}
+                </option>
+              ))}
+            </select>
+            <label className="text-sm text-text-secondary">圈</label>
+            {isViewMode && (
+              <span className="text-sm text-yellow-600 bg-yellow-50 px-2 py-1 rounded">查看模式</span>
+            )}
           </div>
         </div>
 
         {/* 針目進度與控制 */}
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-text-primary">
-                第 {displayRoundNumber} 圈
-                {isViewMode && (
-                  <span className="text-sm text-yellow-600 ml-2">(查看中)</span>
-                )}
-              </h2>
-              <div className="text-lg">
-                {isViewMode ? (
-                  <span className="text-text-secondary">總針數: {totalStitchesInCurrentRound} 針</span>
-                ) : (
-                  <>
-                    <span 
-                      className="font-semibold"
-                      style={{ color: currentYarnColor }}
-                    >
-                      {currentStitchInRound}
-                    </span>
-                    <span className="text-text-tertiary">/{totalStitchesInCurrentRound}針</span>
-                  </>
-                )}
-              </div>
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-primary mb-2">
+              第 {displayRoundNumber} 圈
+              {isViewMode && (
+                <span className="text-sm text-yellow-600 ml-2">(查看中)</span>
+              )}
+            </h2>
+            <div className="text-lg">
+              {isViewMode ? (
+                <span className="text-text-secondary">總針數: {totalStitchesInCurrentRound} 針</span>
+              ) : (
+                <div className="flex items-center justify-center space-x-1">
+                  <span className="text-sm text-text-secondary">當前進度</span>
+                  <span 
+                    className="text-lg font-bold"
+                    style={{ color: '#D97398' }}
+                  >
+                    {currentStitchInRound}
+                  </span>
+                  <span className="text-lg text-text-secondary">/ {totalStitchesInCurrentRound} 針</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {displayRound?.notes && (
-            <div className="bg-background-tertiary rounded-lg p-3 mb-4">
-              <div className="text-sm text-text-secondary mb-1">備註</div>
-              <div className="text-text-primary">{displayRound.notes}</div>
+
+          {/* 針數計數器 */}
+          {!isViewMode && (
+            <div className="flex items-center justify-center space-x-4 mb-6">
+              <button
+                onClick={handlePreviousStitch}
+                disabled={currentProject.currentRound === 1 && currentProject.currentStitch === 0}
+                className="flex items-center justify-center w-12 h-12 rounded-xl border-2 border-border bg-background-tertiary text-text-secondary hover:bg-background-secondary hover:border-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <span className="text-xl font-bold">−</span>
+              </button>
+              
+              <div className="text-center">
+                <div className="text-4xl font-bold text-primary">{currentStitchInRound}</div>
+                <div className="text-sm text-text-secondary">針數</div>
+              </div>
+              
+              <button
+                onClick={handleNextStitch}
+                className="flex items-center justify-center w-12 h-12 rounded-xl border-2 border-border bg-background-tertiary text-text-secondary hover:bg-background-secondary hover:border-primary transition-all"
+              >
+                <span className="text-xl font-bold">+</span>
+              </button>
             </div>
           )}
 
           {/* 針目進度視覺化 */}
           <div className="mb-6">
             {renderStitchProgress()}
+            {displayRound?.notes && (
+              <div className="text-xs text-text-tertiary mt-3">
+                {displayRound.notes}
+              </div>
+            )}
           </div>
 
           {/* 控制按鈕 */}
@@ -440,12 +480,10 @@ export default function ProgressTrackingView() {
                 </button>
                 <button
                   onClick={() => {
-                    // 可以在這裡添加分享功能
                     navigator.share?.({
                       title: `我完成了編織作品：${currentProject.name}`,
                       text: `使用編織計數器完成了「${currentProject.name}」的編織！`,
                     }).catch(() => {
-                      // 如果不支持分享，可以複製到剪貼板
                       alert('編織完成！')
                     })
                   }}
@@ -457,29 +495,11 @@ export default function ProgressTrackingView() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button
-                  onClick={handlePreviousStitch}
-                  disabled={currentProject.currentRound === 1 && currentProject.currentStitch === 0}
-                  className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed text-lg py-4 flex items-center justify-center gap-2"
-                >
-                  <span>←</span>
-                  上一針
-                </button>
-                <button
-                  onClick={handleNextStitch}
-                  className="btn btn-primary text-lg py-4 flex items-center justify-center gap-2"
-                >
-                  下一針
-                  <span>→</span>
-                </button>
-              </div>
-
               {/* 完成此圈按鈕 - 只在非查看模式且為當前圈時顯示 */}
-              {displayRoundNumber === currentProject.currentRound && (
+              {displayRoundNumber === currentProject.currentRound && currentStitchInRound === totalStitchesInCurrentRound && (
                 <button
                   onClick={handleCompleteRound}
-                  className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                  className="w-full bg-primary hover:bg-primary-dark text-white font-medium py-4 px-4 rounded-lg transition-colors"
                 >
                   完成第 {displayRoundNumber} 圈
                 </button>
