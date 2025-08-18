@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Project, WorkSession, Yarn, Round, StitchInfo, StitchGroup } from '../types'
 import { generateId, createSampleProject, getRoundTotalStitches } from '../utils'
+// import { clearUserData as clearStoredUserData } from '../utils/userStorage'
+import { useAuthStore } from './authStore'
+// import { firestoreService, UserProfile } from '../services/firestoreService'
 
 interface AppStore {
   // 狀態
@@ -13,6 +16,11 @@ interface AppStore {
   // 動作
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
+  
+  // 用戶數據管理
+  clearUserData: () => void
+  clearUserDataSilently: () => void
+  loadUserProjects: () => Promise<void>
   
   // 專案管理
   createProject: (name: string, source?: string) => void
@@ -35,6 +43,12 @@ interface AppStore {
   deleteRound: (roundNumber: number) => void
   addStitchToRound: (roundNumber: number, stitch: StitchInfo) => void
   addStitchGroupToRound: (roundNumber: number, group: StitchGroup) => void
+  updateStitchInRound: (roundNumber: number, stitchId: string, updatedStitch: StitchInfo) => void
+  deleteStitchFromRound: (roundNumber: number, stitchId: string) => void
+  reorderStitchesInRound: (roundNumber: number, fromIndex: number, toIndex: number) => void
+  updateStitchGroupInRound: (roundNumber: number, groupId: string, updatedGroup: StitchGroup) => void
+  deleteStitchGroupFromRound: (roundNumber: number, groupId: string) => void
+  reorderStitchGroupsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => void
   
   // 毛線管理
   addYarn: (yarn: Yarn) => void
@@ -50,10 +64,97 @@ export const useAppStore = create<AppStore>()(
       currentProject: null,
       isLoading: false,
       error: null,
+      isSyncing: false,
+      lastSyncTime: null,
 
       // 基本動作
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
+      
+      // 用戶數據管理
+      clearUserData: () => {
+        // 這個方法會觸發持久化，用於登出時清空界面
+        set({
+          projects: [],
+          currentProject: null,
+          error: null
+        })
+      },
+      
+      clearUserDataSilently: () => {
+        // 這個方法不會觸發持久化，只清空內存狀態
+        // 用於用戶切換時的臨時清空
+        const currentState = get()
+        Object.assign(currentState, {
+          projects: [],
+          currentProject: null,
+          error: null
+        })
+      },
+      
+      loadUserProjects: async () => {
+        const { user } = useAuthStore.getState()
+        if (!user) {
+          // 如果沒有用戶，清空數據
+          get().clearUserDataSilently()
+          return
+        }
+        
+        // 手動從 localStorage 加載用戶數據
+        const userStorageKey = `user_${user.uid}_knitting-counter-storage`
+        const savedData = localStorage.getItem(userStorageKey)
+        
+        console.log('Manual loading for user:', user.uid, 'hasData:', !!savedData)
+        
+        if (savedData) {
+          try {
+            const parsed = JSON.parse(savedData)
+            const state = parsed.state || parsed
+            
+            // 轉換日期
+            if (state.projects) {
+              state.projects = state.projects.map((project: any) => ({
+                ...project,
+                createdDate: new Date(project.createdDate),
+                lastModified: new Date(project.lastModified),
+                sessions: project.sessions?.map((session: any) => ({
+                  ...session,
+                  startTime: new Date(session.startTime)
+                })) || []
+              }))
+            }
+            
+            if (state.currentProject) {
+              state.currentProject = {
+                ...state.currentProject,
+                createdDate: new Date(state.currentProject.createdDate),
+                lastModified: new Date(state.currentProject.lastModified),
+                sessions: state.currentProject.sessions?.map((session: any) => ({
+                  ...session,
+                  startTime: new Date(session.startTime)
+                })) || []
+              }
+            }
+            
+            console.log('Loaded projects:', state.projects?.length || 0)
+            set({
+              projects: state.projects || [],
+              currentProject: state.currentProject || null
+            })
+            return
+          } catch (error) {
+            console.error('Error parsing saved data:', error)
+          }
+        }
+        
+        // 如果沒有數據，建立樣本專案
+        console.log('No saved data, creating sample project')
+        const sampleProject = createSampleProject()
+        set({
+          projects: [sampleProject],
+          currentProject: sampleProject
+        })
+      },
 
       // 專案管理
       createProject: (name, source) => {
@@ -121,25 +222,72 @@ export const useAppStore = create<AppStore>()(
       // 編織進度管理
       nextStitch: () => {
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[DEBUG] nextStitch: No current project')
+          return
+        }
+
+        // 如果已經完成，不允許繼續
+        if (currentProject.isCompleted) {
+          console.log('[DEBUG] nextStitch: Project already completed')
+          return
+        }
 
         const currentRound = currentProject.pattern.find(r => r.roundNumber === currentProject.currentRound)
-        if (!currentRound) return
+        if (!currentRound) {
+          console.log('[DEBUG] nextStitch: Current round not found', currentProject.currentRound)
+          return
+        }
 
         const totalStitchesInRound = getRoundTotalStitches(currentRound)
         let newStitch = currentProject.currentStitch + 1
         let newRound = currentProject.currentRound
+        let isCompleted = false
 
-        // 如果超過當前圈數的針數，移到下一圈
+        console.log('[DEBUG] nextStitch: Current state', {
+          currentRound: currentProject.currentRound,
+          currentStitch: currentProject.currentStitch,
+          newStitch,
+          totalStitchesInRound,
+          patternRounds: currentProject.pattern.map(r => r.roundNumber)
+        })
+
+        // 如果超過當前圈數的針數，檢查是否完成或移到下一圈
         if (newStitch >= totalStitchesInRound) {
-          newStitch = 0
-          newRound = currentProject.currentRound + 1
+          // 檢查是否還有更多圈數
+          const maxRoundNumber = Math.max(...currentProject.pattern.map(r => r.roundNumber))
+          
+          console.log('[DEBUG] nextStitch: Checking completion', {
+            currentRound: currentProject.currentRound,
+            maxRoundNumber,
+            shouldComplete: currentProject.currentRound >= maxRoundNumber
+          })
+          
+          if (currentProject.currentRound >= maxRoundNumber) {
+            // 已完成所有圈數
+            console.log('[DEBUG] nextStitch: Setting project as completed')
+            isCompleted = true
+            newStitch = totalStitchesInRound // 保持在最後一針
+            newRound = currentProject.currentRound // 保持在最後一圈
+          } else {
+            // 移到下一圈
+            console.log('[DEBUG] nextStitch: Moving to next round')
+            newStitch = 0
+            newRound = currentProject.currentRound + 1
+          }
         }
+
+        console.log('[DEBUG] nextStitch: Final state', {
+          newRound,
+          newStitch,
+          isCompleted
+        })
 
         const updatedProject = {
           ...currentProject,
           currentRound: newRound,
           currentStitch: newStitch,
+          isCompleted,
           lastModified: new Date()
         }
 
@@ -361,6 +509,156 @@ export const useAppStore = create<AppStore>()(
         get().updateProject(updatedProject)
       },
 
+      updateStitchInRound: (roundNumber, stitchId, updatedStitch) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return {
+              ...round,
+              stitches: round.stitches.map(stitch => 
+                stitch.id === stitchId ? updatedStitch : stitch
+              )
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      deleteStitchFromRound: (roundNumber, stitchId) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return {
+              ...round,
+              stitches: round.stitches.filter(stitch => stitch.id !== stitchId)
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      reorderStitchesInRound: (roundNumber, fromIndex, toIndex) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            const newStitches = [...round.stitches]
+            const [removed] = newStitches.splice(fromIndex, 1)
+            newStitches.splice(toIndex, 0, removed)
+            
+            return {
+              ...round,
+              stitches: newStitches
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      updateStitchGroupInRound: (roundNumber, groupId, updatedGroup) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return {
+              ...round,
+              stitchGroups: round.stitchGroups.map(group => 
+                group.id === groupId ? updatedGroup : group
+              )
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      deleteStitchGroupFromRound: (roundNumber, groupId) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return {
+              ...round,
+              stitchGroups: round.stitchGroups.filter(group => group.id !== groupId)
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
+      reorderStitchGroupsInRound: (roundNumber, fromIndex, toIndex) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            const newGroups = [...round.stitchGroups]
+            const [removed] = newGroups.splice(fromIndex, 1)
+            newGroups.splice(toIndex, 0, removed)
+            
+            return {
+              ...round,
+              stitchGroups: newGroups
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        get().updateProject(updatedProject)
+      },
+
       // 毛線管理
       addYarn: (yarn) => {
         const { currentProject } = get()
@@ -409,11 +707,40 @@ export const useAppStore = create<AppStore>()(
         projects: state.projects,
         currentProject: state.currentProject
       }),
-      // 自定義序列化和反序列化來處理日期
+      // 自定義序列化和反序列化來處理日期和用戶隔離
       storage: {
         getItem: (name) => {
-          const str = localStorage.getItem(name)
-          if (!str) return null
+          const { user } = useAuthStore.getState()
+          console.log('getItem called:', { name, user: user?.uid })
+          
+          if (!user) {
+            console.log('No user - returning empty state')
+            // 沒有用戶時返回空狀態，而不是 null
+            return JSON.stringify({
+              state: {
+                projects: [],
+                currentProject: null
+              },
+              version: 0
+            })
+          }
+          
+          const userStorageKey = `user_${user.uid}_${name}`
+          const str = localStorage.getItem(userStorageKey)
+          console.log('Loading from storage:', { userStorageKey, hasData: !!str })
+          
+          if (!str) {
+            console.log('No data found - returning empty state')
+            // 沒有數據時返回空狀態
+            return JSON.stringify({
+              state: {
+                projects: [],
+                currentProject: null
+              },
+              version: 0
+            })
+          }
+          
           try {
             const data = JSON.parse(str)
             // 轉換日期字符串回Date對象
@@ -447,10 +774,25 @@ export const useAppStore = create<AppStore>()(
           }
         },
         setItem: (name, value) => {
-          localStorage.setItem(name, JSON.stringify(value))
+          const { user } = useAuthStore.getState()
+          if (!user) {
+            console.log('No user - skipping save to localStorage')
+            return
+          }
+          
+          const userStorageKey = `user_${user.uid}_${name}`
+          console.log(`Saving to ${userStorageKey}`, { 
+            projects: value?.state?.projects?.length || 0,
+            currentProject: value?.state?.currentProject?.name || 'none'
+          })
+          localStorage.setItem(userStorageKey, JSON.stringify(value))
         },
         removeItem: (name) => {
-          localStorage.removeItem(name)
+          const { user } = useAuthStore.getState()
+          if (!user) return
+          
+          const userStorageKey = `user_${user.uid}_${name}`
+          localStorage.removeItem(userStorageKey)
         }
       }
     }

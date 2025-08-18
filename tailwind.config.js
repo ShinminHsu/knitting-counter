@@ -26,7 +26,7 @@ export default {
         shadow: 'rgba(0, 0, 0, 0.1)'
       },
       fontFamily: {
-        sans: ['Inter', 'Hiragino Sans CNS', 'system-ui', 'sans-serif']
+        sans: ['jf-openhuninn', 'system-ui', 'sans-serif']
       },
       spacing: {
         '18': '4.5rem',

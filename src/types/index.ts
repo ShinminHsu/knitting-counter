@@ -91,6 +91,7 @@ export interface Project {
   sessions: WorkSession[]
   createdDate: Date
   lastModified: Date
+  isCompleted?: boolean // 編織是否已完成
 }
 
 // 匯出/匯入相關類型

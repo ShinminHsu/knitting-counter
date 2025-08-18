@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import App from './App.tsx'
+import AppWithSync from './AppWithSync.tsx'
 import './index.css'
 
 // Register PWA service worker
@@ -20,7 +20,7 @@ if ('serviceWorker' in navigator) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <AppWithSync />
     </BrowserRouter>
   </React.StrictMode>,
 )

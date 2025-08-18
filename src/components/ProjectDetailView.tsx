@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useAppStore } from '../store'
+import { useSyncedAppStore } from '../store/syncedAppStore'
 import { formatDate, getProjectTotalRounds, getProjectTotalStitches, describeRound, getRoundTotalStitches } from '../utils'
 
 export default function ProjectDetailView() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
-  const { currentProject, setCurrentProject, projects } = useAppStore()
+  const { currentProject, setCurrentProject, projects } = useSyncedAppStore()
 
   useEffect(() => {
     if (projectId) {

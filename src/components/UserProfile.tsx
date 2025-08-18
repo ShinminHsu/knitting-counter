@@ -2,6 +2,15 @@ import { useAuthStore } from '../store/authStore'
 
 export default function UserProfile() {
   const { user, signOut, isLoading } = useAuthStore()
+  
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      // clearUserData 會在 App.tsx 的 useEffect 中自動調用
+    } catch (error) {
+      console.error('登出失敗:', error)
+    }
+  }
 
   if (!user) return null
 
@@ -26,9 +35,10 @@ export default function UserProfile() {
       </div>
       
       <button
-        onClick={signOut}
+        onClick={handleSignOut}
         disabled={isLoading}
         className="text-xs sm:text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+        title="登出並清除當前用戶數據"
       >
         {isLoading ? '登出中...' : '登出'}
       </button>
