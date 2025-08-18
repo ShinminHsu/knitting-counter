@@ -52,5 +52,18 @@ export default defineConfig({
     alias: {
       '@': '/src'
     }
+  },
+  optimizeDeps: {
+    include: ['lucide-react']
+  },
+  build: {
+    rollupOptions: {
+      external: [],
+      output: {
+        manualChunks: {
+          'lucide-react': ['lucide-react']
+        }
+      }
+    }
   }
 })
