@@ -52,14 +52,5 @@ export default defineConfig({
     alias: {
       '@': '/src'
     }
-  },
-  optimizeDeps: {
-    include: ['lucide-react'],
-    force: true
-  },
-  build: {
-    commonjsOptions: {
-      include: [/lucide-react/, /node_modules/]
-    }
   }
 })

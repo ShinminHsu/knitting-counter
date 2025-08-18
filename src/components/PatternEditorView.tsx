@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { SquarePen, Trash2, Pencil, Check, X } from 'lucide-react'
+import { FaRegEdit } from 'react-icons/fa'
+import { VscEdit } from 'react-icons/vsc'
+import { BsTrash } from 'react-icons/bs'
+import { CiCircleCheck } from 'react-icons/ci'
+import { RxCrossCircled } from 'react-icons/rx'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
@@ -364,7 +368,7 @@ export default function PatternEditorView() {
         {currentProject.pattern.length === 0 ? (
           <div className="card text-center py-12">
             <div className="mb-4 flex justify-center">
-              <SquarePen className="w-8 h-8 text-text-tertiary" />
+              <FaRegEdit className="w-8 h-8 text-text-tertiary" />
             </div>
             <h3 className="text-xl font-semibold text-text-primary mb-2">
               還沒有織圖圈數
@@ -417,7 +421,7 @@ export default function PatternEditorView() {
                       onClick={() => handleDeleteRound(round.roundNumber)}
                       className="text-text-tertiary hover:text-red-500 transition-colors p-2"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <BsTrash className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
@@ -503,13 +507,13 @@ export default function PatternEditorView() {
                                   onClick={() => handleUpdateStitch(round.roundNumber, stitch.id)}
                                   className="text-green-500 hover:text-green-600 p-2"
                                 >
-                                  <Check className="w-5 h-5" />
+                                  <CiCircleCheck className="w-5 h-5" />
                                 </button>
                                 <button
                                   onClick={() => setEditingStitch(null)}
                                   className="text-text-tertiary hover:text-text-secondary p-2"
                                 >
-                                  <X className="w-5 h-5" />
+                                  <RxCrossCircled className="w-5 h-5" />
                                 </button>
                               </div>
                             ) : (
@@ -525,13 +529,13 @@ export default function PatternEditorView() {
                                     onClick={() => handleEditStitch(round.roundNumber, stitch)}
                                     className="text-text-tertiary hover:text-primary p-2"
                                   >
-                                    <Pencil className="w-5 h-5" />
+                                    <VscEdit className="w-5 h-5" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteStitch(round.roundNumber, stitch.id)}
                                     className="text-text-tertiary hover:text-red-500 p-2"
                                   >
-                                    <Trash2 className="w-5 h-5" />
+                                    <BsTrash className="w-5 h-5" />
                                   </button>
                                 </div>
                               </div>
@@ -578,13 +582,13 @@ export default function PatternEditorView() {
                                   onClick={() => handleUpdateGroup(round.roundNumber, group.id, group)}
                                   className="text-green-500 hover:text-green-600 p-2"
                                 >
-                                  <Check className="w-5 h-5" />
+                                  <CiCircleCheck className="w-5 h-5" />
                                 </button>
                                 <button
                                   onClick={() => setEditingGroup(null)}
                                   className="text-text-tertiary hover:text-text-secondary p-2"
                                 >
-                                  <X className="w-5 h-5" />
+                                  <RxCrossCircled className="w-5 h-5" />
                                 </button>
                               </div>
                             ) : (
@@ -600,13 +604,13 @@ export default function PatternEditorView() {
                                     onClick={() => handleEditGroup(round.roundNumber, group)}
                                     className="text-text-tertiary hover:text-primary p-2"
                                   >
-                                    <Pencil className="w-5 h-5" />
+                                    <VscEdit className="w-5 h-5" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteGroup(round.roundNumber, group.id)}
                                     className="text-text-tertiary hover:text-red-500 p-2"
                                   >
-                                    <Trash2 className="w-5 h-5" />
+                                    <BsTrash className="w-5 h-5" />
                                   </button>
                                 </div>
                               </>
@@ -643,13 +647,13 @@ export default function PatternEditorView() {
                                         onClick={() => handleUpdateGroupStitch(round.roundNumber, group.id, stitch.id)}
                                         className="text-green-500 hover:text-green-600 p-2"
                                       >
-                                        <Check className="w-5 h-5" />
+                                        <CiCircleCheck className="w-5 h-5" />
                                       </button>
                                       <button
                                         onClick={() => setEditingGroupStitch(null)}
                                         className="text-text-tertiary hover:text-text-secondary p-2"
                                       >
-                                        <X className="w-5 h-5" />
+                                        <RxCrossCircled className="w-5 h-5" />
                                       </button>
                                     </div>
                                   ) : (
@@ -665,13 +669,13 @@ export default function PatternEditorView() {
                                           onClick={() => handleEditGroupStitch(round.roundNumber, group.id, stitch)}
                                           className="text-text-tertiary hover:text-primary p-2"
                                         >
-                                          <Pencil className="w-5 h-5" />
+                                          <VscEdit className="w-5 h-5" />
                                         </button>
                                         <button
                                           onClick={() => handleDeleteGroupStitch(round.roundNumber, group.id, stitch.id)}
                                           className="text-text-tertiary hover:text-red-500 p-2"
                                         >
-                                          <Trash2 className="w-5 h-5" />
+                                          <BsTrash className="w-5 h-5" />
                                         </button>
                                       </div>
                                     </div>
@@ -802,7 +806,7 @@ export default function PatternEditorView() {
                               onClick={() => handleRemoveStitchFromGroup(stitch.id)}
                               className="text-text-tertiary hover:text-red-500 transition-colors p-2"
                             >
-                              <Trash2 className="w-5 h-5" />
+                              <BsTrash className="w-5 h-5" />
                             </button>
                           </div>
                         ))}

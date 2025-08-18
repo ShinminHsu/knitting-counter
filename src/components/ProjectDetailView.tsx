@@ -1,6 +1,9 @@
 import { useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { CirclePlay, SquarePen, Volleyball, CloudUpload } from 'lucide-react'
+import { IoPlayCircleOutline } from 'react-icons/io5'
+import { FaRegEdit } from 'react-icons/fa'
+import { LiaVolleyballBallSolid } from 'react-icons/lia'
+import { FiUploadCloud } from 'react-icons/fi'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { formatDate, getProjectTotalRounds, getProjectTotalStitches, describeRound, getRoundTotalStitches } from '../utils'
@@ -121,7 +124,7 @@ export default function ProjectDetailView() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 flex items-center justify-center">
-                <CirclePlay className="w-8 h-8 text-text-secondary" />
+                <IoPlayCircleOutline className="w-8 h-8 text-text-secondary" />
               </div>
               <div>
                 <h3 className="font-semibold text-text-primary">開始編織</h3>
@@ -136,7 +139,7 @@ export default function ProjectDetailView() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 flex items-center justify-center">
-                <SquarePen className="w-8 h-8 text-text-secondary" />
+                <FaRegEdit className="w-8 h-8 text-text-secondary" />
               </div>
               <div>
                 <h3 className="font-semibold text-text-primary">編輯織圖</h3>
@@ -151,7 +154,7 @@ export default function ProjectDetailView() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 flex items-center justify-center">
-                <Volleyball className="w-8 h-8 text-text-secondary" />
+                <LiaVolleyballBallSolid className="w-8 h-8 text-text-secondary" />
               </div>
               <div>
                 <h3 className="font-semibold text-text-primary">毛線管理</h3>
@@ -166,7 +169,7 @@ export default function ProjectDetailView() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 flex items-center justify-center">
-                <CloudUpload className="w-8 h-8 text-text-secondary" />
+                <FiUploadCloud className="w-8 h-8 text-text-secondary" />
               </div>
               <div>
                 <h3 className="font-semibold text-text-primary">匯入匯出</h3>
@@ -183,7 +186,7 @@ export default function ProjectDetailView() {
           {currentProject.yarns.length === 0 ? (
             <div className="text-center py-8">
               <div className="mb-3 flex justify-center">
-                <Volleyball className="w-8 h-8 text-text-tertiary" />
+                <LiaVolleyballBallSolid className="w-8 h-8 text-text-tertiary" />
               </div>
               <p className="text-text-tertiary mb-3">尚未添加毛線</p>
               <Link
@@ -221,7 +224,7 @@ export default function ProjectDetailView() {
           {currentProject.pattern.length === 0 ? (
             <div className="text-center py-8">
               <div className="mb-3 flex justify-center">
-                <SquarePen className="w-8 h-8 text-text-tertiary" />
+                <FaRegEdit className="w-8 h-8 text-text-tertiary" />
               </div>
               <p className="text-text-tertiary mb-3">尚未建立織圖</p>
               <Link
