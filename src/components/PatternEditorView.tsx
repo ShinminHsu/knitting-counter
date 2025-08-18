@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
+import { SquarePen } from 'lucide-react'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
@@ -347,7 +348,9 @@ export default function PatternEditorView() {
         {/* 圈數列表 */}
         {currentProject.pattern.length === 0 ? (
           <div className="card text-center py-12">
-            <div className="text-6xl mb-4">📝</div>
+            <div className="mb-4 flex justify-center">
+              <SquarePen className="w-8 h-8 text-text-tertiary" />
+            </div>
             <h3 className="text-xl font-semibold text-text-primary mb-2">
               還沒有織圖圈數
             </h3>

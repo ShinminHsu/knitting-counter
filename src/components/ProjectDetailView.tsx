@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
+import { CirclePlay, SquarePen, Volleyball, CloudUpload } from 'lucide-react'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { formatDate, getProjectTotalRounds, getProjectTotalStitches, describeRound, getRoundTotalStitches } from '../utils'
@@ -119,7 +120,9 @@ export default function ProjectDetailView() {
             className="card hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="text-3xl">▶️</div>
+              <div className="w-12 h-12 flex items-center justify-center">
+                <CirclePlay className="w-8 h-8 text-text-secondary" />
+              </div>
               <div>
                 <h3 className="font-semibold text-text-primary">開始編織</h3>
                 <p className="text-sm text-text-secondary">追蹤編織進度</p>
@@ -132,7 +135,9 @@ export default function ProjectDetailView() {
             className="card hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="text-3xl">📝</div>
+              <div className="w-12 h-12 flex items-center justify-center">
+                <SquarePen className="w-8 h-8 text-text-secondary" />
+              </div>
               <div>
                 <h3 className="font-semibold text-text-primary">編輯織圖</h3>
                 <p className="text-sm text-text-secondary">管理圈數和針法</p>
@@ -145,7 +150,9 @@ export default function ProjectDetailView() {
             className="card hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="text-3xl">🧶</div>
+              <div className="w-12 h-12 flex items-center justify-center">
+                <Volleyball className="w-8 h-8 text-text-secondary" />
+              </div>
               <div>
                 <h3 className="font-semibold text-text-primary">毛線管理</h3>
                 <p className="text-sm text-text-secondary">管理專案毛線</p>
@@ -158,7 +165,9 @@ export default function ProjectDetailView() {
             className="card hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="text-3xl">📤</div>
+              <div className="w-12 h-12 flex items-center justify-center">
+                <CloudUpload className="w-8 h-8 text-text-secondary" />
+              </div>
               <div>
                 <h3 className="font-semibold text-text-primary">匯入匯出</h3>
                 <p className="text-sm text-text-secondary">備份和分享</p>
@@ -173,7 +182,9 @@ export default function ProjectDetailView() {
           
           {currentProject.yarns.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-4xl mb-3">🧶</div>
+              <div className="mb-3 flex justify-center">
+                <Volleyball className="w-8 h-8 text-text-tertiary" />
+              </div>
               <p className="text-text-tertiary mb-3">尚未添加毛線</p>
               <Link
                 to={`/project/${currentProject.id}/yarns`}
@@ -209,7 +220,9 @@ export default function ProjectDetailView() {
           
           {currentProject.pattern.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-4xl mb-3">📝</div>
+              <div className="mb-3 flex justify-center">
+                <SquarePen className="w-8 h-8 text-text-tertiary" />
+              </div>
               <p className="text-text-tertiary mb-3">尚未建立織圖</p>
               <Link
                 to={`/project/${currentProject.id}/pattern`}
