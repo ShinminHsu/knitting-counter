@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useAppStore } from '../store'
+import { useSyncedAppStore } from '../store/syncedAppStore'
 import { 
   formatDuration, 
   getProjectProgressPercentage, 
@@ -24,7 +24,7 @@ export default function ProgressTrackingView() {
     startSession,
     endSession,
     updateProject
-  } = useAppStore()
+  } = useSyncedAppStore()
 
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)

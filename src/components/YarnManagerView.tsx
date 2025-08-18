@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useAppStore } from '../store'
+import { useSyncedAppStore } from '../store/syncedAppStore'
 import { Yarn, YarnColor } from '../types'
 import { generateId } from '../utils'
 
@@ -22,7 +22,7 @@ const presetColors: YarnColor[] = [
 export default function YarnManagerView() {
   const { projectId } = useParams()
   const navigate = useNavigate()
-  const { currentProject, setCurrentProject, projects, addYarn, updateYarn, deleteYarn } = useAppStore()
+  const { currentProject, setCurrentProject, projects, addYarn, updateYarn, deleteYarn } = useSyncedAppStore()
   
   const [showAddYarn, setShowAddYarn] = useState(false)
   const [editingYarn, setEditingYarn] = useState<Yarn | null>(null)

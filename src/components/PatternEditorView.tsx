@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useAppStore } from '../store'
+import { useSyncedAppStore } from '../store/syncedAppStore'
 import { 
   generateId,
   getRoundTotalStitches,
@@ -26,7 +26,7 @@ export default function PatternEditorView() {
     updateStitchGroupInRound,
     deleteStitchGroupFromRound,
     reorderStitchGroupsInRound
-  } = useAppStore()
+  } = useSyncedAppStore()
 
   const [showAddRoundForm, setShowAddRoundForm] = useState(false)
   const [showAddStitchForm, setShowAddStitchForm] = useState<number | null>(null)
