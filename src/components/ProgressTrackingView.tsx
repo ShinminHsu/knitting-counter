@@ -207,9 +207,9 @@ export default function ProgressTrackingView() {
         stitchElements.push(
           <div
             key={`${stitch.id}-${i}`}
-            className="flex flex-col items-center justify-center w-12 h-12 transition-all duration-300"
+            className="flex flex-col items-center justify-center w-16 h-16 transition-all duration-300"
           >
-            <div className={`text-lg font-bold transition-colors duration-300 ${
+            <div className={`text-2xl font-bold transition-colors duration-300 ${
               isCompleted 
                 ? 'text-text-primary' 
                 : isCurrent 
@@ -219,7 +219,7 @@ export default function ProgressTrackingView() {
               {StitchTypeInfo[stitch.type]?.symbol || '○'}
             </div>
             <div 
-              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+              className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                 isCompleted || isCurrent
                   ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
                   : ''
@@ -247,9 +247,9 @@ export default function ProgressTrackingView() {
             stitchElements.push(
               <div
                 key={`${group.id}-${repeat}-${stitch.id}-${i}`}
-                className="flex flex-col items-center justify-center w-12 h-12 transition-all duration-300"
+                className="flex flex-col items-center justify-center w-16 h-16 transition-all duration-300"
               >
-                <div className={`text-lg font-bold transition-colors duration-300 ${
+                <div className={`text-2xl font-bold transition-colors duration-300 ${
                   isCompleted 
                     ? 'text-text-primary' 
                     : isCurrent 
@@ -259,7 +259,7 @@ export default function ProgressTrackingView() {
                   {StitchTypeInfo[stitch.type]?.symbol || '○'}
                 </div>
                 <div 
-                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                     isCompleted || isCurrent
                       ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
                       : ''

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { SquarePen } from 'lucide-react'
+import { SquarePen, Trash2, Pencil, Check, X } from 'lucide-react'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
@@ -265,6 +265,21 @@ export default function PatternEditorView() {
     setEditingGroupStitch(null)
   }
 
+  const handleDeleteGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
+    if (confirm('確定要刪除這個針法嗎？')) {
+      const round = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+      const group = round?.stitchGroups.find(g => g.id === groupId)
+      
+      if (group) {
+        const updatedGroup = {
+          ...group,
+          stitches: group.stitches.filter(s => s.id !== stitchId)
+        }
+        await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+      }
+    }
+  }
+
   const handleDragStart = (_e: React.DragEvent, item: any, index: number, type: 'stitch' | 'group') => {
     if (type === 'stitch') {
       setDraggedStitch({ index, stitch: item })
@@ -400,9 +415,9 @@ export default function PatternEditorView() {
                     </button>
                     <button
                       onClick={() => handleDeleteRound(round.roundNumber)}
-                      className="text-text-tertiary hover:text-red-500 transition-colors"
+                      className="text-text-tertiary hover:text-red-500 transition-colors p-2"
                     >
-                      刪除
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
@@ -450,7 +465,6 @@ export default function PatternEditorView() {
                 {/* 個別針法 */}
                 {round.stitches.length > 0 && (
                   <div className="mb-4">
-                    <h4 className="font-medium text-text-primary mb-2">針法</h4>
                     <div className="space-y-2">
                       {round.stitches.map((stitch, index) => (
                         <div 
@@ -487,15 +501,15 @@ export default function PatternEditorView() {
                                 />
                                 <button
                                   onClick={() => handleUpdateStitch(round.roundNumber, stitch.id)}
-                                  className="text-green-500 hover:text-green-600 text-sm"
+                                  className="text-green-500 hover:text-green-600 p-2"
                                 >
-                                  ✓
+                                  <Check className="w-5 h-5" />
                                 </button>
                                 <button
                                   onClick={() => setEditingStitch(null)}
-                                  className="text-text-tertiary hover:text-text-secondary text-sm"
+                                  className="text-text-tertiary hover:text-text-secondary p-2"
                                 >
-                                  ✕
+                                  <X className="w-5 h-5" />
                                 </button>
                               </div>
                             ) : (
@@ -509,15 +523,15 @@ export default function PatternEditorView() {
                                 <div className="flex items-center gap-1 ml-auto">
                                   <button
                                     onClick={() => handleEditStitch(round.roundNumber, stitch)}
-                                    className="text-text-tertiary hover:text-primary text-sm"
+                                    className="text-text-tertiary hover:text-primary p-2"
                                   >
-                                    編輯
+                                    <Pencil className="w-5 h-5" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteStitch(round.roundNumber, stitch.id)}
-                                    className="text-text-tertiary hover:text-red-500 text-sm"
+                                    className="text-text-tertiary hover:text-red-500 p-2"
                                   >
-                                    刪除
+                                    <Trash2 className="w-5 h-5" />
                                   </button>
                                 </div>
                               </div>
@@ -532,7 +546,6 @@ export default function PatternEditorView() {
                 {/* 針目群組 */}
                 {round.stitchGroups.length > 0 && (
                   <div className="mb-4">
-                    <h4 className="font-medium text-text-primary mb-2">針目群組</h4>
                     <div className="space-y-3">
                       {round.stitchGroups.map((group, index) => (
                         <div 
@@ -563,15 +576,15 @@ export default function PatternEditorView() {
                                 <span className="text-sm text-text-secondary">次</span>
                                 <button
                                   onClick={() => handleUpdateGroup(round.roundNumber, group.id, group)}
-                                  className="text-green-500 hover:text-green-600 text-sm"
+                                  className="text-green-500 hover:text-green-600 p-2"
                                 >
-                                  ✓
+                                  <Check className="w-5 h-5" />
                                 </button>
                                 <button
                                   onClick={() => setEditingGroup(null)}
-                                  className="text-text-tertiary hover:text-text-secondary text-sm"
+                                  className="text-text-tertiary hover:text-text-secondary p-2"
                                 >
-                                  ✕
+                                  <X className="w-5 h-5" />
                                 </button>
                               </div>
                             ) : (
@@ -585,15 +598,15 @@ export default function PatternEditorView() {
                                   </div>
                                   <button
                                     onClick={() => handleEditGroup(round.roundNumber, group)}
-                                    className="text-text-tertiary hover:text-primary text-sm"
+                                    className="text-text-tertiary hover:text-primary p-2"
                                   >
-                                    編輯
+                                    <Pencil className="w-5 h-5" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteGroup(round.roundNumber, group.id)}
-                                    className="text-text-tertiary hover:text-red-500 text-sm"
+                                    className="text-text-tertiary hover:text-red-500 p-2"
                                   >
-                                    刪除
+                                    <Trash2 className="w-5 h-5" />
                                   </button>
                                 </div>
                               </>
@@ -628,15 +641,15 @@ export default function PatternEditorView() {
                                       />
                                       <button
                                         onClick={() => handleUpdateGroupStitch(round.roundNumber, group.id, stitch.id)}
-                                        className="text-green-500 hover:text-green-600 text-sm"
+                                        className="text-green-500 hover:text-green-600 p-2"
                                       >
-                                        ✓
+                                        <Check className="w-5 h-5" />
                                       </button>
                                       <button
                                         onClick={() => setEditingGroupStitch(null)}
-                                        className="text-text-tertiary hover:text-text-secondary text-sm"
+                                        className="text-text-tertiary hover:text-text-secondary p-2"
                                       >
-                                        ✕
+                                        <X className="w-5 h-5" />
                                       </button>
                                     </div>
                                   ) : (
@@ -650,9 +663,15 @@ export default function PatternEditorView() {
                                       <div className="flex items-center gap-1 ml-auto">
                                         <button
                                           onClick={() => handleEditGroupStitch(round.roundNumber, group.id, stitch)}
-                                          className="text-text-tertiary hover:text-primary text-sm"
+                                          className="text-text-tertiary hover:text-primary p-2"
                                         >
-                                          編輯
+                                          <Pencil className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteGroupStitch(round.roundNumber, group.id, stitch.id)}
+                                          className="text-text-tertiary hover:text-red-500 p-2"
+                                        >
+                                          <Trash2 className="w-5 h-5" />
                                         </button>
                                       </div>
                                     </div>
@@ -781,9 +800,9 @@ export default function PatternEditorView() {
                             </div>
                             <button
                               onClick={() => handleRemoveStitchFromGroup(stitch.id)}
-                              className="text-text-tertiary hover:text-red-500 transition-colors"
+                              className="text-text-tertiary hover:text-red-500 transition-colors p-2"
                             >
-                              ✕
+                              <Trash2 className="w-5 h-5" />
                             </button>
                           </div>
                         ))}
