@@ -25,7 +25,7 @@ class AuthListener {
     } catch (error) {
       console.error('Error handling user login:', error)
       const appStore = useSyncedAppStore.getState()
-      appStore.setError('登入時載入數據失敗')
+      appStore.setError('登入時載入數據失敗，請檢查網絡連接並重新整理頁面')
     }
   }
   
