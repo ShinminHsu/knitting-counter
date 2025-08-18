@@ -293,7 +293,8 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           yarns: [],
           sessions: [],
           createdDate: new Date(),
-          lastModified: new Date()
+          lastModified: new Date(),
+          isCompleted: false
         }
         
         set(state => ({

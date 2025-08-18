@@ -147,7 +147,8 @@ export function createSampleProject(): Project {
     yarns,
     sessions: [],
     createdDate: new Date(),
-    lastModified: new Date()
+    lastModified: new Date(),
+    isCompleted: false
   }
 }
 

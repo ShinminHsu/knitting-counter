@@ -2,17 +2,39 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2025, 9, 15);
+    // 用戶專案數據 - 只有認證用戶可以存取自己的數據
+    match /users/{userId}/projects/{projectId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // 專案子集合（rounds等）
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // 用戶配置檔案 - 只有認證用戶可以存取自己的配置
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // 用戶配置檔案子集合
+      match /profile/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // 用戶專案集合
+      match /projects/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // 公開或共享的數據（如果需要）
+    match /shared/{document=**} {
+      allow read: if request.auth != null;
+    }
+    
+    // 測試連接路徑（僅開發環境）
+    match /test/{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }

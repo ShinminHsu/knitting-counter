@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSyncedAppStore } from './store/syncedAppStore'
 import { useAuthStore } from './store/authStore'
 import { authListener } from './services/authListener'
+import { testFirebaseConnection, testAuthConnection } from './utils/firebaseTest'
 import ProjectListView from './components/ProjectListView'
 import ProjectDetailView from './components/ProjectDetailView'
 import PatternEditorView from './components/PatternEditorView'
@@ -28,6 +29,12 @@ function AppWithSync() {
     
     // 設置認證狀態監聽器
     const authUnsubscribe = authListener.setupAuthStateListener()
+    
+    // 測試Firebase連接 - 只在用戶登入後執行
+    if (user) {
+      testFirebaseConnection()
+      testAuthConnection()
+    }
     
     return () => {
       unsubscribe()

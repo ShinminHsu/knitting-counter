@@ -157,14 +157,14 @@ class FirestoreService {
         source: project.source || '',
         currentRound: project.currentRound,
         currentStitch: project.currentStitch,
-        yarns: project.yarns,
-        sessions: project.sessions.map(session => ({
+        yarns: project.yarns || [],
+        sessions: project.sessions?.map(session => ({
           ...session,
           startTime: session.startTime
-        })),
+        })) || [],
         createdDate: project.createdDate,
         lastModified: project.lastModified,
-        isCompleted: project.isCompleted
+        isCompleted: project.isCompleted ?? false
       }
       
       await setDoc(projectRef, {
@@ -195,13 +195,13 @@ class FirestoreService {
         source: project.source || '',
         currentRound: project.currentRound,
         currentStitch: project.currentStitch,
-        yarns: project.yarns,
-        sessions: project.sessions.map(session => ({
+        yarns: project.yarns || [],
+        sessions: project.sessions?.map(session => ({
           ...session,
           startTime: session.startTime
-        })),
+        })) || [],
         lastModified: project.lastModified,
-        isCompleted: project.isCompleted
+        isCompleted: project.isCompleted ?? false
       }
       
       await updateDoc(projectRef, {
