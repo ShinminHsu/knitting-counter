@@ -390,9 +390,23 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return
         }
 
+        if (!currentProject.pattern || currentProject.pattern.length === 0) {
+          console.log('[DEBUG] nextStitch: No pattern available')
+          return
+        }
+
         const currentRound = currentProject.pattern.find(r => r.roundNumber === currentProject.currentRound)
         if (!currentRound) {
           console.log('[DEBUG] nextStitch: Current round not found', currentProject.currentRound)
+          // 嘗試調整到有效的圈數
+          const minRoundNumber = Math.min(...currentProject.pattern.map(r => r.roundNumber))
+          const updatedProject = {
+            ...currentProject,
+            currentRound: minRoundNumber,
+            currentStitch: 0,
+            lastModified: new Date()
+          }
+          await get().updateProjectLocally(updatedProject)
           return
         }
 
@@ -409,8 +423,18 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
             newStitch = totalStitchesInRound
             newRound = currentProject.currentRound
           } else {
-            newStitch = 0
-            newRound = currentProject.currentRound + 1
+            // 尋找下一個可用的圈數
+            const nextRoundNumber = currentProject.currentRound + 1
+            const nextRound = currentProject.pattern.find(r => r.roundNumber === nextRoundNumber)
+            if (nextRound) {
+              newStitch = 0
+              newRound = nextRoundNumber
+            } else {
+              // 如果下一圈不存在，保持在當前圈的結尾
+              newStitch = totalStitchesInRound
+              newRound = currentProject.currentRound
+              isCompleted = true
+            }
           }
         }
 
@@ -429,18 +453,41 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
+        if (!currentProject.pattern || currentProject.pattern.length === 0) {
+          console.log('[DEBUG] previousStitch: No pattern available')
+          return
+        }
+
         let newStitch = currentProject.currentStitch - 1
         let newRound = currentProject.currentRound
 
         if (newStitch < 0 && newRound > 1) {
-          newRound = currentProject.currentRound - 1
-          const previousRound = currentProject.pattern.find(r => r.roundNumber === newRound)
-          if (previousRound) {
-            newStitch = getRoundTotalStitches(previousRound) - 1
-          } else {
+          // 嘗試找到前一個可用的圈數
+          for (let roundNum = currentProject.currentRound - 1; roundNum >= 1; roundNum--) {
+            const previousRound = currentProject.pattern.find(r => r.roundNumber === roundNum)
+            if (previousRound) {
+              newRound = roundNum
+              newStitch = getRoundTotalStitches(previousRound) - 1
+              break
+            }
+          }
+          
+          // 如果找不到前一圈，保持在當前位置
+          if (newStitch < 0) {
             newStitch = 0
+            newRound = currentProject.currentRound
           }
         } else if (newStitch < 0) {
+          newStitch = 0
+        }
+
+        // 確保圈數有效
+        const targetRound = currentProject.pattern.find(r => r.roundNumber === newRound)
+        if (!targetRound) {
+          console.log('[DEBUG] previousStitch: Target round not found', newRound)
+          // 調整到最小的可用圈數
+          const minRoundNumber = Math.min(...currentProject.pattern.map(r => r.roundNumber))
+          newRound = minRoundNumber
           newStitch = 0
         }
 
@@ -448,6 +495,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           ...currentProject,
           currentRound: newRound,
           currentStitch: newStitch,
+          isCompleted: false, // 回退時取消完成狀態
           lastModified: new Date()
         }
 
@@ -602,16 +650,54 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return round
         })
 
+        // 智能進度調整
         let newCurrentRound = currentProject.currentRound
-        if (newCurrentRound > roundNumber) {
-          newCurrentRound = Math.max(1, newCurrentRound - 1)
+        let newCurrentStitch = currentProject.currentStitch
+
+        if (currentProject.currentRound === roundNumber) {
+          // 如果刪除的是正在編織的圈數，調整到前一圈的結尾或下一圈的開始
+          if (roundNumber > 1 && renumberedPattern.find(r => r.roundNumber === roundNumber - 1)) {
+            // 調整到前一圈的結尾
+            const previousRound = renumberedPattern.find(r => r.roundNumber === roundNumber - 1)
+            if (previousRound) {
+              newCurrentRound = roundNumber - 1
+              newCurrentStitch = getRoundTotalStitches(previousRound)
+            }
+          } else if (renumberedPattern.find(r => r.roundNumber === roundNumber)) {
+            // 調整到下一圈的開始（現在編號為原本的roundNumber）
+            newCurrentRound = roundNumber
+            newCurrentStitch = 0
+          } else {
+            // 如果沒有其他圈數，調整到第1圈開始
+            newCurrentRound = 1
+            newCurrentStitch = 0
+          }
+        } else if (currentProject.currentRound > roundNumber) {
+          // 如果刪除的圈數在當前圈數之前，圈數減1但保持針數
+          newCurrentRound = Math.max(1, currentProject.currentRound - 1)
+          // 保持原有的針數進度
+        }
+
+        // 確保進度不超出新的織圖範圍
+        const maxRoundNumber = Math.max(1, ...renumberedPattern.map(r => r.roundNumber))
+        if (newCurrentRound > maxRoundNumber) {
+          newCurrentRound = maxRoundNumber
+          const lastRound = renumberedPattern.find(r => r.roundNumber === maxRoundNumber)
+          newCurrentStitch = lastRound ? getRoundTotalStitches(lastRound) : 0
+        } else {
+          // 確保針數不超出當前圈的範圍
+          const currentRound = renumberedPattern.find(r => r.roundNumber === newCurrentRound)
+          if (currentRound) {
+            const maxStitches = getRoundTotalStitches(currentRound)
+            newCurrentStitch = Math.min(newCurrentStitch, maxStitches)
+          }
         }
 
         const updatedProject = {
           ...currentProject,
           pattern: renumberedPattern,
           currentRound: newCurrentRound,
-          currentStitch: 0,
+          currentStitch: newCurrentStitch,
           lastModified: new Date()
         }
 

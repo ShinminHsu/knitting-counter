@@ -303,25 +303,60 @@ export function getProjectTotalStitches(project: Project): number {
 
 // 計算專案已完成針數
 export function getProjectCompletedStitches(project: Project): number {
+  if (!project.pattern || project.pattern.length === 0) return 0
+  
   let completed = 0
+  
+  // 計算已完成的完整圈數
   for (let roundNumber = 1; roundNumber < project.currentRound; roundNumber++) {
     const round = project.pattern.find(r => r.roundNumber === roundNumber)
     if (round) {
       completed += getRoundTotalStitches(round)
     }
   }
-  completed += project.currentStitch
+  
+  // 添加當前圈的進度，但要確保不超出範圍
+  const currentRound = project.pattern.find(r => r.roundNumber === project.currentRound)
+  if (currentRound) {
+    const maxStitchesInCurrentRound = getRoundTotalStitches(currentRound)
+    const validCurrentStitch = Math.min(Math.max(0, project.currentStitch), maxStitchesInCurrentRound)
+    completed += validCurrentStitch
+  }
+  
   return completed
 }
 
 // 計算專案進度百分比
 export function getProjectProgressPercentage(project: Project): number {
+  if (!project.pattern || project.pattern.length === 0) return 0
+  
   const totalStitches = getProjectTotalStitches(project)
   if (totalStitches === 0) return 0
-  return getProjectCompletedStitches(project) / totalStitches
+  
+  const completedStitches = getProjectCompletedStitches(project)
+  const progressRatio = completedStitches / totalStitches
+  
+  // 確保進度百分比在0-1之間
+  return Math.min(Math.max(0, progressRatio), 1)
 }
 
 // 檢查專案是否完成
 export function isProjectCompleted(project: Project): boolean {
-  return project.currentRound > getProjectTotalRounds(project)
+  if (!project.pattern || project.pattern.length === 0) return false
+  
+  const totalRounds = getProjectTotalRounds(project)
+  
+  // 如果當前圈數超過總圈數，認為已完成
+  if (project.currentRound > totalRounds) return true
+  
+  // 如果在最後一圈且針數達到最後一針，也認為已完成
+  if (project.currentRound === totalRounds) {
+    const lastRound = project.pattern.find(r => r.roundNumber === totalRounds)
+    if (lastRound) {
+      const totalStitchesInLastRound = getRoundTotalStitches(lastRound)
+      return project.currentStitch >= totalStitchesInLastRound
+    }
+  }
+  
+  return false
 }

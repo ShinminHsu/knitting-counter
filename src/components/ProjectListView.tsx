@@ -70,14 +70,14 @@ export default function ProjectListView() {
         ) : (
           <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {projects.map((project) => (
-              <div key={project.id} className={`card hover:shadow-md transition-shadow ${project.isCompleted ? 'ring-2 ring-green-200 bg-green-50' : ''}`}>
+              <div key={project.id} className="card hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2 flex-1">
                     <h3 className="text-base sm:text-lg font-semibold text-text-primary truncate">
                       {project.name}
                     </h3>
                     {project.isCompleted && (
-                      <span className="text-green-600 text-sm font-medium">完成</span>
+                      <span className="text-text-secondary text-sm font-medium">完成</span>
                     )}
                   </div>
                   <button
@@ -97,7 +97,7 @@ export default function ProjectListView() {
                   </div>
                   <div className="w-full bg-background-tertiary rounded-full h-1.5 sm:h-2">
                     <div
-                      className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${project.isCompleted ? 'bg-green-500' : 'bg-primary'}`}
+                      className="h-1.5 sm:h-2 rounded-full transition-all duration-300 bg-primary"
                       style={{ width: `${project.isCompleted ? 100 : getProjectProgressPercentage(project) * 100}%` }}
                     />
                   </div>
