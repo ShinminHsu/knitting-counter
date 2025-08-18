@@ -154,7 +154,7 @@ class FirestoreService {
       const firestoreProject: FirestoreProject = {
         id: project.id,
         name: project.name,
-        source: project.source,
+        source: project.source || '',
         currentRound: project.currentRound,
         currentStitch: project.currentStitch,
         yarns: project.yarns,
@@ -192,7 +192,7 @@ class FirestoreService {
       
       const firestoreProject: Partial<FirestoreProject> = {
         name: project.name,
-        source: project.source,
+        source: project.source || '',
         currentRound: project.currentRound,
         currentStitch: project.currentStitch,
         yarns: project.yarns,

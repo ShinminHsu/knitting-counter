@@ -286,7 +286,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         const newProject: Project = {
           id: generateId(),
           name,
-          source,
+          source: source || '',
           pattern: [],
           currentRound: 1,
           currentStitch: 0,
