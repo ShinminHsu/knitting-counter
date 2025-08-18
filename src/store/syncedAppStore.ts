@@ -33,6 +33,7 @@ interface SyncedAppStore {
   // 專案管理
   createProject: (name: string, source?: string) => Promise<void>
   updateProject: (project: Project) => Promise<void>
+  updateProjectLocally: (project: Project) => Promise<void>
   deleteProject: (id: string) => Promise<void>
   setCurrentProject: (id: string) => void
   loadProjects: () => Promise<void>
@@ -55,6 +56,7 @@ interface SyncedAppStore {
   deleteStitchFromRound: (roundNumber: number, stitchId: string) => Promise<void>
   reorderStitchesInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
   updateStitchGroupInRound: (roundNumber: number, groupId: string, updatedGroup: StitchGroup) => Promise<void>
+  updateStitchInGroup: (roundNumber: number, groupId: string, stitchId: string, updatedStitch: StitchInfo) => Promise<void>
   deleteStitchGroupFromRound: (roundNumber: number, groupId: string) => Promise<void>
   reorderStitchGroupsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
   
@@ -748,6 +750,39 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
               stitchGroups: round.stitchGroups.map(group => 
                 group.id === groupId ? updatedGroup : group
               )
+            }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        await get().updateProjectLocally(updatedProject)
+      },
+
+      updateStitchInGroup: async (roundNumber, groupId, stitchId, updatedStitch) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return {
+              ...round,
+              stitchGroups: round.stitchGroups.map(group => {
+                if (group.id === groupId) {
+                  return {
+                    ...group,
+                    stitches: group.stitches.map(stitch =>
+                      stitch.id === stitchId ? updatedStitch : stitch
+                    )
+                  }
+                }
+                return group
+              })
             }
           }
           return round

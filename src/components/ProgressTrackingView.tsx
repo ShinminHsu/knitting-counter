@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useSyncedAppStore } from '../store/syncedAppStore'
+import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
   formatDuration, 
   getProjectProgressPercentage, 
@@ -323,6 +324,7 @@ export default function ProgressTrackingView() {
                   <span className="sm:hidden">計時</span>
                 </button>
               )}
+              <SyncStatusIndicator />
             </div>
           </div>
         </div>

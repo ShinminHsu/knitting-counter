@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useSyncedAppStore } from '../store/syncedAppStore'
+import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
   generateId,
   getRoundTotalStitches,
@@ -24,6 +25,7 @@ export default function PatternEditorView() {
     deleteStitchFromRound,
     reorderStitchesInRound,
     updateStitchGroupInRound,
+    updateStitchInGroup,
     deleteStitchGroupFromRound,
     reorderStitchGroupsInRound
   } = useSyncedAppStore()
@@ -34,6 +36,7 @@ export default function PatternEditorView() {
   const [editingRound, setEditingRound] = useState<Round | null>(null)
   const [editingStitch, setEditingStitch] = useState<{ roundNumber: number, stitchId: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ roundNumber: number, groupId: string } | null>(null)
+  const [editingGroupStitch, setEditingGroupStitch] = useState<{ roundNumber: number, groupId: string, stitchId: string } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   // 新增圈數表單狀態
@@ -55,6 +58,10 @@ export default function PatternEditorView() {
   // 編輯群組狀態
   const [editGroupName, setEditGroupName] = useState('')
   const [editGroupRepeatCount, setEditGroupRepeatCount] = useState(1)
+  
+  // 編輯群組內針法狀態
+  const [editGroupStitchType, setEditGroupStitchType] = useState<StitchType>(StitchType.SINGLE)
+  const [editGroupStitchCount, setEditGroupStitchCount] = useState(1)
 
   // 拖拽狀態
   const [draggedStitch, setDraggedStitch] = useState<{ index: number, stitch: StitchInfo } | null>(null)
@@ -239,6 +246,24 @@ export default function PatternEditorView() {
     }
   }
 
+  const handleEditGroupStitch = (roundNumber: number, groupId: string, stitch: StitchInfo) => {
+    setEditingGroupStitch({ roundNumber, groupId, stitchId: stitch.id })
+    setEditGroupStitchType(stitch.type)
+    setEditGroupStitchCount(stitch.count)
+  }
+
+  const handleUpdateGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
+    const updatedStitch: StitchInfo = {
+      id: stitchId,
+      type: editGroupStitchType,
+      yarnId: currentProject!.yarns[0]?.id || '',
+      count: editGroupStitchCount
+    }
+
+    await updateStitchInGroup(roundNumber, groupId, stitchId, updatedStitch)
+    setEditingGroupStitch(null)
+  }
+
   const handleDragStart = (_e: React.DragEvent, item: any, index: number, type: 'stitch' | 'group') => {
     if (type === 'stitch') {
       setDraggedStitch({ index, stitch: item })
@@ -279,13 +304,16 @@ export default function PatternEditorView() {
               <h1 className="text-base sm:text-xl font-semibold text-text-primary">織圖編輯</h1>
             </div>
             
-            <button
-              onClick={() => setShowAddRoundForm(true)}
-              className="btn btn-primary w-full sm:w-auto"
-              disabled={isLoading}
-            >
-              {isLoading ? '處理中...' : '新增圈數'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAddRoundForm(true)}
+                className="btn btn-primary w-full sm:w-auto"
+                disabled={isLoading}
+              >
+                {isLoading ? '處理中...' : '新增圈數'}
+              </button>
+              <SyncStatusIndicator />
+            </div>
           </div>
         </div>
       </div>
@@ -575,12 +603,57 @@ export default function PatternEditorView() {
                                   {StitchTypeInfo[stitch.type]?.symbol || '○'}
                                 </div>
                                 <div className="flex-1">
-                                  <span className="font-medium text-text-primary">
-                                    {StitchTypeInfo[stitch.type]?.rawValue || stitch.type}
-                                  </span>
-                                  <span className="text-sm text-text-secondary ml-2">
-                                    ×{stitch.count}
-                                  </span>
+                                  {editingGroupStitch?.stitchId === stitch.id && editingGroupStitch?.groupId === group.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        value={editGroupStitchType}
+                                        onChange={(e) => setEditGroupStitchType(e.target.value as StitchType)}
+                                        className="input text-sm"
+                                      >
+                                        {Object.entries(StitchTypeInfo).map(([key, info]) => (
+                                          <option key={key} value={key}>
+                                            {info.symbol} {info.rawValue}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={editGroupStitchCount}
+                                        onChange={(e) => setEditGroupStitchCount(parseInt(e.target.value) || 1)}
+                                        className="input text-sm w-16"
+                                      />
+                                      <button
+                                        onClick={() => handleUpdateGroupStitch(round.roundNumber, group.id, stitch.id)}
+                                        className="text-green-500 hover:text-green-600 text-sm"
+                                      >
+                                        ✓
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingGroupStitch(null)}
+                                        className="text-text-tertiary hover:text-text-secondary text-sm"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-text-primary">
+                                        {StitchTypeInfo[stitch.type]?.rawValue || stitch.type}
+                                      </span>
+                                      <span className="text-sm text-text-secondary">
+                                        ×{stitch.count}
+                                      </span>
+                                      <div className="flex items-center gap-1 ml-auto">
+                                        <button
+                                          onClick={() => handleEditGroupStitch(round.roundNumber, group.id, stitch)}
+                                          className="text-text-tertiary hover:text-primary text-sm"
+                                        >
+                                          編輯
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             ))}

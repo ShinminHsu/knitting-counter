@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import UserProfile from './UserProfile'
+import SyncStatusIndicator from './SyncStatusIndicator'
 import { formatDate, getProjectProgressPercentage, getProjectTotalRounds, getProjectTotalStitches, getProjectCompletedStitches } from '../utils'
 
 export default function ProjectListView() {
@@ -22,6 +23,12 @@ export default function ProjectListView() {
     setShowCreateForm(false)
   }
 
+  const handleDeleteProject = (projectId: string, projectName: string) => {
+    if (confirm(`確定要刪除專案「${projectName}」嗎？此操作無法復原。`)) {
+      deleteProject(projectId)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* 標題列 */}
@@ -37,6 +44,7 @@ export default function ProjectListView() {
               >
                 新增專案
               </button>
+              <SyncStatusIndicator />
             </div>
           </div>
         </div>
@@ -73,7 +81,7 @@ export default function ProjectListView() {
                     )}
                   </div>
                   <button
-                    onClick={() => deleteProject(project.id)}
+                    onClick={() => handleDeleteProject(project.id, project.name)}
                     className="text-text-tertiary hover:text-red-500 transition-colors text-sm sm:text-base ml-2"
                   >
                     刪除

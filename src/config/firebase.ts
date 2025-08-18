@@ -22,9 +22,13 @@ export const auth = getAuth(app)
 let db: any
 try {
   db = initializeFirestore(app, {
-    experimentalForceLongPolling: true, // 為移動設備優化
+    experimentalForceLongPolling: false, // 先嘗試標準連接
     experimentalAutoDetectLongPolling: true, // 自動檢測最佳連接方式
-    ignoreUndefinedProperties: true // 忽略 undefined 屬性
+    ignoreUndefinedProperties: true, // 忽略 undefined 屬性
+    cacheSizeBytes: 40 * 1024 * 1024, // 40MB 緩存
+    localCache: {
+      kind: 'persistent'
+    }
   })
 } catch (error) {
   // 如果已經初始化，使用現有實例

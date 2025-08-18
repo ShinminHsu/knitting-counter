@@ -12,7 +12,6 @@ import YarnManagerView from './components/YarnManagerView'
 import ImportExportView from './components/ImportExportView'
 import NotFoundView from './components/NotFoundView'
 import GoogleSignIn from './components/GoogleSignIn'
-import SyncStatusIndicator from './components/SyncStatusIndicator'
 
 function AppWithSync() {
   const { 
@@ -98,8 +97,6 @@ function AppWithSync() {
         </div>
       )}
 
-      {/* 同步狀態指示器 */}
-      <SyncStatusIndicator />
 
       {/* 主要路由 */}
       <Routes>
