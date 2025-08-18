@@ -54,16 +54,12 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['lucide-react']
+    include: ['lucide-react'],
+    force: true
   },
   build: {
-    rollupOptions: {
-      external: [],
-      output: {
-        manualChunks: {
-          'lucide-react': ['lucide-react']
-        }
-      }
+    commonjsOptions: {
+      include: [/lucide-react/, /node_modules/]
     }
   }
 })
