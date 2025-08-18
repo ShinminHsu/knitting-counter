@@ -13,6 +13,7 @@ interface SyncedAppStore {
   error: string | null
   isSyncing: boolean
   lastSyncTime: Date | null
+  isLocallyUpdating: boolean
   
   // 動作
   setLoading: (loading: boolean) => void
@@ -73,6 +74,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       error: null,
       isSyncing: false,
       lastSyncTime: null,
+      isLocallyUpdating: false,
 
       // 基本動作
       setLoading: (loading) => set({ isLoading: loading }),
@@ -268,8 +270,8 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         return firestoreService.subscribeToUserProjects(user.uid, (projects) => {
           const currentState = get()
           
-          // 只有在非同步狀態時才更新，避免無限循環
-          if (!currentState.isSyncing) {
+          // 避免覆蓋本地更新和同步狀態
+          if (!currentState.isSyncing && !currentState.isLocallyUpdating) {
             set({
               projects,
               currentProject: projects.find(p => p.id === currentState.currentProject?.id) || projects[0] || null,
@@ -418,7 +420,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       previousStitch: async () => {
@@ -447,7 +449,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       setCurrentRound: async (roundNumber) => {
@@ -461,7 +463,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       setCurrentStitch: async (stitchNumber) => {
@@ -474,7 +476,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       startSession: async () => {
@@ -495,7 +497,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       endSession: async () => {
@@ -522,7 +524,35 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
+      },
+
+      // 通用專案更新函數
+      updateProjectLocally: async (updatedProject: Project) => {
+        // 設置本地更新標誌並立即更新本地狀態
+        set(state => ({
+          isLocallyUpdating: true,
+          projects: state.projects.map(p => 
+            p.id === updatedProject.id ? updatedProject : p
+          ),
+          currentProject: state.currentProject?.id === updatedProject.id 
+            ? updatedProject 
+            : state.currentProject
+        }))
+
+        // 異步同步到Firestore
+        const { user } = useAuthStore.getState()
+        if (user) {
+          try {
+            await firestoreService.updateProject(user.uid, updatedProject)
+            set({ lastSyncTime: new Date(), isLocallyUpdating: false })
+          } catch (error) {
+            console.error('Error syncing project update to Firestore:', error)
+            set({ isLocallyUpdating: false })
+          }
+        } else {
+          set({ isLocallyUpdating: false })
+        }
       },
 
       // 織圖管理 - 包含同步功能
@@ -536,7 +566,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       updateRound: async (updatedRound) => {
@@ -551,7 +581,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       deleteRound: async (roundNumber) => {
@@ -583,7 +613,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       addStitchToRound: async (roundNumber, stitch) => {
@@ -606,7 +636,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       addStitchGroupToRound: async (roundNumber, group) => {
@@ -629,7 +659,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       updateStitchInRound: async (roundNumber, stitchId, updatedStitch) => {
@@ -654,7 +684,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       deleteStitchFromRound: async (roundNumber, stitchId) => {
@@ -677,7 +707,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       reorderStitchesInRound: async (roundNumber, fromIndex, toIndex) => {
@@ -704,7 +734,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       updateStitchGroupInRound: async (roundNumber, groupId, updatedGroup) => {
@@ -729,7 +759,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       deleteStitchGroupFromRound: async (roundNumber, groupId) => {
@@ -752,7 +782,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       reorderStitchGroupsInRound: async (roundNumber, fromIndex, toIndex) => {
@@ -779,7 +809,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       // 毛線管理 - 包含同步功能
@@ -793,7 +823,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       updateYarn: async (updatedYarn) => {
@@ -808,7 +838,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       deleteYarn: async (id) => {
@@ -821,7 +851,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       }
     }),
     {

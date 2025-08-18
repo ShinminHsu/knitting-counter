@@ -34,6 +34,7 @@ export default function PatternEditorView() {
   const [editingRound, setEditingRound] = useState<Round | null>(null)
   const [editingStitch, setEditingStitch] = useState<{ roundNumber: number, stitchId: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ roundNumber: number, groupId: string } | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   // 新增圈數表單狀態
   const [newRoundNotes, setNewRoundNotes] = useState('')
@@ -68,7 +69,7 @@ export default function PatternEditorView() {
         navigate('/404')
       }
     }
-  }, [projectId, setCurrentProject, projects, navigate])
+  }, [projectId, projects, navigate])
 
   if (!currentProject) {
     return (
@@ -81,42 +82,75 @@ export default function PatternEditorView() {
     )
   }
 
-  const handleAddRound = () => {
-    const nextRoundNumber = Math.max(0, ...currentProject.pattern.map(r => r.roundNumber)) + 1
+  const handleAddRound = async () => {
+    if (isLoading) return
     
-    const newRound: Round = {
-      id: generateId(),
-      roundNumber: nextRoundNumber,
-      stitches: [],
-      stitchGroups: [],
-      notes: newRoundNotes.trim() || undefined
-    }
+    setIsLoading(true)
+    try {
+      if (!currentProject) {
+        console.error('No current project')
+        return
+      }
+      
+      const roundNumbers = currentProject.pattern?.map(r => r.roundNumber) || []
+      const nextRoundNumber = Math.max(0, ...roundNumbers) + 1
+      
+      const newRound: Round = {
+        id: generateId(),
+        roundNumber: nextRoundNumber,
+        stitches: [],
+        stitchGroups: [],
+        notes: newRoundNotes.trim() || undefined
+      }
 
-    addRound(newRound)
-    setNewRoundNotes('')
-    setShowAddRoundForm(false)
+      await addRound(newRound)
+      
+      setNewRoundNotes('')
+      setShowAddRoundForm(false)
+    } catch (error) {
+      console.error('Error adding round:', error)
+      alert('新增圈數時發生錯誤，請查看控制台了解詳情')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleDeleteRound = (roundNumber: number) => {
+  const handleDeleteRound = async (roundNumber: number) => {
     if (confirm(`確定要刪除第 ${roundNumber} 圈嗎？`)) {
-      deleteRound(roundNumber)
+      await deleteRound(roundNumber)
     }
   }
 
-  const handleAddStitch = (roundNumber: number) => {
-    const newStitch: StitchInfo = {
-      id: generateId(),
-      type: newStitchType,
-      yarnId: currentProject.yarns[0]?.id || '',
-      count: newStitchCount
-    }
+  const handleAddStitch = async (roundNumber: number) => {
+    if (isLoading) return
+    
+    setIsLoading(true)
+    try {
+      if (!currentProject) {
+        console.error('No current project')
+        return
+      }
+      
+      const newStitch: StitchInfo = {
+        id: generateId(),
+        type: newStitchType,
+        yarnId: currentProject.yarns[0]?.id || '',
+        count: newStitchCount
+      }
 
-    addStitchToRound(roundNumber, newStitch)
-    setNewStitchCount(1)
-    setShowAddStitchForm(null)
+      await addStitchToRound(roundNumber, newStitch)
+      
+      setNewStitchCount(1)
+      setShowAddStitchForm(null)
+    } catch (error) {
+      console.error('Error adding stitch:', error)
+      alert('新增針法時發生錯誤，請查看控制台了解詳情')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleAddGroup = (roundNumber: number) => {
+  const handleAddGroup = async (roundNumber: number) => {
     if (newGroupStitches.length === 0) {
       alert('請先新增群組中的針法')
       return
@@ -129,7 +163,7 @@ export default function PatternEditorView() {
       repeatCount: newGroupRepeatCount
     }
 
-    addStitchGroupToRound(roundNumber, newGroup)
+    await addStitchGroupToRound(roundNumber, newGroup)
     setNewGroupName('')
     setNewGroupRepeatCount(1)
     setNewGroupStitches([])
@@ -152,9 +186,9 @@ export default function PatternEditorView() {
     setNewGroupStitches(newGroupStitches.filter(s => s.id !== stitchId))
   }
 
-  const handleUpdateRoundNotes = (round: Round, notes: string) => {
+  const handleUpdateRoundNotes = async (round: Round, notes: string) => {
     const updatedRound = { ...round, notes: notes.trim() || undefined }
-    updateRound(updatedRound)
+    await updateRound(updatedRound)
     setEditingRound(null)
   }
 
@@ -164,7 +198,7 @@ export default function PatternEditorView() {
     setEditStitchCount(stitch.count)
   }
 
-  const handleUpdateStitch = (roundNumber: number, stitchId: string) => {
+  const handleUpdateStitch = async (roundNumber: number, stitchId: string) => {
     const updatedStitch: StitchInfo = {
       id: stitchId,
       type: editStitchType,
@@ -172,13 +206,13 @@ export default function PatternEditorView() {
       count: editStitchCount
     }
 
-    updateStitchInRound(roundNumber, stitchId, updatedStitch)
+    await updateStitchInRound(roundNumber, stitchId, updatedStitch)
     setEditingStitch(null)
   }
 
-  const handleDeleteStitch = (roundNumber: number, stitchId: string) => {
+  const handleDeleteStitch = async (roundNumber: number, stitchId: string) => {
     if (confirm('確定要刪除這個針法嗎？')) {
-      deleteStitchFromRound(roundNumber, stitchId)
+      await deleteStitchFromRound(roundNumber, stitchId)
     }
   }
 
@@ -188,20 +222,20 @@ export default function PatternEditorView() {
     setEditGroupRepeatCount(group.repeatCount)
   }
 
-  const handleUpdateGroup = (roundNumber: number, groupId: string, originalGroup: StitchGroup) => {
+  const handleUpdateGroup = async (roundNumber: number, groupId: string, originalGroup: StitchGroup) => {
     const updatedGroup: StitchGroup = {
       ...originalGroup,
       name: editGroupName.trim() || '針目群組',
       repeatCount: editGroupRepeatCount
     }
 
-    updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+    await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
     setEditingGroup(null)
   }
 
-  const handleDeleteGroup = (roundNumber: number, groupId: string) => {
+  const handleDeleteGroup = async (roundNumber: number, groupId: string) => {
     if (confirm('確定要刪除這個針目群組嗎？')) {
-      deleteStitchGroupFromRound(roundNumber, groupId)
+      await deleteStitchGroupFromRound(roundNumber, groupId)
     }
   }
 
@@ -217,14 +251,14 @@ export default function PatternEditorView() {
     e.preventDefault()
   }
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number, roundNumber: number, type: 'stitch' | 'group') => {
+  const handleDrop = async (e: React.DragEvent, targetIndex: number, roundNumber: number, type: 'stitch' | 'group') => {
     e.preventDefault()
     
     if (type === 'stitch' && draggedStitch) {
-      reorderStitchesInRound(roundNumber, draggedStitch.index, targetIndex)
+      await reorderStitchesInRound(roundNumber, draggedStitch.index, targetIndex)
       setDraggedStitch(null)
     } else if (type === 'group' && draggedGroup) {
-      reorderStitchGroupsInRound(roundNumber, draggedGroup.index, targetIndex)
+      await reorderStitchGroupsInRound(roundNumber, draggedGroup.index, targetIndex)
       setDraggedGroup(null)
     }
   }
@@ -248,8 +282,9 @@ export default function PatternEditorView() {
             <button
               onClick={() => setShowAddRoundForm(true)}
               className="btn btn-primary w-full sm:w-auto"
+              disabled={isLoading}
             >
-              新增圈數
+              {isLoading ? '處理中...' : '新增圈數'}
             </button>
           </div>
         </div>
@@ -594,8 +629,9 @@ export default function PatternEditorView() {
                       <button
                         onClick={() => handleAddStitch(round.roundNumber)}
                         className="btn btn-primary"
+                        disabled={isLoading}
                       >
-                        新增
+                        {isLoading ? '新增中...' : '新增'}
                       </button>
                       <button
                         onClick={() => setShowAddStitchForm(null)}
@@ -759,8 +795,9 @@ export default function PatternEditorView() {
               <button
                 onClick={handleAddRound}
                 className="btn btn-primary flex-1"
+                disabled={isLoading}
               >
-                新增
+                {isLoading ? '新增中...' : '新增'}
               </button>
             </div>
           </div>
