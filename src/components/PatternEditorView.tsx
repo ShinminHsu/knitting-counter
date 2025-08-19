@@ -95,12 +95,22 @@ export default function PatternEditorView() {
   }
 
   const handleAddRound = async () => {
-    if (isLoading) return
+    console.log('[UI-ADD-ROUND] Button clicked:', {
+      isLoading,
+      timestamp: new Date().toISOString()
+    })
+    
+    if (isLoading) {
+      console.log('[UI-ADD-ROUND] Already loading, returning')
+      return
+    }
     
     setIsLoading(true)
+    console.log('[UI-ADD-ROUND] Set loading to true')
+    
     try {
       if (!currentProject) {
-        console.error('No current project')
+        console.error('[UI-ADD-ROUND] No current project')
         return
       }
       
@@ -115,14 +125,22 @@ export default function PatternEditorView() {
         notes: newRoundNotes.trim() || undefined
       }
 
+      console.log('[UI-ADD-ROUND] About to call addRound with:', {
+        newRound,
+        currentProjectId: currentProject.id,
+        currentPatternLength: currentProject.pattern.length
+      })
+
       await addRound(newRound)
       
+      console.log('[UI-ADD-ROUND] Successfully added round, cleaning up UI state')
       setNewRoundNotes('')
       setShowAddRoundForm(false)
     } catch (error) {
-      console.error('Error adding round:', error)
+      console.error('[UI-ADD-ROUND] Error adding round:', error)
       alert('新增圈數時發生錯誤，請查看控制台了解詳情')
     } finally {
+      console.log('[UI-ADD-ROUND] Setting loading to false')
       setIsLoading(false)
     }
   }

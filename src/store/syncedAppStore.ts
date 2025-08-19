@@ -860,8 +860,26 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
 
       // 織圖管理 - 包含同步功能
       addRound: async (round) => {
-        const { currentProject } = get()
-        if (!currentProject) return
+        console.log('[ADD-ROUND] Starting addRound:', {
+          round,
+          timestamp: new Date().toISOString()
+        })
+        
+        const currentState = get()
+        const { currentProject } = currentState
+        if (!currentProject) {
+          console.log('[ADD-ROUND] No current project found')
+          return
+        }
+
+        console.log('[ADD-ROUND] Current state before update:', {
+          projectId: currentProject.id,
+          projectName: currentProject.name,
+          currentPatternLength: currentProject.pattern.length,
+          isLocallyUpdating: currentState.isLocallyUpdating,
+          isSyncing: currentState.isSyncing,
+          error: currentState.error
+        })
 
         const updatedProject = {
           ...currentProject,
@@ -869,7 +887,23 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
+        console.log('[ADD-ROUND] About to call updateProjectLocally with:', {
+          projectId: updatedProject.id,
+          newPatternLength: updatedProject.pattern.length,
+          addedRound: round
+        })
+
         await get().updateProjectLocally(updatedProject)
+        
+        // 驗證更新後的狀態
+        const afterState = get()
+        console.log('[ADD-ROUND] State after updateProjectLocally:', {
+          projectId: afterState.currentProject?.id,
+          patternLength: afterState.currentProject?.pattern.length,
+          isLocallyUpdating: afterState.isLocallyUpdating,
+          isSyncing: afterState.isSyncing,
+          error: afterState.error
+        })
       },
 
       updateRound: async (updatedRound) => {
