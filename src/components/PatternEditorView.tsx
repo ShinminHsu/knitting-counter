@@ -134,12 +134,23 @@ export default function PatternEditorView() {
   }
 
   const handleAddStitch = async (roundNumber: number) => {
-    if (isLoading) return
+    console.log('[UI-ADD-STITCH] Button clicked:', {
+      roundNumber,
+      isLoading,
+      timestamp: new Date().toISOString()
+    })
+    
+    if (isLoading) {
+      console.log('[UI-ADD-STITCH] Already loading, returning')
+      return
+    }
     
     setIsLoading(true)
+    console.log('[UI-ADD-STITCH] Set loading to true')
+    
     try {
       if (!currentProject) {
-        console.error('No current project')
+        console.error('[UI-ADD-STITCH] No current project')
         return
       }
       
@@ -150,14 +161,22 @@ export default function PatternEditorView() {
         count: newStitchCount
       }
 
+      console.log('[UI-ADD-STITCH] About to call addStitchToRound with:', {
+        roundNumber,
+        newStitch,
+        currentProjectId: currentProject.id
+      })
+
       await addStitchToRound(roundNumber, newStitch)
       
+      console.log('[UI-ADD-STITCH] Successfully added stitch, cleaning up UI state')
       setNewStitchCount(1)
       setShowAddStitchForm(null)
     } catch (error) {
-      console.error('Error adding stitch:', error)
+      console.error('[UI-ADD-STITCH] Error adding stitch:', error)
       alert('新增針法時發生錯誤，請查看控制台了解詳情')
     } finally {
+      console.log('[UI-ADD-STITCH] Setting loading to false')
       setIsLoading(false)
     }
   }
