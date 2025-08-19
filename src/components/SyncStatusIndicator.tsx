@@ -55,7 +55,9 @@ export default function SyncStatusIndicator() {
 
       {/* 展開的詳細資訊 */}
       {isExpanded && (
-        <div className="absolute top-6 right-0 bg-white rounded-lg shadow-lg border p-3 w-56 z-50">
+        <div className="absolute top-6 right-0 sm:right-0 bg-white rounded-lg shadow-lg border p-3 w-56 z-50 
+                       translate-x-[-90%] sm:translate-x-0
+                       max-w-[90vw] sm:max-w-none">
           {/* 標題列與關閉按鈕 */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -101,7 +103,9 @@ export default function SyncStatusIndicator() {
 
           {/* 錯誤信息 */}
           {error && (
-            <div className="text-xs text-red-600 mb-2 break-words">
+            <div className={`text-xs mb-2 break-words ${
+              error.includes('重試') ? 'text-orange-600' : 'text-red-600'
+            }`}>
               {error}
             </div>
           )}

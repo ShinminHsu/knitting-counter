@@ -627,7 +627,18 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                 if (retryCount < maxRetries) {
                   retryCount++
                   const delay = Math.pow(2, retryCount - 1) * 1000
-                  setTimeout(attemptSync, delay)
+                  
+                  // 暫時清除本地更新狀態，顯示重試信息
+                  set({ 
+                    isLocallyUpdating: false,
+                    error: `設備離線，${Math.ceil(delay/1000)}秒後重試 (${retryCount}/${maxRetries})`
+                  })
+                  
+                  setTimeout(() => {
+                    // 重試時重新設置更新狀態
+                    set({ isLocallyUpdating: true, error: null })
+                    attemptSync()
+                  }, delay)
                   return
                 } else {
                   set({ 
@@ -673,7 +684,18 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                 const baseDelay = isNetworkError ? 2000 : 1000
                 const delay = Math.pow(2, retryCount - 1) * baseDelay
                 console.log(`[SYNC] Retrying sync in ${delay}ms... (Network error: ${isNetworkError})`)
-                setTimeout(attemptSync, delay)
+                
+                // 暫時清除本地更新狀態，顯示重試信息
+                set({ 
+                  isLocallyUpdating: false,
+                  error: `同步失敗，${Math.ceil(delay/1000)}秒後重試 (${retryCount}/${maxRetries})`
+                })
+                
+                setTimeout(() => {
+                  // 重試時重新設置更新狀態
+                  set({ isLocallyUpdating: true, error: null })
+                  attemptSync()
+                }, delay)
               } else {
                 console.error('[SYNC] Max retries reached, sync failed for project:', updatedProject.id)
                 const errorMessage = isNetworkError 
