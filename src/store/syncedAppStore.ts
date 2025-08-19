@@ -15,6 +15,7 @@ interface SyncedAppStore {
   isSyncing: boolean
   lastSyncTime: Date | null
   isLocallyUpdating: boolean
+  lastLocalUpdateTime: Date | null
   networkStatusListener: (() => void) | null
   
   // 動作
@@ -83,6 +84,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       isSyncing: false,
       lastSyncTime: null,
       isLocallyUpdating: false,
+      lastLocalUpdateTime: null,
       networkStatusListener: null,
 
       // 基本動作
@@ -279,13 +281,24 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         return firestoreService.subscribeToUserProjects(user.uid, (projects) => {
           const currentState = get()
           
+          console.log('[FIRESTORE-SUBSCRIPTION] Received update from Firestore:', {
+            receivedProjectsCount: projects.length,
+            currentProjectsCount: currentState.projects.length,
+            currentProjectId: currentState.currentProject?.id,
+            timestamp: new Date().toISOString()
+          })
+          
           // 更嚴格的條件檢查，避免覆蓋本地更新
           // 只有在完全沒有任何同步活動且沒有錯誤狀態時才更新
+          const timeSinceLastSync = currentState.lastSyncTime ? Date.now() - currentState.lastSyncTime.getTime() : Infinity
+          const timeSinceLastLocalUpdate = currentState.lastLocalUpdateTime ? Date.now() - currentState.lastLocalUpdateTime.getTime() : Infinity
+          
           const canUpdate = !currentState.isSyncing && 
                            !currentState.isLocallyUpdating && 
                            !currentState.error &&
                            currentState.lastSyncTime &&
-                           (Date.now() - currentState.lastSyncTime.getTime()) > 10000 // 至少10秒後才允許更新，給手機更多時間
+                           timeSinceLastSync > 15000 && // 延長到15秒，給手機更多時間
+                           timeSinceLastLocalUpdate > 20000 // 本地更新後20秒內不允許覆蓋
           
           // 額外檢查：比較數據是否真的不同，避免無意義的更新
           const hasActualChanges = currentState.projects.length !== projects.length ||
@@ -295,8 +308,34 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                                             localProject.lastModified.getTime() !== remoteProject.lastModified.getTime()
                                    })
           
+          // 特別檢查當前專案的針法數量變化
+          const currentLocalProject = currentState.currentProject
+          const currentRemoteProject = projects.find(p => p.id === currentLocalProject?.id)
+          if (currentLocalProject && currentRemoteProject) {
+            console.log('[FIRESTORE-SUBSCRIPTION] Comparing current project data:', {
+              localProjectId: currentLocalProject.id,
+              remoteProjectId: currentRemoteProject.id,
+              localPatternLength: currentLocalProject.pattern.length,
+              remotePatternLength: currentRemoteProject.pattern.length,
+              localLastModified: currentLocalProject.lastModified.getTime(),
+              remoteLastModified: currentRemoteProject.lastModified.getTime()
+            })
+            
+            // 檢查每一圈的針法數量
+            currentLocalProject.pattern.forEach((localRound) => {
+              const remoteRound = currentRemoteProject.pattern.find(r => r.roundNumber === localRound.roundNumber)
+              if (remoteRound) {
+                console.log('[FIRESTORE-SUBSCRIPTION] Round comparison:', {
+                  roundNumber: localRound.roundNumber,
+                  localStitchCount: localRound.stitches.length,
+                  remoteStitchCount: remoteRound.stitches.length
+                })
+              }
+            })
+          }
+          
           if (canUpdate && hasActualChanges) {
-            console.log('[FIRESTORE-SUBSCRIPTION] Updating local data from Firestore')
+            console.log('[FIRESTORE-SUBSCRIPTION] UPDATING local data from Firestore - this might overwrite local changes!')
             set({
               projects,
               currentProject: projects.find(p => p.id === currentState.currentProject?.id) || projects[0] || null,
@@ -310,7 +349,9 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
               isLocallyUpdating: currentState.isLocallyUpdating,
               hasError: !!currentState.error,
               lastSync: currentState.lastSyncTime,
-              timeSinceLastSync: currentState.lastSyncTime ? Date.now() - currentState.lastSyncTime.getTime() : 'no previous sync'
+              lastLocalUpdate: currentState.lastLocalUpdateTime,
+              timeSinceLastSync,
+              timeSinceLastLocalUpdate
             })
           }
         })
@@ -634,6 +675,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         // 設置本地更新標誌並立即更新本地狀態
         set(state => ({
           isLocallyUpdating: true,
+          lastLocalUpdateTime: new Date(), // 記錄本地更新時間
           projects: state.projects.map(p => 
             p.id === updatedProject.id ? updatedProject : p
           ),
@@ -875,14 +917,41 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       },
 
       addStitchToRound: async (roundNumber, stitch) => {
-        const { currentProject } = get()
-        if (!currentProject) return
+        console.log('[ADD-STITCH] Starting addStitchToRound:', {
+          roundNumber,
+          stitch,
+          timestamp: new Date().toISOString()
+        })
+        
+        const currentState = get()
+        const { currentProject } = currentState
+        if (!currentProject) {
+          console.log('[ADD-STITCH] No current project found')
+          return
+        }
+
+        console.log('[ADD-STITCH] Current state before update:', {
+          projectId: currentProject.id,
+          projectName: currentProject.name,
+          currentRoundInPattern: currentProject.pattern.find(r => r.roundNumber === roundNumber),
+          patternLength: currentProject.pattern.length,
+          isLocallyUpdating: currentState.isLocallyUpdating,
+          isSyncing: currentState.isSyncing,
+          error: currentState.error
+        })
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
+            const newStitches = [...round.stitches, stitch]
+            console.log('[ADD-STITCH] Adding stitch to round:', {
+              roundNumber,
+              originalStitchCount: round.stitches.length,
+              newStitchCount: newStitches.length,
+              addedStitch: stitch
+            })
             return {
               ...round,
-              stitches: [...round.stitches, stitch]
+              stitches: newStitches
             }
           }
           return round
@@ -894,7 +963,24 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
+        console.log('[ADD-STITCH] About to call updateProjectLocally with:', {
+          projectId: updatedProject.id,
+          patternLength: updatedProject.pattern.length,
+          targetRoundStitches: updatedProject.pattern.find(r => r.roundNumber === roundNumber)?.stitches.length
+        })
+
         await get().updateProjectLocally(updatedProject)
+        
+        // 驗證更新後的狀態
+        const afterState = get()
+        console.log('[ADD-STITCH] State after updateProjectLocally:', {
+          projectId: afterState.currentProject?.id,
+          patternLength: afterState.currentProject?.pattern.length,
+          targetRoundStitches: afterState.currentProject?.pattern.find(r => r.roundNumber === roundNumber)?.stitches.length,
+          isLocallyUpdating: afterState.isLocallyUpdating,
+          isSyncing: afterState.isSyncing,
+          error: afterState.error
+        })
       },
 
       addStitchGroupToRound: async (roundNumber, group) => {
