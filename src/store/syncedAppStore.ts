@@ -1,7 +1,18 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Project, WorkSession, Yarn, Round, StitchInfo, StitchGroup } from '../types'
-import { generateId, createSampleProject, getRoundTotalStitches } from '../utils'
+import { 
+  generateId, 
+  createSampleProject, 
+  getRoundTotalStitches,
+  addStitchToPatternItems,
+  addGroupToPatternItems,
+  reorderPatternItems,
+  updateStitchInPatternItems,
+  deleteStitchFromPatternItems,
+  updateGroupInPatternItems,
+  deleteGroupFromPatternItems
+} from '../utils'
 import { useAuthStore } from './authStore'
 import { firestoreService, UserProfile } from '../services/firestoreService'
 import { networkStatus } from '../utils/networkStatus'
@@ -63,6 +74,7 @@ interface SyncedAppStore {
   updateStitchInGroup: (roundNumber: number, groupId: string, stitchId: string, updatedStitch: StitchInfo) => Promise<void>
   deleteStitchGroupFromRound: (roundNumber: number, groupId: string) => Promise<void>
   reorderStitchGroupsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
+  reorderPatternItemsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
   
   // 毛線管理
   addYarn: (yarn: Yarn) => Promise<void>
@@ -1017,17 +1029,12 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            const newStitches = [...round.stitches, stitch]
             console.log('[ADD-STITCH] Adding stitch to round:', {
               roundNumber,
               originalStitchCount: round.stitches.length,
-              newStitchCount: newStitches.length,
               addedStitch: stitch
             })
-            return {
-              ...round,
-              stitches: newStitches
-            }
+            return addStitchToPatternItems(round, stitch)
           }
           return round
         })
@@ -1059,15 +1066,26 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       },
 
       addStitchGroupToRound: async (roundNumber, group) => {
+        console.log('[ADD-GROUP] Starting addStitchGroupToRound:', {
+          roundNumber,
+          group,
+          timestamp: new Date().toISOString()
+        })
+        
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[ADD-GROUP] No current project found')
+          return
+        }
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitchGroups: [...round.stitchGroups, group]
-            }
+            console.log('[ADD-GROUP] Adding group to round:', {
+              roundNumber,
+              originalGroupCount: round.stitchGroups.length,
+              addedGroup: group
+            })
+            return addGroupToPatternItems(round, group)
           }
           return round
         })
@@ -1082,17 +1100,27 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       },
 
       updateStitchInRound: async (roundNumber, stitchId, updatedStitch) => {
+        console.log('[UPDATE-STITCH] Starting updateStitchInRound:', {
+          roundNumber,
+          stitchId,
+          updatedStitch,
+          timestamp: new Date().toISOString()
+        })
+        
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[UPDATE-STITCH] No current project found')
+          return
+        }
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitches: round.stitches.map(stitch => 
-                stitch.id === stitchId ? updatedStitch : stitch
-              )
-            }
+            console.log('[UPDATE-STITCH] Updating stitch in round:', {
+              roundNumber,
+              stitchId,
+              updatedStitch
+            })
+            return updateStitchInPatternItems(round, stitchId, updatedStitch)
           }
           return round
         })
@@ -1107,15 +1135,25 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       },
 
       deleteStitchFromRound: async (roundNumber, stitchId) => {
+        console.log('[DELETE-STITCH] Starting deleteStitchFromRound:', {
+          roundNumber,
+          stitchId,
+          timestamp: new Date().toISOString()
+        })
+        
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[DELETE-STITCH] No current project found')
+          return
+        }
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitches: round.stitches.filter(stitch => stitch.id !== stitchId)
-            }
+            console.log('[DELETE-STITCH] Deleting stitch from round:', {
+              roundNumber,
+              stitchId
+            })
+            return deleteStitchFromPatternItems(round, stitchId)
           }
           return round
         })
@@ -1157,17 +1195,27 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       },
 
       updateStitchGroupInRound: async (roundNumber, groupId, updatedGroup) => {
+        console.log('[UPDATE-GROUP] Starting updateStitchGroupInRound:', {
+          roundNumber,
+          groupId,
+          updatedGroup,
+          timestamp: new Date().toISOString()
+        })
+        
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[UPDATE-GROUP] No current project found')
+          return
+        }
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitchGroups: round.stitchGroups.map(group => 
-                group.id === groupId ? updatedGroup : group
-              )
-            }
+            console.log('[UPDATE-GROUP] Updating group in round:', {
+              roundNumber,
+              groupId,
+              updatedGroup
+            })
+            return updateGroupInPatternItems(round, groupId, updatedGroup)
           }
           return round
         })
@@ -1215,15 +1263,25 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       },
 
       deleteStitchGroupFromRound: async (roundNumber, groupId) => {
+        console.log('[DELETE-GROUP] Starting deleteStitchGroupFromRound:', {
+          roundNumber,
+          groupId,
+          timestamp: new Date().toISOString()
+        })
+        
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[DELETE-GROUP] No current project found')
+          return
+        }
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitchGroups: round.stitchGroups.filter(group => group.id !== groupId)
-            }
+            console.log('[DELETE-GROUP] Deleting group from round:', {
+              roundNumber,
+              groupId
+            })
+            return deleteGroupFromPatternItems(round, groupId)
           }
           return round
         })
@@ -1251,6 +1309,42 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
               ...round,
               stitchGroups: newGroups
             }
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        await get().updateProjectLocally(updatedProject)
+      },
+
+      reorderPatternItemsInRound: async (roundNumber, fromIndex, toIndex) => {
+        console.log('[REORDER-PATTERN-ITEMS] Starting reorderPatternItemsInRound:', {
+          roundNumber,
+          fromIndex,
+          toIndex,
+          timestamp: new Date().toISOString()
+        })
+        
+        const { currentProject } = get()
+        if (!currentProject) {
+          console.log('[REORDER-PATTERN-ITEMS] No current project found')
+          return
+        }
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            console.log('[REORDER-PATTERN-ITEMS] Reordering pattern items in round:', {
+              roundNumber,
+              fromIndex,
+              toIndex,
+              currentItemsCount: round.stitches.length + round.stitchGroups.length
+            })
+            return reorderPatternItems(round, fromIndex, toIndex)
           }
           return round
         })
