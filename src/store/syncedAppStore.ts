@@ -16,6 +16,7 @@ interface SyncedAppStore {
   lastSyncTime: Date | null
   isLocallyUpdating: boolean
   lastLocalUpdateTime: Date | null
+  recentLocalChanges: Set<string> // 記錄最近本地更改的專案ID
   networkStatusListener: (() => void) | null
   
   // 動作
@@ -85,6 +86,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       lastSyncTime: null,
       isLocallyUpdating: false,
       lastLocalUpdateTime: null,
+      recentLocalChanges: new Set<string>(),
       networkStatusListener: null,
 
       // 基本動作
@@ -308,9 +310,20 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                                             localProject.lastModified.getTime() !== remoteProject.lastModified.getTime()
                                    })
           
-          // 特別檢查當前專案的針法數量變化
+          // 特別檢查當前專案的針法數量變化和本地變更保護
           const currentLocalProject = currentState.currentProject
           const currentRemoteProject = projects.find(p => p.id === currentLocalProject?.id)
+          let hasRecentLocalChanges = false
+          
+          if (currentLocalProject) {
+            hasRecentLocalChanges = currentState.recentLocalChanges.has(currentLocalProject.id)
+            console.log('[FIRESTORE-SUBSCRIPTION] Local change protection check:', {
+              projectId: currentLocalProject.id,
+              hasRecentLocalChanges,
+              recentChangesSize: currentState.recentLocalChanges.size
+            })
+          }
+          
           if (currentLocalProject && currentRemoteProject) {
             console.log('[FIRESTORE-SUBSCRIPTION] Comparing current project data:', {
               localProjectId: currentLocalProject.id,
@@ -318,7 +331,8 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
               localPatternLength: currentLocalProject.pattern.length,
               remotePatternLength: currentRemoteProject.pattern.length,
               localLastModified: currentLocalProject.lastModified.getTime(),
-              remoteLastModified: currentRemoteProject.lastModified.getTime()
+              remoteLastModified: currentRemoteProject.lastModified.getTime(),
+              hasRecentLocalChanges
             })
             
             // 檢查每一圈的針法數量
@@ -334,8 +348,8 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
             })
           }
           
-          if (canUpdate && hasActualChanges) {
-            console.log('[FIRESTORE-SUBSCRIPTION] UPDATING local data from Firestore - this might overwrite local changes!')
+          if (canUpdate && hasActualChanges && !hasRecentLocalChanges) {
+            console.log('[FIRESTORE-SUBSCRIPTION] UPDATING local data from Firestore')
             set({
               projects,
               currentProject: projects.find(p => p.id === currentState.currentProject?.id) || projects[0] || null,
@@ -345,6 +359,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
             console.log('[FIRESTORE-SUBSCRIPTION] Skipping update', {
               canUpdate,
               hasActualChanges,
+              hasRecentLocalChanges,
               isSyncing: currentState.isSyncing,
               isLocallyUpdating: currentState.isLocallyUpdating,
               hasError: !!currentState.error,
@@ -673,16 +688,22 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         })
         
         // 設置本地更新標誌並立即更新本地狀態
-        set(state => ({
-          isLocallyUpdating: true,
-          lastLocalUpdateTime: new Date(), // 記錄本地更新時間
-          projects: state.projects.map(p => 
-            p.id === updatedProject.id ? updatedProject : p
-          ),
-          currentProject: state.currentProject?.id === updatedProject.id 
-            ? updatedProject 
-            : state.currentProject
-        }))
+        set(state => {
+          const newRecentChanges = new Set(state.recentLocalChanges)
+          newRecentChanges.add(updatedProject.id)
+          
+          return {
+            isLocallyUpdating: true,
+            lastLocalUpdateTime: new Date(), // 記錄本地更新時間
+            recentLocalChanges: newRecentChanges,
+            projects: state.projects.map(p => 
+              p.id === updatedProject.id ? updatedProject : p
+            ),
+            currentProject: state.currentProject?.id === updatedProject.id 
+              ? updatedProject 
+              : state.currentProject
+          }
+        })
 
         // 異步同步到Firestore，增加重試機制
         const { user } = useAuthStore.getState()
@@ -743,11 +764,25 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
               }
               
               await firestoreService.updateProject(user.uid, updatedProject)
-              set({ 
-                lastSyncTime: new Date(), 
-                isLocallyUpdating: false,
-                // 確保Firestore訂閱在短時間內不會覆蓋本地數據
-                error: null 
+              set(state => {
+                const newRecentChanges = new Set(state.recentLocalChanges)
+                newRecentChanges.delete(updatedProject.id)
+                
+                // 定時清除最近更改標記，給其他設備一些時間同步
+                setTimeout(() => {
+                  set(prevState => {
+                    const finalRecentChanges = new Set(prevState.recentLocalChanges)
+                    finalRecentChanges.delete(updatedProject.id)
+                    return { recentLocalChanges: finalRecentChanges }
+                  })
+                }, 5000) // 5秒後完全清除保護
+                
+                return {
+                  lastSyncTime: new Date(), 
+                  isLocallyUpdating: false,
+                  recentLocalChanges: newRecentChanges,
+                  error: null 
+                }
               })
               console.log('[SYNC] Project synced successfully to Firestore:', updatedProject.id)
             } catch (error) {
@@ -797,9 +832,15 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                     ? '網路連接不穩定，同步失敗' 
                     : '同步失敗，請檢查網絡連接'
                 
-                set({ 
-                  isLocallyUpdating: false,
-                  error: errorMessage
+                set(state => {
+                  const newRecentChanges = new Set(state.recentLocalChanges)
+                  // 保留在失敗時，讓用戶知道數據還沒同步
+                  
+                  return {
+                    isLocallyUpdating: false,
+                    error: errorMessage,
+                    recentLocalChanges: newRecentChanges
+                  }
                 })
                 
                 // 對於手機端，錯誤訊息保留更久讓用戶看到
