@@ -1,16 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import { authListener } from '../services/authListener'
+import { networkStatus } from '../utils/networkStatus'
 
 export default function SyncStatusIndicator() {
   const { 
     isSyncing, 
     lastSyncTime, 
     error, 
-    setError 
+    setError,
+    isLocallyUpdating
   } = useSyncedAppStore()
   
   const [isExpanded, setIsExpanded] = useState(false)
+  const [isOnline, setIsOnline] = useState(networkStatus.getIsOnline())
+
+  useEffect(() => {
+    const cleanup = networkStatus.addListener((online) => {
+      setIsOnline(online)
+    })
+    
+    return cleanup
+  }, [])
 
   const handleManualSync = async () => {
     try {
@@ -27,10 +38,16 @@ export default function SyncStatusIndicator() {
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-2 h-2 rounded-full hover:scale-125 transition-transform"
-        title={isSyncing ? '同步中...' : error ? '同步錯誤' : '已同步'}
+        title={
+          !isOnline ? '離線模式' :
+          isSyncing || isLocallyUpdating ? '同步中...' : 
+          error ? '同步錯誤' : 
+          '已同步'
+        }
       >
         <div className={`w-2 h-2 rounded-full ${
-          isSyncing ? 'bg-yellow-500 animate-pulse' : 
+          !isOnline ? 'bg-gray-500' :
+          isSyncing || isLocallyUpdating ? 'bg-yellow-500 animate-pulse' : 
           error ? 'bg-red-500' : 
           'bg-green-500'
         }`} />
@@ -43,12 +60,14 @@ export default function SyncStatusIndicator() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${
-                isSyncing ? 'bg-yellow-500 animate-pulse' : 
+                !isOnline ? 'bg-gray-500' :
+                isSyncing || isLocallyUpdating ? 'bg-yellow-500 animate-pulse' : 
                 error ? 'bg-red-500' : 
                 'bg-green-500'
               }`} />
               <span className="text-sm font-medium">
-                {isSyncing ? '同步中...' : 
+                {!isOnline ? '離線模式' :
+                 isSyncing || isLocallyUpdating ? '同步中...' : 
                  error ? '同步錯誤' : 
                  '已同步'}
               </span>
@@ -61,10 +80,22 @@ export default function SyncStatusIndicator() {
             </button>
           </div>
 
+          {/* 網絡狀態 */}
+          <div className="text-xs text-text-secondary mb-2">
+            網絡狀態: {isOnline ? '已連接' : '離線'}
+          </div>
+
           {/* 最後同步時間 */}
           {lastSyncTime && (
             <div className="text-xs text-text-secondary mb-2">
               最後同步: {lastSyncTime.toLocaleTimeString()}
+            </div>
+          )}
+
+          {/* 本地更新狀態 */}
+          {isLocallyUpdating && (
+            <div className="text-xs text-yellow-600 mb-2">
+              正在同步本地更改...
             </div>
           )}
 
@@ -78,14 +109,16 @@ export default function SyncStatusIndicator() {
           {/* 手動同步按鈕 */}
           <button
             onClick={handleManualSync}
-            disabled={isSyncing}
+            disabled={isSyncing || isLocallyUpdating || !isOnline}
             className={`w-full text-xs px-2 py-1 rounded ${
-              isSyncing 
+              isSyncing || isLocallyUpdating || !isOnline
                 ? 'bg-background-tertiary text-text-tertiary cursor-not-allowed'
                 : 'bg-primary text-white hover:bg-primary-dark'
             }`}
           >
-            {isSyncing ? '同步中...' : '手動同步'}
+            {!isOnline ? '離線中' :
+             isSyncing || isLocallyUpdating ? '同步中...' : 
+             '手動同步'}
           </button>
         </div>
       )}

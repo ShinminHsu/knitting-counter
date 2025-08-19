@@ -4,6 +4,7 @@ import { Project, WorkSession, Yarn, Round, StitchInfo, StitchGroup } from '../t
 import { generateId, createSampleProject, getRoundTotalStitches } from '../utils'
 import { useAuthStore } from './authStore'
 import { firestoreService, UserProfile } from '../services/firestoreService'
+import { networkStatus } from '../utils/networkStatus'
 
 interface SyncedAppStore {
   // 狀態
@@ -504,12 +505,25 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
 
       setCurrentRound: async (roundNumber) => {
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[DEBUG] setCurrentRound: No current project')
+          return
+        }
+
+        // 驗證圈數是否有效
+        const targetRound = currentProject.pattern.find(r => r.roundNumber === roundNumber)
+        if (!targetRound) {
+          console.error('[DEBUG] setCurrentRound: Invalid round number', roundNumber)
+          return
+        }
+
+        console.log('[DEBUG] setCurrentRound: Updating from round', currentProject.currentRound, 'to', roundNumber)
 
         const updatedProject = {
           ...currentProject,
           currentRound: roundNumber,
           currentStitch: 0,
+          isCompleted: false, // 重置完成狀態
           lastModified: new Date()
         }
 
@@ -590,16 +604,65 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
             : state.currentProject
         }))
 
-        // 異步同步到Firestore
+        // 異步同步到Firestore，增加重試機制
         const { user } = useAuthStore.getState()
         if (user) {
-          try {
-            await firestoreService.updateProject(user.uid, updatedProject)
-            set({ lastSyncTime: new Date(), isLocallyUpdating: false })
-          } catch (error) {
-            console.error('Error syncing project update to Firestore:', error)
-            set({ isLocallyUpdating: false })
+          let retryCount = 0
+          const maxRetries = 3
+          
+          const attemptSync = async (): Promise<void> => {
+            // 檢查網絡狀態
+            if (!networkStatus.getIsOnline()) {
+              console.log('[SYNC] Device is offline, waiting for connection...')
+              const isConnected = await networkStatus.waitForConnection(5000)
+              
+              if (!isConnected) {
+                console.log('[SYNC] Still offline after waiting, will retry later')
+                if (retryCount < maxRetries) {
+                  retryCount++
+                  const delay = Math.pow(2, retryCount - 1) * 1000
+                  setTimeout(attemptSync, delay)
+                  return
+                } else {
+                  set({ 
+                    isLocallyUpdating: false,
+                    error: '設備離線，無法同步數據' 
+                  })
+                  setTimeout(() => set({ error: null }), 3000)
+                  return
+                }
+              }
+            }
+
+            try {
+              await firestoreService.updateProject(user.uid, updatedProject)
+              set({ lastSyncTime: new Date(), isLocallyUpdating: false })
+              console.log('[SYNC] Project synced successfully to Firestore:', updatedProject.id)
+            } catch (error) {
+              console.error(`[SYNC] Error syncing project update to Firestore (attempt ${retryCount + 1}):`, error)
+              
+              if (retryCount < maxRetries) {
+                retryCount++
+                // 指數退避：等待 1s, 2s, 4s
+                const delay = Math.pow(2, retryCount - 1) * 1000
+                console.log(`[SYNC] Retrying sync in ${delay}ms...`)
+                setTimeout(attemptSync, delay)
+              } else {
+                console.error('[SYNC] Max retries reached, sync failed for project:', updatedProject.id)
+                set({ 
+                  isLocallyUpdating: false,
+                  error: '同步失敗，請檢查網絡連接' 
+                })
+                
+                // 清除錯誤信息，3秒後自動消失
+                setTimeout(() => {
+                  set({ error: null })
+                }, 3000)
+              }
+            }
           }
+          
+          attemptSync()
         } else {
           set({ isLocallyUpdating: false })
         }

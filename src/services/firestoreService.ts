@@ -188,6 +188,12 @@ class FirestoreService {
 
   async updateProject(userId: string, project: Project): Promise<void> {
     try {
+      console.log('[FIRESTORE] Updating project:', project.id, {
+        currentRound: project.currentRound,
+        currentStitch: project.currentStitch,
+        isCompleted: project.isCompleted
+      })
+      
       const projectRef = doc(db, 'users', userId, 'projects', project.id)
       
       const firestoreProject: Partial<FirestoreProject> = {
@@ -213,9 +219,23 @@ class FirestoreService {
         }))
       })
       
+      console.log('[FIRESTORE] Project document updated successfully')
+      
       await this.syncRounds(userId, project.id, project.pattern)
+      
+      console.log('[FIRESTORE] Project sync completed successfully')
     } catch (error) {
-      console.error('Error updating project:', error)
+      console.error('[FIRESTORE] Error updating project:', error)
+      
+      // 檢查是否為網絡相關錯誤
+      if (error instanceof Error) {
+        if (error.message.includes('offline') || 
+            error.message.includes('network') || 
+            error.message.includes('fetch')) {
+          console.error('[FIRESTORE] Network connectivity issue detected')
+        }
+      }
+      
       throw error
     }
   }

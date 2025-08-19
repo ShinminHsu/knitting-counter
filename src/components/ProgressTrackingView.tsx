@@ -106,8 +106,10 @@ export default function ProgressTrackingView() {
     }
   }
 
-  const handleCompleteRound = () => {
+  const handleCompleteRound = async () => {
     if (!displayRound) return
+    
+    console.log('[DEBUG] handleCompleteRound: Completing round', displayRoundNumber)
     
     // 檢查是否為最後一圈
     const maxRoundNumber = Math.max(...currentProject.pattern.map(r => r.roundNumber))
@@ -120,11 +122,13 @@ export default function ProgressTrackingView() {
         currentStitch: getRoundTotalStitches(displayRound), // 設置到最後一針
         lastModified: new Date()
       }
-      updateProject(updatedProject)
+      console.log('[DEBUG] handleCompleteRound: Marking project as completed')
+      await updateProject(updatedProject)
     } else {
       // 將進度設置到下一圈的開始
       const nextRoundNumber = displayRoundNumber + 1
-      setCurrentRound(nextRoundNumber)
+      console.log('[DEBUG] handleCompleteRound: Moving to next round', nextRoundNumber)
+      await setCurrentRound(nextRoundNumber)
     }
     setViewingRound(null) // 退出查看模式
   }
