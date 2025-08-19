@@ -38,32 +38,62 @@ export class NetworkStatusManager {
 
   private async checkConnectionStatus() {
     try {
-      // 使用 Google DNS 進行更可靠的網路檢測
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      // 首先嘗試簡單的網路檢測
+      if (!navigator.onLine) {
+        const wasOnline = this.isOnline
+        this.isOnline = false
+        if (wasOnline) {
+          console.log('[NETWORK] Navigator reports offline')
+          this.notifyListeners()
+        }
+        return
+      }
+
+      // 嘗試多個端點進行網路檢測，提高成功率
+      const testUrls = [
+        'https://www.google.com/favicon.ico',
+        'https://httpbin.org/status/200',
+        '/favicon.ico' // 本地資源作為備用
+      ]
+
+      let connectionOk = false
       
-      const response = await fetch('https://dns.google/resolve?name=google.com&type=A', {
-        method: 'GET',
-        cache: 'no-cache',
-        signal: controller.signal
-      })
+      for (const url of testUrls) {
+        try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 3000)
+          
+          const response = await fetch(url, {
+            method: 'HEAD',
+            cache: 'no-cache',
+            signal: controller.signal
+          })
+          
+          clearTimeout(timeoutId)
+          
+          if (response.ok) {
+            connectionOk = true
+            break
+          }
+        } catch {
+          // 繼續嘗試下一個URL
+          continue
+        }
+      }
       
-      clearTimeout(timeoutId)
       const wasOffline = !this.isOnline
-      this.isOnline = response.ok
+      this.isOnline = connectionOk
       
       if (wasOffline && this.isOnline) {
         console.log('[NETWORK] Connection status verified: online')
         this.notifyListeners()
-      }
-    } catch (error) {
-      const wasOnline = this.isOnline
-      this.isOnline = false
-      
-      if (wasOnline) {
-        console.log('[NETWORK] Connection status verified: offline', error)
+      } else if (!wasOffline && !this.isOnline) {
+        console.log('[NETWORK] Connection status verified: offline')
         this.notifyListeners()
       }
+    } catch (error) {
+      console.error('[NETWORK] Connection check failed:', error)
+      // 保持當前狀態，不改變
     }
   }
 

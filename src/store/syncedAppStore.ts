@@ -652,14 +652,21 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
             }
 
             try {
-              // 在同步前測試 Firestore 連接
-              const connectionOk = await firestoreService.testConnection()
-              if (!connectionOk && retryCount === 0) {
-                console.log('[SYNC] Firestore connection test failed, attempting to restart connection...')
-                await firestoreService.enableOfflineSupport()
-                await new Promise(resolve => setTimeout(resolve, 1000))
-                await firestoreService.disableOfflineSupport()
-                await new Promise(resolve => setTimeout(resolve, 1000))
+              // 針對手機端，跳過連接測試以避免不必要的失敗
+              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+              
+              if (!isMobile) {
+                // 桌面端才進行連接測試
+                const connectionOk = await firestoreService.testConnection()
+                if (!connectionOk && retryCount === 0) {
+                  console.log('[SYNC] Firestore connection test failed, attempting to restart connection...')
+                  await firestoreService.enableOfflineSupport()
+                  await new Promise(resolve => setTimeout(resolve, 1000))
+                  await firestoreService.disableOfflineSupport()
+                  await new Promise(resolve => setTimeout(resolve, 1000))
+                }
+              } else {
+                console.log('[SYNC] Mobile device detected, skipping connection test')
               }
               
               await firestoreService.updateProject(user.uid, updatedProject)
@@ -675,15 +682,22 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                 error.message.includes('unavailable') ||
                 error.message.includes('timeout') ||
                 error.message.includes('failed to connect') ||
-                error.message.includes('network-request-failed')
+                error.message.includes('network-request-failed') ||
+                error.message.includes('firebase') ||
+                error.message.includes('permission-denied') ||
+                error.message.includes('unauthenticated')
               )
               
-              if (retryCount < maxRetries) {
+              // 對於手機端，更寬容地處理某些錯誤
+              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+              const shouldRetry = isMobile ? (retryCount < maxRetries) : (retryCount < maxRetries && isNetworkError)
+              
+              if (shouldRetry) {
                 retryCount++
-                // 針對網路錯誤使用更長的延遲
-                const baseDelay = isNetworkError ? 2000 : 1000
+                // 針對手機端和網路錯誤使用不同的延遲策略
+                const baseDelay = isMobile ? 1500 : (isNetworkError ? 2000 : 1000)
                 const delay = Math.pow(2, retryCount - 1) * baseDelay
-                console.log(`[SYNC] Retrying sync in ${delay}ms... (Network error: ${isNetworkError})`)
+                console.log(`[SYNC] Retrying sync in ${delay}ms... (Mobile: ${isMobile}, Network error: ${isNetworkError})`)
                 
                 // 暫時清除本地更新狀態，顯示重試信息
                 set({ 
@@ -698,19 +712,24 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                 }, delay)
               } else {
                 console.error('[SYNC] Max retries reached, sync failed for project:', updatedProject.id)
-                const errorMessage = isNetworkError 
-                  ? '網路連接不穩定，同步失敗' 
-                  : '同步失敗，請檢查網絡連接'
+                
+                // 對於手機端，提供更友善的訊息
+                const errorMessage = isMobile 
+                  ? '手機網路同步失敗，資料已保存在本地' 
+                  : isNetworkError 
+                    ? '網路連接不穩定，同步失敗' 
+                    : '同步失敗，請檢查網絡連接'
                 
                 set({ 
                   isLocallyUpdating: false,
                   error: errorMessage
                 })
                 
-                // 清除錯誤信息，3秒後自動消失
+                // 對於手機端，錯誤訊息保留更久讓用戶看到
+                const clearDelay = isMobile ? 5000 : 3000
                 setTimeout(() => {
                   set({ error: null })
-                }, 3000)
+                }, clearDelay)
               }
             }
           }

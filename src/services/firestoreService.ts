@@ -411,12 +411,22 @@ class FirestoreService {
 
   async testConnection(): Promise<boolean> {
     try {
-      // 嘗試一個簡單的讀取操作來測試連接
-      await getDoc(doc(db, '_test', 'connection'))
+      // 使用更簡單的方式測試連接 - 嘗試讀取用戶的profile信息
+      // 這樣不會因為文檔不存在而失敗
+      const testRef = doc(db, 'test', 'connectivity')
+      await getDoc(testRef)
       console.log('[FIRESTORE] Connection test completed successfully')
       return true
     } catch (error) {
       console.error('[FIRESTORE] Connection test failed:', error)
+      // 只有在真正的網路錯誤時才回傳false
+      if (error instanceof Error) {
+        const isNetworkError = error.message.includes('offline') ||
+                               error.message.includes('network') ||
+                               error.message.includes('unavailable') ||
+                               error.message.includes('failed to connect')
+        return !isNetworkError
+      }
       return false
     }
   }
