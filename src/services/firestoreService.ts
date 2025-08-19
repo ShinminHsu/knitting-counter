@@ -294,13 +294,19 @@ class FirestoreService {
       })
       
       const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', round.id)
-      await setDoc(roundRef, {
+      const roundData: any = {
         id: round.id,
         roundNumber: round.roundNumber,
         stitches: round.stitches,
-        stitchGroups: round.stitchGroups,
-        notes: round.notes
-      })
+        stitchGroups: round.stitchGroups
+      }
+      
+      // Only include notes if it's defined and not empty
+      if (round.notes !== undefined && round.notes !== null) {
+        roundData.notes = round.notes
+      }
+      
+      await setDoc(roundRef, roundData)
       
       console.log('[FIRESTORE-CREATE-ROUND] Round created successfully:', round.id)
     } catch (error) {
@@ -321,12 +327,18 @@ class FirestoreService {
       })
       
       const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', round.id)
-      await updateDoc(roundRef, {
+      const updateData: any = {
         roundNumber: round.roundNumber,
         stitches: round.stitches,
-        stitchGroups: round.stitchGroups,
-        notes: round.notes
-      })
+        stitchGroups: round.stitchGroups
+      }
+      
+      // Only include notes if it's defined and not empty
+      if (round.notes !== undefined && round.notes !== null) {
+        updateData.notes = round.notes
+      }
+      
+      await updateDoc(roundRef, updateData)
       
       console.log('[FIRESTORE-UPDATE-ROUND] Round updated successfully:', round.id)
     } catch (error) {
