@@ -279,12 +279,38 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         return firestoreService.subscribeToUserProjects(user.uid, (projects) => {
           const currentState = get()
           
-          // 避免覆蓋本地更新和同步狀態
-          if (!currentState.isSyncing && !currentState.isLocallyUpdating) {
+          // 更嚴格的條件檢查，避免覆蓋本地更新
+          // 只有在完全沒有任何同步活動且沒有錯誤狀態時才更新
+          const canUpdate = !currentState.isSyncing && 
+                           !currentState.isLocallyUpdating && 
+                           !currentState.error &&
+                           currentState.lastSyncTime &&
+                           (Date.now() - currentState.lastSyncTime.getTime()) > 10000 // 至少10秒後才允許更新，給手機更多時間
+          
+          // 額外檢查：比較數據是否真的不同，避免無意義的更新
+          const hasActualChanges = currentState.projects.length !== projects.length ||
+                                   currentState.projects.some((localProject, index) => {
+                                     const remoteProject = projects[index]
+                                     return !remoteProject || 
+                                            localProject.lastModified.getTime() !== remoteProject.lastModified.getTime()
+                                   })
+          
+          if (canUpdate && hasActualChanges) {
+            console.log('[FIRESTORE-SUBSCRIPTION] Updating local data from Firestore')
             set({
               projects,
               currentProject: projects.find(p => p.id === currentState.currentProject?.id) || projects[0] || null,
               lastSyncTime: new Date()
+            })
+          } else {
+            console.log('[FIRESTORE-SUBSCRIPTION] Skipping update', {
+              canUpdate,
+              hasActualChanges,
+              isSyncing: currentState.isSyncing,
+              isLocallyUpdating: currentState.isLocallyUpdating,
+              hasError: !!currentState.error,
+              lastSync: currentState.lastSyncTime,
+              timeSinceLastSync: currentState.lastSyncTime ? Date.now() - currentState.lastSyncTime.getTime() : 'no previous sync'
             })
           }
         })
@@ -599,6 +625,12 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
 
       // 通用專案更新函數
       updateProjectLocally: async (updatedProject: Project) => {
+        console.log('[SYNC] Starting local project update:', {
+          projectId: updatedProject.id,
+          lastModified: updatedProject.lastModified,
+          userAgent: navigator.userAgent
+        })
+        
         // 設置本地更新標誌並立即更新本地狀態
         set(state => ({
           isLocallyUpdating: true,
@@ -628,15 +660,14 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                   retryCount++
                   const delay = Math.pow(2, retryCount - 1) * 1000
                   
-                  // 暫時清除本地更新狀態，顯示重試信息
+                  // 保持 isLocallyUpdating 狀態，只更新錯誤訊息
                   set({ 
-                    isLocallyUpdating: false,
                     error: `設備離線，${Math.ceil(delay/1000)}秒後重試 (${retryCount}/${maxRetries})`
                   })
                   
                   setTimeout(() => {
-                    // 重試時重新設置更新狀態
-                    set({ isLocallyUpdating: true, error: null })
+                    // 重試時清除錯誤訊息，保持同步狀態
+                    set({ error: null })
                     attemptSync()
                   }, delay)
                   return
@@ -670,7 +701,12 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
               }
               
               await firestoreService.updateProject(user.uid, updatedProject)
-              set({ lastSyncTime: new Date(), isLocallyUpdating: false })
+              set({ 
+                lastSyncTime: new Date(), 
+                isLocallyUpdating: false,
+                // 確保Firestore訂閱在短時間內不會覆蓋本地數據
+                error: null 
+              })
               console.log('[SYNC] Project synced successfully to Firestore:', updatedProject.id)
             } catch (error) {
               console.error(`[SYNC] Error syncing project update to Firestore (attempt ${retryCount + 1}):`, error)
@@ -699,15 +735,14 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                 const delay = Math.pow(2, retryCount - 1) * baseDelay
                 console.log(`[SYNC] Retrying sync in ${delay}ms... (Mobile: ${isMobile}, Network error: ${isNetworkError})`)
                 
-                // 暫時清除本地更新狀態，顯示重試信息
+                // 保持 isLocallyUpdating 狀態，只更新錯誤訊息
                 set({ 
-                  isLocallyUpdating: false,
                   error: `同步失敗，${Math.ceil(delay/1000)}秒後重試 (${retryCount}/${maxRetries})`
                 })
                 
                 setTimeout(() => {
-                  // 重試時重新設置更新狀態
-                  set({ isLocallyUpdating: true, error: null })
+                  // 重試時清除錯誤訊息，保持同步狀態
+                  set({ error: null })
                   attemptSync()
                 }, delay)
               } else {
