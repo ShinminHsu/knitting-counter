@@ -231,8 +231,24 @@ class FirestoreService {
       if (error instanceof Error) {
         if (error.message.includes('offline') || 
             error.message.includes('network') || 
-            error.message.includes('fetch')) {
-          console.error('[FIRESTORE] Network connectivity issue detected')
+            error.message.includes('fetch') ||
+            error.message.includes('unavailable') ||
+            error.message.includes('timeout') ||
+            error.name === 'AbortError') {
+          console.error('[FIRESTORE] Network connectivity issue detected:', error.message)
+          
+          // 針對移動裝置的網路問題，重新初始化 Firestore 連接
+          if (error.message.includes('failed to connect') || error.message.includes('network-request-failed')) {
+            console.log('[FIRESTORE] Attempting to restart Firestore connection...')
+            try {
+              await this.enableOfflineSupport()
+              setTimeout(async () => {
+                await this.disableOfflineSupport()
+              }, 1000)
+            } catch (restartError) {
+              console.error('[FIRESTORE] Failed to restart connection:', restartError)
+            }
+          }
         }
       }
       
@@ -378,16 +394,30 @@ class FirestoreService {
   async enableOfflineSupport(): Promise<void> {
     try {
       await enableNetwork(db)
+      console.log('[FIRESTORE] Network enabled successfully')
     } catch (error) {
-      console.error('Error enabling offline support:', error)
+      console.error('[FIRESTORE] Error enabling network:', error)
     }
   }
 
   async disableOfflineSupport(): Promise<void> {
     try {
       await disableNetwork(db)
+      console.log('[FIRESTORE] Network disabled successfully')
     } catch (error) {
-      console.error('Error disabling offline support:', error)
+      console.error('[FIRESTORE] Error disabling network:', error)
+    }
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      // 嘗試一個簡單的讀取操作來測試連接
+      await getDoc(doc(db, '_test', 'connection'))
+      console.log('[FIRESTORE] Connection test completed successfully')
+      return true
+    } catch (error) {
+      console.error('[FIRESTORE] Connection test failed:', error)
+      return false
     }
   }
 }

@@ -38,10 +38,17 @@ export class NetworkStatusManager {
 
   private async checkConnectionStatus() {
     try {
-      const response = await fetch('/favicon.ico', {
-        method: 'HEAD',
-        cache: 'no-cache'
+      // 使用 Google DNS 進行更可靠的網路檢測
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      
+      const response = await fetch('https://dns.google/resolve?name=google.com&type=A', {
+        method: 'GET',
+        cache: 'no-cache',
+        signal: controller.signal
       })
+      
+      clearTimeout(timeoutId)
       const wasOffline = !this.isOnline
       this.isOnline = response.ok
       
@@ -49,12 +56,12 @@ export class NetworkStatusManager {
         console.log('[NETWORK] Connection status verified: online')
         this.notifyListeners()
       }
-    } catch {
+    } catch (error) {
       const wasOnline = this.isOnline
       this.isOnline = false
       
       if (wasOnline) {
-        console.log('[NETWORK] Connection status verified: offline')
+        console.log('[NETWORK] Connection status verified: offline', error)
         this.notifyListeners()
       }
     }

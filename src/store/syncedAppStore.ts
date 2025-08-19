@@ -15,6 +15,7 @@ interface SyncedAppStore {
   isSyncing: boolean
   lastSyncTime: Date | null
   isLocallyUpdating: boolean
+  networkStatusListener: (() => void) | null
   
   // 動作
   setLoading: (loading: boolean) => void
@@ -65,6 +66,10 @@ interface SyncedAppStore {
   addYarn: (yarn: Yarn) => Promise<void>
   updateYarn: (yarn: Yarn) => Promise<void>
   deleteYarn: (id: string) => Promise<void>
+  
+  // 網絡狀態管理
+  initializeNetworkListener: () => void
+  cleanupNetworkListener: () => void
 }
 
 export const useSyncedAppStore = create<SyncedAppStore>()(
@@ -78,6 +83,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       isSyncing: false,
       lastSyncTime: null,
       isLocallyUpdating: false,
+      networkStatusListener: null,
 
       // 基本動作
       setLoading: (loading) => set({ isLoading: loading }),
@@ -635,23 +641,48 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
             }
 
             try {
+              // 在同步前測試 Firestore 連接
+              const connectionOk = await firestoreService.testConnection()
+              if (!connectionOk && retryCount === 0) {
+                console.log('[SYNC] Firestore connection test failed, attempting to restart connection...')
+                await firestoreService.enableOfflineSupport()
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                await firestoreService.disableOfflineSupport()
+                await new Promise(resolve => setTimeout(resolve, 1000))
+              }
+              
               await firestoreService.updateProject(user.uid, updatedProject)
               set({ lastSyncTime: new Date(), isLocallyUpdating: false })
               console.log('[SYNC] Project synced successfully to Firestore:', updatedProject.id)
             } catch (error) {
               console.error(`[SYNC] Error syncing project update to Firestore (attempt ${retryCount + 1}):`, error)
               
+              // 檢查是否為特定的網路錯誤
+              const isNetworkError = error instanceof Error && (
+                error.message.includes('offline') ||
+                error.message.includes('network') ||
+                error.message.includes('unavailable') ||
+                error.message.includes('timeout') ||
+                error.message.includes('failed to connect') ||
+                error.message.includes('network-request-failed')
+              )
+              
               if (retryCount < maxRetries) {
                 retryCount++
-                // 指數退避：等待 1s, 2s, 4s
-                const delay = Math.pow(2, retryCount - 1) * 1000
-                console.log(`[SYNC] Retrying sync in ${delay}ms...`)
+                // 針對網路錯誤使用更長的延遲
+                const baseDelay = isNetworkError ? 2000 : 1000
+                const delay = Math.pow(2, retryCount - 1) * baseDelay
+                console.log(`[SYNC] Retrying sync in ${delay}ms... (Network error: ${isNetworkError})`)
                 setTimeout(attemptSync, delay)
               } else {
                 console.error('[SYNC] Max retries reached, sync failed for project:', updatedProject.id)
+                const errorMessage = isNetworkError 
+                  ? '網路連接不穩定，同步失敗' 
+                  : '同步失敗，請檢查網絡連接'
+                
                 set({ 
                   isLocallyUpdating: false,
-                  error: '同步失敗，請檢查網絡連接' 
+                  error: errorMessage
                 })
                 
                 // 清除錯誤信息，3秒後自動消失
@@ -1036,6 +1067,38 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         }
 
         await get().updateProjectLocally(updatedProject)
+      },
+
+      // 初始化網絡狀態監聽器
+      initializeNetworkListener: () => {
+        const { networkStatusListener } = get()
+        if (networkStatusListener) {
+          networkStatusListener() // 先清除現有監聽器
+        }
+
+        const listener = networkStatus.addListener((isOnline) => {
+          console.log('[SYNC] Network status changed:', isOnline ? 'online' : 'offline')
+          
+          if (isOnline) {
+            // 網絡恢復時，嘗試同步待同步的數據
+            const { currentProject } = get()
+            if (currentProject) {
+              console.log('[SYNC] Network restored, attempting to sync current project...')
+              get().updateProjectLocally(currentProject)
+            }
+          }
+        })
+
+        set({ networkStatusListener: listener })
+      },
+
+      // 清理網絡狀態監聽器
+      cleanupNetworkListener: () => {
+        const { networkStatusListener } = get()
+        if (networkStatusListener) {
+          networkStatusListener()
+          set({ networkStatusListener: null })
+        }
       }
     }),
     {
