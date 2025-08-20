@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
+import { FaRegEdit } from 'react-icons/fa'
+import { VscEdit } from 'react-icons/vsc'
+import { BsTrash } from 'react-icons/bs'
+import { CiCircleCheck } from 'react-icons/ci'
+import { RxCrossCircled } from 'react-icons/rx'
 import { useSyncedAppStore } from '../store/syncedAppStore'
+import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
   generateId,
   getRoundTotalStitches,
-  getStitchGroupTotalStitches
+  getStitchGroupTotalStitches,
+  getSortedPatternItems
 } from '../utils'
-import { Round, StitchInfo, StitchGroup, StitchType, StitchTypeInfo } from '../types'
+import { Round, StitchInfo, StitchGroup, StitchType, StitchTypeInfo, PatternItemType } from '../types'
 
 export default function PatternEditorView() {
   const { projectId } = useParams()
@@ -22,10 +29,10 @@ export default function PatternEditorView() {
     addStitchGroupToRound,
     updateStitchInRound,
     deleteStitchFromRound,
-    reorderStitchesInRound,
     updateStitchGroupInRound,
+    updateStitchInGroup,
     deleteStitchGroupFromRound,
-    reorderStitchGroupsInRound
+    reorderPatternItemsInRound
   } = useSyncedAppStore()
 
   const [showAddRoundForm, setShowAddRoundForm] = useState(false)
@@ -34,30 +41,35 @@ export default function PatternEditorView() {
   const [editingRound, setEditingRound] = useState<Round | null>(null)
   const [editingStitch, setEditingStitch] = useState<{ roundNumber: number, stitchId: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ roundNumber: number, groupId: string } | null>(null)
+  const [editingGroupStitch, setEditingGroupStitch] = useState<{ roundNumber: number, groupId: string, stitchId: string } | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   // 新增圈數表單狀態
   const [newRoundNotes, setNewRoundNotes] = useState('')
 
   // 新增針法表單狀態
   const [newStitchType, setNewStitchType] = useState<StitchType>(StitchType.SINGLE)
-  const [newStitchCount, setNewStitchCount] = useState(1)
+  const [newStitchCount, setNewStitchCount] = useState<number | string>(1)
 
   // 新增群組表單狀態
   const [newGroupName, setNewGroupName] = useState('')
-  const [newGroupRepeatCount, setNewGroupRepeatCount] = useState(1)
+  const [newGroupRepeatCount, setNewGroupRepeatCount] = useState<number | string>(1)
   const [newGroupStitches, setNewGroupStitches] = useState<StitchInfo[]>([])
 
   // 編輯針法狀態
   const [editStitchType, setEditStitchType] = useState<StitchType>(StitchType.SINGLE)
-  const [editStitchCount, setEditStitchCount] = useState(1)
+  const [editStitchCount, setEditStitchCount] = useState<number | string>(1)
 
   // 編輯群組狀態
   const [editGroupName, setEditGroupName] = useState('')
-  const [editGroupRepeatCount, setEditGroupRepeatCount] = useState(1)
+  const [editGroupRepeatCount, setEditGroupRepeatCount] = useState<number | string>(1)
+  
+  // 編輯群組內針法狀態
+  const [editGroupStitchType, setEditGroupStitchType] = useState<StitchType>(StitchType.SINGLE)
+  const [editGroupStitchCount, setEditGroupStitchCount] = useState<number | string>(1)
 
   // 拖拽狀態
-  const [draggedStitch, setDraggedStitch] = useState<{ index: number, stitch: StitchInfo } | null>(null)
-  const [draggedGroup, setDraggedGroup] = useState<{ index: number, group: StitchGroup } | null>(null)
+  const [draggedItem, setDraggedItem] = useState<{ index: number, roundNumber: number } | null>(null)
 
   useEffect(() => {
     if (projectId) {
@@ -68,7 +80,32 @@ export default function PatternEditorView() {
         navigate('/404')
       }
     }
-  }, [projectId, setCurrentProject, projects, navigate])
+  }, [projectId, projects, navigate])
+
+  // 處理數字輸入的輔助函數
+  const handleNumberInputChange = (setValue: (value: number | string) => void, minValue: number = 1) => ({
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value
+      if (value === '') {
+        setValue('')
+      } else {
+        const numValue = parseInt(value)
+        setValue(isNaN(numValue) ? minValue : Math.max(minValue, numValue))
+      }
+    },
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+      if (e.target.value === '') {
+        setValue(minValue)
+      }
+    }
+  })
+
+  // 確保數字值的輔助函數
+  const ensureNumber = (value: number | string, defaultValue: number = 1): number => {
+    if (typeof value === 'number') return value
+    const parsed = parseInt(value)
+    return isNaN(parsed) ? defaultValue : Math.max(defaultValue, parsed)
+  }
 
   if (!currentProject) {
     return (
@@ -81,42 +118,112 @@ export default function PatternEditorView() {
     )
   }
 
-  const handleAddRound = () => {
-    const nextRoundNumber = Math.max(0, ...currentProject.pattern.map(r => r.roundNumber)) + 1
+  const handleAddRound = async () => {
+    console.log('[UI-ADD-ROUND] Button clicked:', {
+      isLoading,
+      timestamp: new Date().toISOString()
+    })
     
-    const newRound: Round = {
-      id: generateId(),
-      roundNumber: nextRoundNumber,
-      stitches: [],
-      stitchGroups: [],
-      notes: newRoundNotes.trim() || undefined
+    if (isLoading) {
+      console.log('[UI-ADD-ROUND] Already loading, returning')
+      return
     }
+    
+    setIsLoading(true)
+    console.log('[UI-ADD-ROUND] Set loading to true')
+    
+    try {
+      if (!currentProject) {
+        console.error('[UI-ADD-ROUND] No current project')
+        return
+      }
+      
+      const roundNumbers = currentProject.pattern?.map(r => r.roundNumber) || []
+      const nextRoundNumber = Math.max(0, ...roundNumbers) + 1
+      
+      const newRound: Round = {
+        id: generateId(),
+        roundNumber: nextRoundNumber,
+        stitches: [],
+        stitchGroups: [],
+        notes: newRoundNotes.trim() || undefined
+      }
 
-    addRound(newRound)
-    setNewRoundNotes('')
-    setShowAddRoundForm(false)
+      console.log('[UI-ADD-ROUND] About to call addRound with:', {
+        newRound,
+        currentProjectId: currentProject.id,
+        currentPatternLength: currentProject.pattern.length
+      })
+
+      await addRound(newRound)
+      
+      console.log('[UI-ADD-ROUND] Successfully added round, cleaning up UI state')
+      setNewRoundNotes('')
+      setShowAddRoundForm(false)
+    } catch (error) {
+      console.error('[UI-ADD-ROUND] Error adding round:', error)
+      alert('新增圈數時發生錯誤，請查看控制台了解詳情')
+    } finally {
+      console.log('[UI-ADD-ROUND] Setting loading to false')
+      setIsLoading(false)
+    }
   }
 
-  const handleDeleteRound = (roundNumber: number) => {
+  const handleDeleteRound = async (roundNumber: number) => {
     if (confirm(`確定要刪除第 ${roundNumber} 圈嗎？`)) {
-      deleteRound(roundNumber)
+      await deleteRound(roundNumber)
     }
   }
 
-  const handleAddStitch = (roundNumber: number) => {
-    const newStitch: StitchInfo = {
-      id: generateId(),
-      type: newStitchType,
-      yarnId: currentProject.yarns[0]?.id || '',
-      count: newStitchCount
+  const handleAddStitch = async (roundNumber: number) => {
+    console.log('[UI-ADD-STITCH] Button clicked:', {
+      roundNumber,
+      isLoading,
+      timestamp: new Date().toISOString()
+    })
+    
+    if (isLoading) {
+      console.log('[UI-ADD-STITCH] Already loading, returning')
+      return
     }
+    
+    setIsLoading(true)
+    console.log('[UI-ADD-STITCH] Set loading to true')
+    
+    try {
+      if (!currentProject) {
+        console.error('[UI-ADD-STITCH] No current project')
+        return
+      }
+      
+      const newStitch: StitchInfo = {
+        id: generateId(),
+        type: newStitchType,
+        yarnId: currentProject.yarns[0]?.id || '',
+        count: ensureNumber(newStitchCount)
+      }
 
-    addStitchToRound(roundNumber, newStitch)
-    setNewStitchCount(1)
-    setShowAddStitchForm(null)
+      console.log('[UI-ADD-STITCH] About to call addStitchToRound with:', {
+        roundNumber,
+        newStitch,
+        currentProjectId: currentProject.id
+      })
+
+      await addStitchToRound(roundNumber, newStitch)
+      
+      console.log('[UI-ADD-STITCH] Successfully added stitch, cleaning up UI state')
+      setNewStitchCount(1)
+      setShowAddStitchForm(null)
+    } catch (error) {
+      console.error('[UI-ADD-STITCH] Error adding stitch:', error)
+      alert('新增針法時發生錯誤，請查看控制台了解詳情')
+    } finally {
+      console.log('[UI-ADD-STITCH] Setting loading to false')
+      setIsLoading(false)
+    }
   }
 
-  const handleAddGroup = (roundNumber: number) => {
+  const handleAddGroup = async (roundNumber: number) => {
     if (newGroupStitches.length === 0) {
       alert('請先新增群組中的針法')
       return
@@ -126,10 +233,10 @@ export default function PatternEditorView() {
       id: generateId(),
       name: newGroupName.trim() || '針目群組',
       stitches: [...newGroupStitches],
-      repeatCount: newGroupRepeatCount
+      repeatCount: ensureNumber(newGroupRepeatCount)
     }
 
-    addStitchGroupToRound(roundNumber, newGroup)
+    await addStitchGroupToRound(roundNumber, newGroup)
     setNewGroupName('')
     setNewGroupRepeatCount(1)
     setNewGroupStitches([])
@@ -141,7 +248,7 @@ export default function PatternEditorView() {
       id: generateId(),
       type: newStitchType,
       yarnId: currentProject.yarns[0]?.id || '',
-      count: newStitchCount
+      count: ensureNumber(newStitchCount)
     }
 
     setNewGroupStitches([...newGroupStitches, newStitch])
@@ -152,9 +259,9 @@ export default function PatternEditorView() {
     setNewGroupStitches(newGroupStitches.filter(s => s.id !== stitchId))
   }
 
-  const handleUpdateRoundNotes = (round: Round, notes: string) => {
+  const handleUpdateRoundNotes = async (round: Round, notes: string) => {
     const updatedRound = { ...round, notes: notes.trim() || undefined }
-    updateRound(updatedRound)
+    await updateRound(updatedRound)
     setEditingRound(null)
   }
 
@@ -164,21 +271,21 @@ export default function PatternEditorView() {
     setEditStitchCount(stitch.count)
   }
 
-  const handleUpdateStitch = (roundNumber: number, stitchId: string) => {
+  const handleUpdateStitch = async (roundNumber: number, stitchId: string) => {
     const updatedStitch: StitchInfo = {
       id: stitchId,
       type: editStitchType,
       yarnId: currentProject!.yarns[0]?.id || '',
-      count: editStitchCount
+      count: ensureNumber(editStitchCount)
     }
 
-    updateStitchInRound(roundNumber, stitchId, updatedStitch)
+    await updateStitchInRound(roundNumber, stitchId, updatedStitch)
     setEditingStitch(null)
   }
 
-  const handleDeleteStitch = (roundNumber: number, stitchId: string) => {
+  const handleDeleteStitch = async (roundNumber: number, stitchId: string) => {
     if (confirm('確定要刪除這個針法嗎？')) {
-      deleteStitchFromRound(roundNumber, stitchId)
+      await deleteStitchFromRound(roundNumber, stitchId)
     }
   }
 
@@ -188,44 +295,81 @@ export default function PatternEditorView() {
     setEditGroupRepeatCount(group.repeatCount)
   }
 
-  const handleUpdateGroup = (roundNumber: number, groupId: string, originalGroup: StitchGroup) => {
+  const handleUpdateGroup = async (roundNumber: number, groupId: string, originalGroup: StitchGroup) => {
     const updatedGroup: StitchGroup = {
       ...originalGroup,
       name: editGroupName.trim() || '針目群組',
-      repeatCount: editGroupRepeatCount
+      repeatCount: ensureNumber(editGroupRepeatCount)
     }
 
-    updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+    await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
     setEditingGroup(null)
   }
 
-  const handleDeleteGroup = (roundNumber: number, groupId: string) => {
+  const handleDeleteGroup = async (roundNumber: number, groupId: string) => {
     if (confirm('確定要刪除這個針目群組嗎？')) {
-      deleteStitchGroupFromRound(roundNumber, groupId)
+      await deleteStitchGroupFromRound(roundNumber, groupId)
     }
   }
 
-  const handleDragStart = (_e: React.DragEvent, item: any, index: number, type: 'stitch' | 'group') => {
-    if (type === 'stitch') {
-      setDraggedStitch({ index, stitch: item })
-    } else {
-      setDraggedGroup({ index, group: item })
+  const handleEditGroupStitch = (roundNumber: number, groupId: string, stitch: StitchInfo) => {
+    setEditingGroupStitch({ roundNumber, groupId, stitchId: stitch.id })
+    setEditGroupStitchType(stitch.type)
+    setEditGroupStitchCount(stitch.count)
+  }
+
+  const handleUpdateGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
+    const updatedStitch: StitchInfo = {
+      id: stitchId,
+      type: editGroupStitchType,
+      yarnId: currentProject!.yarns[0]?.id || '',
+      count: ensureNumber(editGroupStitchCount)
     }
+
+    await updateStitchInGroup(roundNumber, groupId, stitchId, updatedStitch)
+    setEditingGroupStitch(null)
+  }
+
+  const handleDeleteGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
+    if (confirm('確定要刪除這個針法嗎？')) {
+      const round = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+      const group = round?.stitchGroups.find(g => g.id === groupId)
+      
+      if (group) {
+        const updatedGroup = {
+          ...group,
+          stitches: group.stitches.filter(s => s.id !== stitchId)
+        }
+        await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+      }
+    }
+  }
+
+  const handleDragStart = (_e: React.DragEvent, index: number, roundNumber: number) => {
+    console.log('[DRAG] Starting drag for PatternItem:', { index, roundNumber })
+    setDraggedItem({ index, roundNumber })
   }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
   }
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number, roundNumber: number, type: 'stitch' | 'group') => {
+  const handleDrop = async (e: React.DragEvent, targetIndex: number, roundNumber: number) => {
     e.preventDefault()
     
-    if (type === 'stitch' && draggedStitch) {
-      reorderStitchesInRound(roundNumber, draggedStitch.index, targetIndex)
-      setDraggedStitch(null)
-    } else if (type === 'group' && draggedGroup) {
-      reorderStitchGroupsInRound(roundNumber, draggedGroup.index, targetIndex)
-      setDraggedGroup(null)
+    if (draggedItem && draggedItem.roundNumber === roundNumber) {
+      console.log('[DRAG] Dropping PatternItem:', {
+        fromIndex: draggedItem.index,
+        toIndex: targetIndex,
+        roundNumber
+      })
+      
+      if (draggedItem.index !== targetIndex) {
+        await reorderPatternItemsInRound(roundNumber, draggedItem.index, targetIndex)
+      }
+      setDraggedItem(null)
+    } else {
+      console.log('[DRAG] Invalid drop - different rounds or no dragged item')
     }
   }
 
@@ -245,12 +389,16 @@ export default function PatternEditorView() {
               <h1 className="text-base sm:text-xl font-semibold text-text-primary">織圖編輯</h1>
             </div>
             
-            <button
-              onClick={() => setShowAddRoundForm(true)}
-              className="btn btn-primary w-full sm:w-auto"
-            >
-              新增圈數
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAddRoundForm(true)}
+                className="btn btn-primary w-full sm:w-auto"
+                disabled={isLoading}
+              >
+                {isLoading ? '處理中...' : '新增圈數'}
+              </button>
+              <SyncStatusIndicator />
+            </div>
           </div>
         </div>
       </div>
@@ -284,7 +432,9 @@ export default function PatternEditorView() {
         {/* 圈數列表 */}
         {currentProject.pattern.length === 0 ? (
           <div className="card text-center py-12">
-            <div className="text-6xl mb-4">📝</div>
+            <div className="mb-4 flex justify-center">
+              <FaRegEdit className="w-8 h-8 text-text-tertiary" />
+            </div>
             <h3 className="text-xl font-semibold text-text-primary mb-2">
               還沒有織圖圈數
             </h3>
@@ -334,9 +484,9 @@ export default function PatternEditorView() {
                     </button>
                     <button
                       onClick={() => handleDeleteRound(round.roundNumber)}
-                      className="text-text-tertiary hover:text-red-500 transition-colors"
+                      className="text-text-tertiary hover:text-red-500 transition-colors p-2"
                     >
-                      刪除
+                      <BsTrash className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
@@ -381,19 +531,237 @@ export default function PatternEditorView() {
                   </div>
                 )}
 
-                {/* 個別針法 */}
-                {round.stitches.length > 0 && (
+                {/* 織圖內容 - 按照新增順序顯示針法和群組 */}
+                {getSortedPatternItems(round).length > 0 && (
                   <div className="mb-4">
-                    <h4 className="font-medium text-text-primary mb-2">針法</h4>
+                    <div className="space-y-2">
+                      {getSortedPatternItems(round).map((patternItem, index) => (
+                        patternItem.type === PatternItemType.STITCH ? (
+                          // 針法顯示
+                          <div 
+                            key={patternItem.id} 
+                            className="flex items-center gap-3 p-2 bg-background-tertiary rounded cursor-move"
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, index, round.roundNumber)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, index, round.roundNumber)}
+                          >
+                            <div className="text-lg">
+                              {StitchTypeInfo[(patternItem.data as StitchInfo).type]?.symbol || '○'}
+                            </div>
+                            <div className="flex-1">
+                              {editingStitch?.stitchId === (patternItem.data as StitchInfo).id ? (
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={editStitchType}
+                                    onChange={(e) => setEditStitchType(e.target.value as StitchType)}
+                                    className="input text-sm"
+                                  >
+                                    {Object.entries(StitchTypeInfo).map(([key, info]) => (
+                                      <option key={key} value={key}>
+                                        {info.symbol} {info.rawValue}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={editStitchCount}
+                                    {...handleNumberInputChange(setEditStitchCount)}
+                                    className="input text-sm w-16"
+                                  />
+                                  <button
+                                    onClick={() => handleUpdateStitch(round.roundNumber, (patternItem.data as StitchInfo).id)}
+                                    className="text-green-500 hover:text-green-600 p-2"
+                                  >
+                                    <CiCircleCheck className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingStitch(null)}
+                                    className="text-text-tertiary hover:text-text-secondary p-2"
+                                  >
+                                    <RxCrossCircled className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-text-primary">
+                                    {StitchTypeInfo[(patternItem.data as StitchInfo).type]?.rawValue || (patternItem.data as StitchInfo).type}
+                                  </span>
+                                  <span className="text-sm text-text-secondary">
+                                    ×{(patternItem.data as StitchInfo).count}
+                                  </span>
+                                  <div className="flex items-center gap-1 ml-auto">
+                                    <button
+                                      onClick={() => handleEditStitch(round.roundNumber, patternItem.data as StitchInfo)}
+                                      className="text-text-tertiary hover:text-primary p-2"
+                                    >
+                                      <VscEdit className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteStitch(round.roundNumber, (patternItem.data as StitchInfo).id)}
+                                      className="text-text-tertiary hover:text-red-500 p-2"
+                                    >
+                                      <BsTrash className="w-5 h-5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          // 群組顯示  
+                          <div 
+                            key={patternItem.id} 
+                            className="border border-border rounded-lg p-3 cursor-move"
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, index, round.roundNumber)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, index, round.roundNumber)}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              {editingGroup?.groupId === (patternItem.data as StitchGroup).id ? (
+                                <div className="flex items-center gap-2 flex-1">
+                                  <input
+                                    type="text"
+                                    value={editGroupName}
+                                    onChange={(e) => setEditGroupName(e.target.value)}
+                                    className="input text-sm flex-1"
+                                    placeholder="群組名稱"
+                                  />
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={editGroupRepeatCount}
+                                    {...handleNumberInputChange(setEditGroupRepeatCount)}
+                                    className="input text-sm w-20"
+                                  />
+                                  <span className="text-sm text-text-secondary">次</span>
+                                  <button
+                                    onClick={() => handleUpdateGroup(round.roundNumber, (patternItem.data as StitchGroup).id, patternItem.data as StitchGroup)}
+                                    className="text-green-500 hover:text-green-600 p-2"
+                                  >
+                                    <CiCircleCheck className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingGroup(null)}
+                                    className="text-text-tertiary hover:text-text-secondary p-2"
+                                  >
+                                    <RxCrossCircled className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="font-medium text-text-primary">
+                                    {(patternItem.data as StitchGroup).name}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="text-sm text-text-secondary">
+                                      重複 {(patternItem.data as StitchGroup).repeatCount} 次 (共 {getStitchGroupTotalStitches(patternItem.data as StitchGroup)} 針)
+                                    </div>
+                                    <button
+                                      onClick={() => handleEditGroup(round.roundNumber, patternItem.data as StitchGroup)}
+                                      className="text-text-tertiary hover:text-primary p-2"
+                                    >
+                                      <VscEdit className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteGroup(round.roundNumber, (patternItem.data as StitchGroup).id)}
+                                      className="text-text-tertiary hover:text-red-500 p-2"
+                                    >
+                                      <BsTrash className="w-5 h-5" />
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              {(patternItem.data as StitchGroup).stitches.map((stitch) => (
+                                <div key={stitch.id} className="flex items-center gap-3 p-2 bg-background-tertiary rounded ml-4">
+                                  <div className="text-lg">
+                                    {StitchTypeInfo[stitch.type]?.symbol || '○'}
+                                  </div>
+                                  <div className="flex-1">
+                                    {editingGroupStitch?.stitchId === stitch.id && editingGroupStitch?.groupId === (patternItem.data as StitchGroup).id ? (
+                                      <div className="flex items-center gap-2">
+                                        <select
+                                          value={editGroupStitchType}
+                                          onChange={(e) => setEditGroupStitchType(e.target.value as StitchType)}
+                                          className="input text-sm"
+                                        >
+                                          {Object.entries(StitchTypeInfo).map(([key, info]) => (
+                                            <option key={key} value={key}>
+                                              {info.symbol} {info.rawValue}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          value={editGroupStitchCount}
+                                          {...handleNumberInputChange(setEditGroupStitchCount)}
+                                          className="input text-sm w-16"
+                                        />
+                                        <button
+                                          onClick={() => handleUpdateGroupStitch(round.roundNumber, (patternItem.data as StitchGroup).id, stitch.id)}
+                                          className="text-green-500 hover:text-green-600 p-2"
+                                        >
+                                          <CiCircleCheck className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                          onClick={() => setEditingGroupStitch(null)}
+                                          className="text-text-tertiary hover:text-text-secondary p-2"
+                                        >
+                                          <RxCrossCircled className="w-5 h-5" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-text-primary">
+                                          {StitchTypeInfo[stitch.type]?.rawValue || stitch.type}
+                                        </span>
+                                        <span className="text-sm text-text-secondary">
+                                          ×{stitch.count}
+                                        </span>
+                                        <div className="flex items-center gap-1 ml-auto">
+                                          <button
+                                            onClick={() => handleEditGroupStitch(round.roundNumber, (patternItem.data as StitchGroup).id, stitch)}
+                                            className="text-text-tertiary hover:text-primary p-2"
+                                          >
+                                            <VscEdit className="w-5 h-5" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteGroupStitch(round.roundNumber, (patternItem.data as StitchGroup).id, stitch.id)}
+                                            className="text-text-tertiary hover:text-red-500 p-2"
+                                          >
+                                            <BsTrash className="w-5 h-5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 舊版針法顯示 (保留作為備用) */}
+                {getSortedPatternItems(round).length === 0 && round.stitches.length > 0 && (
+                  <div className="mb-4">
                     <div className="space-y-2">
                       {round.stitches.map((stitch, index) => (
                         <div 
                           key={stitch.id} 
                           className="flex items-center gap-3 p-2 bg-background-tertiary rounded cursor-move"
                           draggable
-                          onDragStart={(e) => handleDragStart(e, stitch, index, 'stitch')}
+                          onDragStart={(e) => handleDragStart(e, index, round.roundNumber)}
                           onDragOver={handleDragOver}
-                          onDrop={(e) => handleDrop(e, index, round.roundNumber, 'stitch')}
+                          onDrop={(e) => handleDrop(e, index, round.roundNumber)}
                         >
                           <div className="text-lg">
                             {StitchTypeInfo[stitch.type]?.symbol || '○'}
@@ -416,20 +784,20 @@ export default function PatternEditorView() {
                                   type="number"
                                   min="1"
                                   value={editStitchCount}
-                                  onChange={(e) => setEditStitchCount(parseInt(e.target.value) || 1)}
+                                  {...handleNumberInputChange(setEditStitchCount)}
                                   className="input text-sm w-16"
                                 />
                                 <button
                                   onClick={() => handleUpdateStitch(round.roundNumber, stitch.id)}
-                                  className="text-green-500 hover:text-green-600 text-sm"
+                                  className="text-green-500 hover:text-green-600 p-2"
                                 >
-                                  ✓
+                                  <CiCircleCheck className="w-5 h-5" />
                                 </button>
                                 <button
                                   onClick={() => setEditingStitch(null)}
-                                  className="text-text-tertiary hover:text-text-secondary text-sm"
+                                  className="text-text-tertiary hover:text-text-secondary p-2"
                                 >
-                                  ✕
+                                  <RxCrossCircled className="w-5 h-5" />
                                 </button>
                               </div>
                             ) : (
@@ -443,15 +811,15 @@ export default function PatternEditorView() {
                                 <div className="flex items-center gap-1 ml-auto">
                                   <button
                                     onClick={() => handleEditStitch(round.roundNumber, stitch)}
-                                    className="text-text-tertiary hover:text-primary text-sm"
+                                    className="text-text-tertiary hover:text-primary p-2"
                                   >
-                                    編輯
+                                    <VscEdit className="w-5 h-5" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteStitch(round.roundNumber, stitch.id)}
-                                    className="text-text-tertiary hover:text-red-500 text-sm"
+                                    className="text-text-tertiary hover:text-red-500 p-2"
                                   >
-                                    刪除
+                                    <BsTrash className="w-5 h-5" />
                                   </button>
                                 </div>
                               </div>
@@ -463,19 +831,18 @@ export default function PatternEditorView() {
                   </div>
                 )}
 
-                {/* 針目群組 */}
-                {round.stitchGroups.length > 0 && (
+                {/* 舊版針目群組顯示 (保留作為備用) */}
+                {getSortedPatternItems(round).length === 0 && round.stitchGroups.length > 0 && (
                   <div className="mb-4">
-                    <h4 className="font-medium text-text-primary mb-2">針目群組</h4>
                     <div className="space-y-3">
                       {round.stitchGroups.map((group, index) => (
                         <div 
                           key={group.id} 
                           className="border border-border rounded-lg p-3 cursor-move"
                           draggable
-                          onDragStart={(e) => handleDragStart(e, group, index, 'group')}
+                          onDragStart={(e) => handleDragStart(e, index, round.roundNumber)}
                           onDragOver={handleDragOver}
-                          onDrop={(e) => handleDrop(e, index, round.roundNumber, 'group')}
+                          onDrop={(e) => handleDrop(e, index, round.roundNumber)}
                         >
                           <div className="flex items-center justify-between mb-2">
                             {editingGroup?.groupId === group.id ? (
@@ -491,21 +858,21 @@ export default function PatternEditorView() {
                                   type="number"
                                   min="1"
                                   value={editGroupRepeatCount}
-                                  onChange={(e) => setEditGroupRepeatCount(parseInt(e.target.value) || 1)}
+                                  {...handleNumberInputChange(setEditGroupRepeatCount)}
                                   className="input text-sm w-20"
                                 />
                                 <span className="text-sm text-text-secondary">次</span>
                                 <button
                                   onClick={() => handleUpdateGroup(round.roundNumber, group.id, group)}
-                                  className="text-green-500 hover:text-green-600 text-sm"
+                                  className="text-green-500 hover:text-green-600 p-2"
                                 >
-                                  ✓
+                                  <CiCircleCheck className="w-5 h-5" />
                                 </button>
                                 <button
                                   onClick={() => setEditingGroup(null)}
-                                  className="text-text-tertiary hover:text-text-secondary text-sm"
+                                  className="text-text-tertiary hover:text-text-secondary p-2"
                                 >
-                                  ✕
+                                  <RxCrossCircled className="w-5 h-5" />
                                 </button>
                               </div>
                             ) : (
@@ -519,15 +886,15 @@ export default function PatternEditorView() {
                                   </div>
                                   <button
                                     onClick={() => handleEditGroup(round.roundNumber, group)}
-                                    className="text-text-tertiary hover:text-primary text-sm"
+                                    className="text-text-tertiary hover:text-primary p-2"
                                   >
-                                    編輯
+                                    <VscEdit className="w-5 h-5" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteGroup(round.roundNumber, group.id)}
-                                    className="text-text-tertiary hover:text-red-500 text-sm"
+                                    className="text-text-tertiary hover:text-red-500 p-2"
                                   >
-                                    刪除
+                                    <BsTrash className="w-5 h-5" />
                                   </button>
                                 </div>
                               </>
@@ -540,12 +907,63 @@ export default function PatternEditorView() {
                                   {StitchTypeInfo[stitch.type]?.symbol || '○'}
                                 </div>
                                 <div className="flex-1">
-                                  <span className="font-medium text-text-primary">
-                                    {StitchTypeInfo[stitch.type]?.rawValue || stitch.type}
-                                  </span>
-                                  <span className="text-sm text-text-secondary ml-2">
-                                    ×{stitch.count}
-                                  </span>
+                                  {editingGroupStitch?.stitchId === stitch.id && editingGroupStitch?.groupId === group.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        value={editGroupStitchType}
+                                        onChange={(e) => setEditGroupStitchType(e.target.value as StitchType)}
+                                        className="input text-sm"
+                                      >
+                                        {Object.entries(StitchTypeInfo).map(([key, info]) => (
+                                          <option key={key} value={key}>
+                                            {info.symbol} {info.rawValue}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={editGroupStitchCount}
+                                        {...handleNumberInputChange(setEditGroupStitchCount)}
+                                        className="input text-sm w-16"
+                                      />
+                                      <button
+                                        onClick={() => handleUpdateGroupStitch(round.roundNumber, group.id, stitch.id)}
+                                        className="text-green-500 hover:text-green-600 p-2"
+                                      >
+                                        <CiCircleCheck className="w-5 h-5" />
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingGroupStitch(null)}
+                                        className="text-text-tertiary hover:text-text-secondary p-2"
+                                      >
+                                        <RxCrossCircled className="w-5 h-5" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-text-primary">
+                                        {StitchTypeInfo[stitch.type]?.rawValue || stitch.type}
+                                      </span>
+                                      <span className="text-sm text-text-secondary">
+                                        ×{stitch.count}
+                                      </span>
+                                      <div className="flex items-center gap-1 ml-auto">
+                                        <button
+                                          onClick={() => handleEditGroupStitch(round.roundNumber, group.id, stitch)}
+                                          className="text-text-tertiary hover:text-primary p-2"
+                                        >
+                                          <VscEdit className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteGroupStitch(round.roundNumber, group.id, stitch.id)}
+                                          className="text-text-tertiary hover:text-red-500 p-2"
+                                        >
+                                          <BsTrash className="w-5 h-5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             ))}
@@ -585,7 +1003,7 @@ export default function PatternEditorView() {
                           type="number"
                           min="1"
                           value={newStitchCount}
-                          onChange={(e) => setNewStitchCount(parseInt(e.target.value) || 1)}
+                          {...handleNumberInputChange(setNewStitchCount)}
                           className="input"
                         />
                       </div>
@@ -594,8 +1012,9 @@ export default function PatternEditorView() {
                       <button
                         onClick={() => handleAddStitch(round.roundNumber)}
                         className="btn btn-primary"
+                        disabled={isLoading}
                       >
-                        新增
+                        {isLoading ? '新增中...' : '新增'}
                       </button>
                       <button
                         onClick={() => setShowAddStitchForm(null)}
@@ -633,7 +1052,7 @@ export default function PatternEditorView() {
                           type="number"
                           min="1"
                           value={newGroupRepeatCount}
-                          onChange={(e) => setNewGroupRepeatCount(parseInt(e.target.value) || 1)}
+                          {...handleNumberInputChange(setNewGroupRepeatCount)}
                           className="input"
                         />
                       </div>
@@ -669,9 +1088,9 @@ export default function PatternEditorView() {
                             </div>
                             <button
                               onClick={() => handleRemoveStitchFromGroup(stitch.id)}
-                              className="text-text-tertiary hover:text-red-500 transition-colors"
+                              className="text-text-tertiary hover:text-red-500 transition-colors p-2"
                             >
-                              ✕
+                              <BsTrash className="w-5 h-5" />
                             </button>
                           </div>
                         ))}
@@ -693,7 +1112,7 @@ export default function PatternEditorView() {
                           type="number"
                           min="1"
                           value={newStitchCount}
-                          onChange={(e) => setNewStitchCount(parseInt(e.target.value) || 1)}
+                          {...handleNumberInputChange(setNewStitchCount)}
                           className="input"
                           placeholder="數量"
                         />
@@ -759,8 +1178,9 @@ export default function PatternEditorView() {
               <button
                 onClick={handleAddRound}
                 className="btn btn-primary flex-1"
+                disabled={isLoading}
               >
-                新增
+                {isLoading ? '新增中...' : '新增'}
               </button>
             </div>
           </div>

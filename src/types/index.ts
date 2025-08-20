@@ -56,6 +56,20 @@ export interface StitchGroup {
   repeatCount: number
 }
 
+// 用於統一處理針法和群組順序的類型
+export enum PatternItemType {
+  STITCH = 'stitch',
+  GROUP = 'group'
+}
+
+export interface PatternItem {
+  id: string
+  type: PatternItemType
+  order: number // 用於排序的數字，越小越前面
+  createdAt: Date // 新增時間，作為排序的輔助
+  data: StitchInfo | StitchGroup // 實際的針法或群組數據
+}
+
 export interface ExpandedStitch {
   id: string
   type: StitchType
@@ -67,8 +81,9 @@ export interface ExpandedStitch {
 export interface Round {
   id: string
   roundNumber: number
-  stitches: StitchInfo[]
-  stitchGroups: StitchGroup[]
+  stitches: StitchInfo[] // 保留舊格式以便向後相容
+  stitchGroups: StitchGroup[] // 保留舊格式以便向後相容
+  patternItems?: PatternItem[] // 新的統一結構，用於排序
   notes?: string
 }
 

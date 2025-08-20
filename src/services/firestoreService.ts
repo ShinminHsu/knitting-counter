@@ -157,14 +157,14 @@ class FirestoreService {
         source: project.source || '',
         currentRound: project.currentRound,
         currentStitch: project.currentStitch,
-        yarns: project.yarns,
-        sessions: project.sessions.map(session => ({
+        yarns: project.yarns || [],
+        sessions: project.sessions?.map(session => ({
           ...session,
           startTime: session.startTime
-        })),
+        })) || [],
         createdDate: project.createdDate,
         lastModified: project.lastModified,
-        isCompleted: project.isCompleted
+        isCompleted: project.isCompleted ?? false
       }
       
       await setDoc(projectRef, {
@@ -188,6 +188,19 @@ class FirestoreService {
 
   async updateProject(userId: string, project: Project): Promise<void> {
     try {
+      console.log('[FIRESTORE] Updating project:', project.id, {
+        currentRound: project.currentRound,
+        currentStitch: project.currentStitch,
+        isCompleted: project.isCompleted,
+        patternLength: project.pattern.length
+      })
+      
+      // 先嘗試同步圈數，確保子集合更新成功
+      console.log('[FIRESTORE] Syncing rounds first...')
+      await this.syncRounds(userId, project.id, project.pattern)
+      console.log('[FIRESTORE] Rounds synced successfully')
+      
+      // 圈數同步成功後，才更新主專案文檔
       const projectRef = doc(db, 'users', userId, 'projects', project.id)
       
       const firestoreProject: Partial<FirestoreProject> = {
@@ -195,15 +208,16 @@ class FirestoreService {
         source: project.source || '',
         currentRound: project.currentRound,
         currentStitch: project.currentStitch,
-        yarns: project.yarns,
-        sessions: project.sessions.map(session => ({
+        yarns: project.yarns || [],
+        sessions: project.sessions?.map(session => ({
           ...session,
           startTime: session.startTime
-        })),
+        })) || [],
         lastModified: project.lastModified,
-        isCompleted: project.isCompleted
+        isCompleted: project.isCompleted ?? false
       }
       
+      console.log('[FIRESTORE] Updating project document...')
       await updateDoc(projectRef, {
         ...firestoreProject,
         lastModified: Timestamp.fromDate(firestoreProject.lastModified!),
@@ -213,9 +227,40 @@ class FirestoreService {
         }))
       })
       
-      await this.syncRounds(userId, project.id, project.pattern)
+      console.log('[FIRESTORE] Project sync completed successfully')
+      
+      // 驗證同步結果
+      const roundsRef = collection(db, 'users', userId, 'projects', project.id, 'rounds')
+      const roundsSnap = await getDocs(roundsRef)
+      console.log('[FIRESTORE] Verification - Local pattern length:', project.pattern.length, 'Remote rounds count:', roundsSnap.docs.length)
     } catch (error) {
-      console.error('Error updating project:', error)
+      console.error('[FIRESTORE] Error updating project:', error)
+      
+      // 檢查是否為網絡相關錯誤
+      if (error instanceof Error) {
+        if (error.message.includes('offline') || 
+            error.message.includes('network') || 
+            error.message.includes('fetch') ||
+            error.message.includes('unavailable') ||
+            error.message.includes('timeout') ||
+            error.name === 'AbortError') {
+          console.error('[FIRESTORE] Network connectivity issue detected:', error.message)
+          
+          // 針對移動裝置的網路問題，重新初始化 Firestore 連接
+          if (error.message.includes('failed to connect') || error.message.includes('network-request-failed')) {
+            console.log('[FIRESTORE] Attempting to restart Firestore connection...')
+            try {
+              await this.enableOfflineSupport()
+              setTimeout(async () => {
+                await this.disableOfflineSupport()
+              }, 1000)
+            } catch (restartError) {
+              console.error('[FIRESTORE] Failed to restart connection:', restartError)
+            }
+          }
+        }
+      }
+      
       throw error
     }
   }
@@ -239,65 +284,136 @@ class FirestoreService {
 
   async createRound(userId: string, projectId: string, round: Round): Promise<void> {
     try {
+      console.log('[FIRESTORE-CREATE-ROUND] Creating round:', {
+        userId,
+        projectId,
+        roundId: round.id,
+        roundNumber: round.roundNumber,
+        stitchCount: round.stitches.length,
+        groupCount: round.stitchGroups.length
+      })
+      
       const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', round.id)
-      await setDoc(roundRef, {
+      const roundData: any = {
         id: round.id,
         roundNumber: round.roundNumber,
         stitches: round.stitches,
-        stitchGroups: round.stitchGroups,
-        notes: round.notes
-      })
+        stitchGroups: round.stitchGroups
+      }
+      
+      // Only include notes if it's defined and not empty
+      if (round.notes !== undefined && round.notes !== null) {
+        roundData.notes = round.notes
+      }
+      
+      await setDoc(roundRef, roundData)
+      
+      console.log('[FIRESTORE-CREATE-ROUND] Round created successfully:', round.id)
     } catch (error) {
-      console.error('Error creating round:', error)
+      console.error('[FIRESTORE-CREATE-ROUND] Error creating round:', round.id, error)
       throw error
     }
   }
 
   async updateRound(userId: string, projectId: string, round: Round): Promise<void> {
     try {
+      console.log('[FIRESTORE-UPDATE-ROUND] Updating round:', {
+        userId,
+        projectId,
+        roundId: round.id,
+        roundNumber: round.roundNumber,
+        stitchCount: round.stitches.length,
+        groupCount: round.stitchGroups.length
+      })
+      
       const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', round.id)
-      await updateDoc(roundRef, {
+      const updateData: any = {
         roundNumber: round.roundNumber,
         stitches: round.stitches,
-        stitchGroups: round.stitchGroups,
-        notes: round.notes
-      })
+        stitchGroups: round.stitchGroups
+      }
+      
+      // Only include notes if it's defined and not empty
+      if (round.notes !== undefined && round.notes !== null) {
+        updateData.notes = round.notes
+      }
+      
+      await updateDoc(roundRef, updateData)
+      
+      console.log('[FIRESTORE-UPDATE-ROUND] Round updated successfully:', round.id)
     } catch (error) {
-      console.error('Error updating round:', error)
+      console.error('[FIRESTORE-UPDATE-ROUND] Error updating round:', round.id, error)
       throw error
     }
   }
 
   async deleteRound(userId: string, projectId: string, roundId: string): Promise<void> {
     try {
+      console.log('[FIRESTORE-DELETE-ROUND] Deleting round:', {
+        userId,
+        projectId,
+        roundId
+      })
+      
       const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', roundId)
       await deleteDoc(roundRef)
+      
+      console.log('[FIRESTORE-DELETE-ROUND] Round deleted successfully:', roundId)
     } catch (error) {
-      console.error('Error deleting round:', error)
+      console.error('[FIRESTORE-DELETE-ROUND] Error deleting round:', roundId, error)
       throw error
     }
   }
 
   private async syncRounds(userId: string, projectId: string, rounds: Round[]): Promise<void> {
     try {
+      console.log('[FIRESTORE-SYNC-ROUNDS] Starting sync for project:', projectId, {
+        localRoundsCount: rounds.length,
+        roundIds: rounds.map(r => ({ id: r.id, roundNumber: r.roundNumber }))
+      })
+      
       const roundsRef = collection(db, 'users', userId, 'projects', projectId, 'rounds')
       const existingRoundsSnap = await getDocs(roundsRef)
       const existingRoundIds = new Set(existingRoundsSnap.docs.map(doc => doc.id))
       const currentRoundIds = new Set(rounds.map(round => round.id))
       
-      for (const roundId of existingRoundIds) {
-        if (!currentRoundIds.has(roundId)) {
-          await this.deleteRound(userId, projectId, roundId)
-        }
+      console.log('[FIRESTORE-SYNC-ROUNDS] Round comparison:', {
+        existingCount: existingRoundIds.size,
+        currentCount: currentRoundIds.size,
+        toDelete: Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id)),
+        toCreateOrUpdate: rounds.map(r => ({ 
+          id: r.id, 
+          action: existingRoundIds.has(r.id) ? 'update' : 'create' 
+        }))
+      })
+      
+      // 刪除不再存在的圈數
+      const roundsToDelete = Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id))
+      for (const roundId of roundsToDelete) {
+        console.log('[FIRESTORE-SYNC-ROUNDS] Deleting round:', roundId)
+        await this.deleteRound(userId, projectId, roundId)
       }
       
+      // 創建或更新圈數
       for (const round of rounds) {
         if (existingRoundIds.has(round.id)) {
+          console.log('[FIRESTORE-SYNC-ROUNDS] Updating round:', round.id, {
+            roundNumber: round.roundNumber,
+            stitchCount: round.stitches.length,
+            groupCount: round.stitchGroups.length
+          })
           await this.updateRound(userId, projectId, round)
         } else {
+          console.log('[FIRESTORE-SYNC-ROUNDS] Creating new round:', round.id, {
+            roundNumber: round.roundNumber,
+            stitchCount: round.stitches.length,
+            groupCount: round.stitchGroups.length
+          })
           await this.createRound(userId, projectId, round)
         }
       }
+      
+      console.log('[FIRESTORE-SYNC-ROUNDS] Sync completed successfully')
     } catch (error) {
       console.error('Error syncing rounds:', error)
       throw error
@@ -358,16 +474,40 @@ class FirestoreService {
   async enableOfflineSupport(): Promise<void> {
     try {
       await enableNetwork(db)
+      console.log('[FIRESTORE] Network enabled successfully')
     } catch (error) {
-      console.error('Error enabling offline support:', error)
+      console.error('[FIRESTORE] Error enabling network:', error)
     }
   }
 
   async disableOfflineSupport(): Promise<void> {
     try {
       await disableNetwork(db)
+      console.log('[FIRESTORE] Network disabled successfully')
     } catch (error) {
-      console.error('Error disabling offline support:', error)
+      console.error('[FIRESTORE] Error disabling network:', error)
+    }
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      // 使用更簡單的方式測試連接 - 嘗試讀取用戶的profile信息
+      // 這樣不會因為文檔不存在而失敗
+      const testRef = doc(db, 'test', 'connectivity')
+      await getDoc(testRef)
+      console.log('[FIRESTORE] Connection test completed successfully')
+      return true
+    } catch (error) {
+      console.error('[FIRESTORE] Connection test failed:', error)
+      // 只有在真正的網路錯誤時才回傳false
+      if (error instanceof Error) {
+        const isNetworkError = error.message.includes('offline') ||
+                               error.message.includes('network') ||
+                               error.message.includes('unavailable') ||
+                               error.message.includes('failed to connect')
+        return !isNetworkError
+      }
+      return false
     }
   }
 }

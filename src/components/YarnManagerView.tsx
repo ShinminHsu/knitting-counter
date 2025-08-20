@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useSyncedAppStore } from '../store/syncedAppStore'
+import SyncStatusIndicator from './SyncStatusIndicator'
 import { Yarn, YarnColor } from '../types'
 import { generateId } from '../utils'
 
@@ -128,12 +129,15 @@ export default function YarnManagerView() {
               </Link>
               <h1 className="text-base sm:text-xl font-semibold text-text-primary">毛線管理</h1>
             </div>
-            <button
-              onClick={handleAddYarn}
-              className="btn btn-primary w-full sm:w-auto"
-            >
-              + 新增毛線
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleAddYarn}
+                className="btn btn-primary w-full sm:w-auto"
+              >
+                + 新增毛線
+              </button>
+              <SyncStatusIndicator />
+            </div>
           </div>
         </div>
       </div>

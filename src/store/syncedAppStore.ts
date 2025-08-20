@@ -1,9 +1,21 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Project, WorkSession, Yarn, Round, StitchInfo, StitchGroup } from '../types'
-import { generateId, createSampleProject, getRoundTotalStitches } from '../utils'
+import { 
+  generateId, 
+  createSampleProject, 
+  getRoundTotalStitches,
+  addStitchToPatternItems,
+  addGroupToPatternItems,
+  reorderPatternItems,
+  updateStitchInPatternItems,
+  deleteStitchFromPatternItems,
+  updateGroupInPatternItems,
+  deleteGroupFromPatternItems
+} from '../utils'
 import { useAuthStore } from './authStore'
 import { firestoreService, UserProfile } from '../services/firestoreService'
+import { networkStatus } from '../utils/networkStatus'
 
 interface SyncedAppStore {
   // 狀態
@@ -13,6 +25,10 @@ interface SyncedAppStore {
   error: string | null
   isSyncing: boolean
   lastSyncTime: Date | null
+  isLocallyUpdating: boolean
+  lastLocalUpdateTime: Date | null
+  recentLocalChanges: Set<string> // 記錄最近本地更改的專案ID
+  networkStatusListener: (() => void) | null
   
   // 動作
   setLoading: (loading: boolean) => void
@@ -32,6 +48,7 @@ interface SyncedAppStore {
   // 專案管理
   createProject: (name: string, source?: string) => Promise<void>
   updateProject: (project: Project) => Promise<void>
+  updateProjectLocally: (project: Project) => Promise<void>
   deleteProject: (id: string) => Promise<void>
   setCurrentProject: (id: string) => void
   loadProjects: () => Promise<void>
@@ -54,13 +71,19 @@ interface SyncedAppStore {
   deleteStitchFromRound: (roundNumber: number, stitchId: string) => Promise<void>
   reorderStitchesInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
   updateStitchGroupInRound: (roundNumber: number, groupId: string, updatedGroup: StitchGroup) => Promise<void>
+  updateStitchInGroup: (roundNumber: number, groupId: string, stitchId: string, updatedStitch: StitchInfo) => Promise<void>
   deleteStitchGroupFromRound: (roundNumber: number, groupId: string) => Promise<void>
   reorderStitchGroupsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
+  reorderPatternItemsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
   
   // 毛線管理
   addYarn: (yarn: Yarn) => Promise<void>
   updateYarn: (yarn: Yarn) => Promise<void>
   deleteYarn: (id: string) => Promise<void>
+  
+  // 網絡狀態管理
+  initializeNetworkListener: () => void
+  cleanupNetworkListener: () => void
 }
 
 export const useSyncedAppStore = create<SyncedAppStore>()(
@@ -73,6 +96,10 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       error: null,
       isSyncing: false,
       lastSyncTime: null,
+      isLocallyUpdating: false,
+      lastLocalUpdateTime: null,
+      recentLocalChanges: new Set<string>(),
+      networkStatusListener: null,
 
       // 基本動作
       setLoading: (loading) => set({ isLoading: loading }),
@@ -268,12 +295,90 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         return firestoreService.subscribeToUserProjects(user.uid, (projects) => {
           const currentState = get()
           
-          // 只有在非同步狀態時才更新，避免無限循環
-          if (!currentState.isSyncing) {
+          console.log('[FIRESTORE-SUBSCRIPTION] Received update from Firestore:', {
+            receivedProjectsCount: projects.length,
+            currentProjectsCount: currentState.projects.length,
+            currentProjectId: currentState.currentProject?.id,
+            timestamp: new Date().toISOString()
+          })
+          
+          // 更嚴格的條件檢查，避免覆蓋本地更新
+          // 只有在完全沒有任何同步活動且沒有錯誤狀態時才更新
+          const timeSinceLastSync = currentState.lastSyncTime ? Date.now() - currentState.lastSyncTime.getTime() : Infinity
+          const timeSinceLastLocalUpdate = currentState.lastLocalUpdateTime ? Date.now() - currentState.lastLocalUpdateTime.getTime() : Infinity
+          
+          const canUpdate = !currentState.isSyncing && 
+                           !currentState.isLocallyUpdating && 
+                           !currentState.error &&
+                           currentState.lastSyncTime &&
+                           timeSinceLastSync > 15000 && // 延長到15秒，給手機更多時間
+                           timeSinceLastLocalUpdate > 20000 // 本地更新後20秒內不允許覆蓋
+          
+          // 額外檢查：比較數據是否真的不同，避免無意義的更新
+          const hasActualChanges = currentState.projects.length !== projects.length ||
+                                   currentState.projects.some((localProject, index) => {
+                                     const remoteProject = projects[index]
+                                     return !remoteProject || 
+                                            localProject.lastModified.getTime() !== remoteProject.lastModified.getTime()
+                                   })
+          
+          // 特別檢查當前專案的針法數量變化和本地變更保護
+          const currentLocalProject = currentState.currentProject
+          const currentRemoteProject = projects.find(p => p.id === currentLocalProject?.id)
+          let hasRecentLocalChanges = false
+          
+          if (currentLocalProject) {
+            hasRecentLocalChanges = currentState.recentLocalChanges.has(currentLocalProject.id)
+            console.log('[FIRESTORE-SUBSCRIPTION] Local change protection check:', {
+              projectId: currentLocalProject.id,
+              hasRecentLocalChanges,
+              recentChangesSize: currentState.recentLocalChanges.size
+            })
+          }
+          
+          if (currentLocalProject && currentRemoteProject) {
+            console.log('[FIRESTORE-SUBSCRIPTION] Comparing current project data:', {
+              localProjectId: currentLocalProject.id,
+              remoteProjectId: currentRemoteProject.id,
+              localPatternLength: currentLocalProject.pattern.length,
+              remotePatternLength: currentRemoteProject.pattern.length,
+              localLastModified: currentLocalProject.lastModified.getTime(),
+              remoteLastModified: currentRemoteProject.lastModified.getTime(),
+              hasRecentLocalChanges
+            })
+            
+            // 檢查每一圈的針法數量
+            currentLocalProject.pattern.forEach((localRound) => {
+              const remoteRound = currentRemoteProject.pattern.find(r => r.roundNumber === localRound.roundNumber)
+              if (remoteRound) {
+                console.log('[FIRESTORE-SUBSCRIPTION] Round comparison:', {
+                  roundNumber: localRound.roundNumber,
+                  localStitchCount: localRound.stitches.length,
+                  remoteStitchCount: remoteRound.stitches.length
+                })
+              }
+            })
+          }
+          
+          if (canUpdate && hasActualChanges && !hasRecentLocalChanges) {
+            console.log('[FIRESTORE-SUBSCRIPTION] UPDATING local data from Firestore')
             set({
               projects,
               currentProject: projects.find(p => p.id === currentState.currentProject?.id) || projects[0] || null,
               lastSyncTime: new Date()
+            })
+          } else {
+            console.log('[FIRESTORE-SUBSCRIPTION] Skipping update', {
+              canUpdate,
+              hasActualChanges,
+              hasRecentLocalChanges,
+              isSyncing: currentState.isSyncing,
+              isLocallyUpdating: currentState.isLocallyUpdating,
+              hasError: !!currentState.error,
+              lastSync: currentState.lastSyncTime,
+              lastLocalUpdate: currentState.lastLocalUpdateTime,
+              timeSinceLastSync,
+              timeSinceLastLocalUpdate
             })
           }
         })
@@ -293,7 +398,8 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           yarns: [],
           sessions: [],
           createdDate: new Date(),
-          lastModified: new Date()
+          lastModified: new Date(),
+          isCompleted: false
         }
         
         set(state => ({
@@ -385,9 +491,23 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return
         }
 
+        if (!currentProject.pattern || currentProject.pattern.length === 0) {
+          console.log('[DEBUG] nextStitch: No pattern available')
+          return
+        }
+
         const currentRound = currentProject.pattern.find(r => r.roundNumber === currentProject.currentRound)
         if (!currentRound) {
           console.log('[DEBUG] nextStitch: Current round not found', currentProject.currentRound)
+          // 嘗試調整到有效的圈數
+          const minRoundNumber = Math.min(...currentProject.pattern.map(r => r.roundNumber))
+          const updatedProject = {
+            ...currentProject,
+            currentRound: minRoundNumber,
+            currentStitch: 0,
+            lastModified: new Date()
+          }
+          await get().updateProjectLocally(updatedProject)
           return
         }
 
@@ -404,8 +524,18 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
             newStitch = totalStitchesInRound
             newRound = currentProject.currentRound
           } else {
-            newStitch = 0
-            newRound = currentProject.currentRound + 1
+            // 尋找下一個可用的圈數
+            const nextRoundNumber = currentProject.currentRound + 1
+            const nextRound = currentProject.pattern.find(r => r.roundNumber === nextRoundNumber)
+            if (nextRound) {
+              newStitch = 0
+              newRound = nextRoundNumber
+            } else {
+              // 如果下一圈不存在，保持在當前圈的結尾
+              newStitch = totalStitchesInRound
+              newRound = currentProject.currentRound
+              isCompleted = true
+            }
           }
         }
 
@@ -417,25 +547,48 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       previousStitch: async () => {
         const { currentProject } = get()
         if (!currentProject) return
 
+        if (!currentProject.pattern || currentProject.pattern.length === 0) {
+          console.log('[DEBUG] previousStitch: No pattern available')
+          return
+        }
+
         let newStitch = currentProject.currentStitch - 1
         let newRound = currentProject.currentRound
 
         if (newStitch < 0 && newRound > 1) {
-          newRound = currentProject.currentRound - 1
-          const previousRound = currentProject.pattern.find(r => r.roundNumber === newRound)
-          if (previousRound) {
-            newStitch = getRoundTotalStitches(previousRound) - 1
-          } else {
+          // 嘗試找到前一個可用的圈數
+          for (let roundNum = currentProject.currentRound - 1; roundNum >= 1; roundNum--) {
+            const previousRound = currentProject.pattern.find(r => r.roundNumber === roundNum)
+            if (previousRound) {
+              newRound = roundNum
+              newStitch = getRoundTotalStitches(previousRound) - 1
+              break
+            }
+          }
+          
+          // 如果找不到前一圈，保持在當前位置
+          if (newStitch < 0) {
             newStitch = 0
+            newRound = currentProject.currentRound
           }
         } else if (newStitch < 0) {
+          newStitch = 0
+        }
+
+        // 確保圈數有效
+        const targetRound = currentProject.pattern.find(r => r.roundNumber === newRound)
+        if (!targetRound) {
+          console.log('[DEBUG] previousStitch: Target round not found', newRound)
+          // 調整到最小的可用圈數
+          const minRoundNumber = Math.min(...currentProject.pattern.map(r => r.roundNumber))
+          newRound = minRoundNumber
           newStitch = 0
         }
 
@@ -443,24 +596,38 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           ...currentProject,
           currentRound: newRound,
           currentStitch: newStitch,
+          isCompleted: false, // 回退時取消完成狀態
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       setCurrentRound: async (roundNumber) => {
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[DEBUG] setCurrentRound: No current project')
+          return
+        }
+
+        // 驗證圈數是否有效
+        const targetRound = currentProject.pattern.find(r => r.roundNumber === roundNumber)
+        if (!targetRound) {
+          console.error('[DEBUG] setCurrentRound: Invalid round number', roundNumber)
+          return
+        }
+
+        console.log('[DEBUG] setCurrentRound: Updating from round', currentProject.currentRound, 'to', roundNumber)
 
         const updatedProject = {
           ...currentProject,
           currentRound: roundNumber,
           currentStitch: 0,
+          isCompleted: false, // 重置完成狀態
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       setCurrentStitch: async (stitchNumber) => {
@@ -473,7 +640,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       startSession: async () => {
@@ -494,7 +661,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       endSession: async () => {
@@ -521,13 +688,210 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
+      },
+
+      // 通用專案更新函數
+      updateProjectLocally: async (updatedProject: Project) => {
+        console.log('[SYNC] Starting local project update:', {
+          projectId: updatedProject.id,
+          lastModified: updatedProject.lastModified,
+          userAgent: navigator.userAgent
+        })
+        
+        // 設置本地更新標誌並立即更新本地狀態
+        set(state => {
+          const newRecentChanges = new Set(state.recentLocalChanges)
+          newRecentChanges.add(updatedProject.id)
+          
+          return {
+            isLocallyUpdating: true,
+            lastLocalUpdateTime: new Date(), // 記錄本地更新時間
+            recentLocalChanges: newRecentChanges,
+            projects: state.projects.map(p => 
+              p.id === updatedProject.id ? updatedProject : p
+            ),
+            currentProject: state.currentProject?.id === updatedProject.id 
+              ? updatedProject 
+              : state.currentProject
+          }
+        })
+
+        // 異步同步到Firestore，增加重試機制
+        const { user } = useAuthStore.getState()
+        if (user) {
+          let retryCount = 0
+          const maxRetries = 3
+          
+          const attemptSync = async (): Promise<void> => {
+            // 檢查網絡狀態
+            if (!networkStatus.getIsOnline()) {
+              console.log('[SYNC] Device is offline, waiting for connection...')
+              const isConnected = await networkStatus.waitForConnection(5000)
+              
+              if (!isConnected) {
+                console.log('[SYNC] Still offline after waiting, will retry later')
+                if (retryCount < maxRetries) {
+                  retryCount++
+                  const delay = Math.pow(2, retryCount - 1) * 1000
+                  
+                  // 保持 isLocallyUpdating 狀態，只更新錯誤訊息
+                  set({ 
+                    error: `設備離線，${Math.ceil(delay/1000)}秒後重試 (${retryCount}/${maxRetries})`
+                  })
+                  
+                  setTimeout(() => {
+                    // 重試時清除錯誤訊息，保持同步狀態
+                    set({ error: null })
+                    attemptSync()
+                  }, delay)
+                  return
+                } else {
+                  set({ 
+                    isLocallyUpdating: false,
+                    error: '設備離線，無法同步數據' 
+                  })
+                  setTimeout(() => set({ error: null }), 3000)
+                  return
+                }
+              }
+            }
+
+            try {
+              // 針對手機端，跳過連接測試以避免不必要的失敗
+              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+              
+              if (!isMobile) {
+                // 桌面端才進行連接測試
+                const connectionOk = await firestoreService.testConnection()
+                if (!connectionOk && retryCount === 0) {
+                  console.log('[SYNC] Firestore connection test failed, attempting to restart connection...')
+                  await firestoreService.enableOfflineSupport()
+                  await new Promise(resolve => setTimeout(resolve, 1000))
+                  await firestoreService.disableOfflineSupport()
+                  await new Promise(resolve => setTimeout(resolve, 1000))
+                }
+              } else {
+                console.log('[SYNC] Mobile device detected, skipping connection test')
+              }
+              
+              await firestoreService.updateProject(user.uid, updatedProject)
+              set(state => {
+                const newRecentChanges = new Set(state.recentLocalChanges)
+                newRecentChanges.delete(updatedProject.id)
+                
+                // 定時清除最近更改標記，給其他設備一些時間同步
+                setTimeout(() => {
+                  set(prevState => {
+                    const finalRecentChanges = new Set(prevState.recentLocalChanges)
+                    finalRecentChanges.delete(updatedProject.id)
+                    return { recentLocalChanges: finalRecentChanges }
+                  })
+                }, 5000) // 5秒後完全清除保護
+                
+                return {
+                  lastSyncTime: new Date(), 
+                  isLocallyUpdating: false,
+                  recentLocalChanges: newRecentChanges,
+                  error: null 
+                }
+              })
+              console.log('[SYNC] Project synced successfully to Firestore:', updatedProject.id)
+            } catch (error) {
+              console.error(`[SYNC] Error syncing project update to Firestore (attempt ${retryCount + 1}):`, error)
+              
+              // 檢查是否為特定的網路錯誤
+              const isNetworkError = error instanceof Error && (
+                error.message.includes('offline') ||
+                error.message.includes('network') ||
+                error.message.includes('unavailable') ||
+                error.message.includes('timeout') ||
+                error.message.includes('failed to connect') ||
+                error.message.includes('network-request-failed') ||
+                error.message.includes('firebase') ||
+                error.message.includes('permission-denied') ||
+                error.message.includes('unauthenticated')
+              )
+              
+              // 對於手機端，更寬容地處理某些錯誤
+              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+              const shouldRetry = isMobile ? (retryCount < maxRetries) : (retryCount < maxRetries && isNetworkError)
+              
+              if (shouldRetry) {
+                retryCount++
+                // 針對手機端和網路錯誤使用不同的延遲策略
+                const baseDelay = isMobile ? 1500 : (isNetworkError ? 2000 : 1000)
+                const delay = Math.pow(2, retryCount - 1) * baseDelay
+                console.log(`[SYNC] Retrying sync in ${delay}ms... (Mobile: ${isMobile}, Network error: ${isNetworkError})`)
+                
+                // 保持 isLocallyUpdating 狀態，只更新錯誤訊息
+                set({ 
+                  error: `同步失敗，${Math.ceil(delay/1000)}秒後重試 (${retryCount}/${maxRetries})`
+                })
+                
+                setTimeout(() => {
+                  // 重試時清除錯誤訊息，保持同步狀態
+                  set({ error: null })
+                  attemptSync()
+                }, delay)
+              } else {
+                console.error('[SYNC] Max retries reached, sync failed for project:', updatedProject.id)
+                
+                // 對於手機端，提供更友善的訊息
+                const errorMessage = isMobile 
+                  ? '手機網路同步失敗，資料已保存在本地' 
+                  : isNetworkError 
+                    ? '網路連接不穩定，同步失敗' 
+                    : '同步失敗，請檢查網絡連接'
+                
+                set(state => {
+                  const newRecentChanges = new Set(state.recentLocalChanges)
+                  // 保留在失敗時，讓用戶知道數據還沒同步
+                  
+                  return {
+                    isLocallyUpdating: false,
+                    error: errorMessage,
+                    recentLocalChanges: newRecentChanges
+                  }
+                })
+                
+                // 對於手機端，錯誤訊息保留更久讓用戶看到
+                const clearDelay = isMobile ? 5000 : 3000
+                setTimeout(() => {
+                  set({ error: null })
+                }, clearDelay)
+              }
+            }
+          }
+          
+          attemptSync()
+        } else {
+          set({ isLocallyUpdating: false })
+        }
       },
 
       // 織圖管理 - 包含同步功能
       addRound: async (round) => {
-        const { currentProject } = get()
-        if (!currentProject) return
+        console.log('[ADD-ROUND] Starting addRound:', {
+          round,
+          timestamp: new Date().toISOString()
+        })
+        
+        const currentState = get()
+        const { currentProject } = currentState
+        if (!currentProject) {
+          console.log('[ADD-ROUND] No current project found')
+          return
+        }
+
+        console.log('[ADD-ROUND] Current state before update:', {
+          projectId: currentProject.id,
+          projectName: currentProject.name,
+          currentPatternLength: currentProject.pattern.length,
+          isLocallyUpdating: currentState.isLocallyUpdating,
+          isSyncing: currentState.isSyncing,
+          error: currentState.error
+        })
 
         const updatedProject = {
           ...currentProject,
@@ -535,7 +899,23 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        console.log('[ADD-ROUND] About to call updateProjectLocally with:', {
+          projectId: updatedProject.id,
+          newPatternLength: updatedProject.pattern.length,
+          addedRound: round
+        })
+
+        await get().updateProjectLocally(updatedProject)
+        
+        // 驗證更新後的狀態
+        const afterState = get()
+        console.log('[ADD-ROUND] State after updateProjectLocally:', {
+          projectId: afterState.currentProject?.id,
+          patternLength: afterState.currentProject?.pattern.length,
+          isLocallyUpdating: afterState.isLocallyUpdating,
+          isSyncing: afterState.isSyncing,
+          error: afterState.error
+        })
       },
 
       updateRound: async (updatedRound) => {
@@ -550,7 +930,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       deleteRound: async (roundNumber) => {
@@ -569,32 +949,92 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return round
         })
 
+        // 智能進度調整
         let newCurrentRound = currentProject.currentRound
-        if (newCurrentRound > roundNumber) {
-          newCurrentRound = Math.max(1, newCurrentRound - 1)
+        let newCurrentStitch = currentProject.currentStitch
+
+        if (currentProject.currentRound === roundNumber) {
+          // 如果刪除的是正在編織的圈數，調整到前一圈的結尾或下一圈的開始
+          if (roundNumber > 1 && renumberedPattern.find(r => r.roundNumber === roundNumber - 1)) {
+            // 調整到前一圈的結尾
+            const previousRound = renumberedPattern.find(r => r.roundNumber === roundNumber - 1)
+            if (previousRound) {
+              newCurrentRound = roundNumber - 1
+              newCurrentStitch = getRoundTotalStitches(previousRound)
+            }
+          } else if (renumberedPattern.find(r => r.roundNumber === roundNumber)) {
+            // 調整到下一圈的開始（現在編號為原本的roundNumber）
+            newCurrentRound = roundNumber
+            newCurrentStitch = 0
+          } else {
+            // 如果沒有其他圈數，調整到第1圈開始
+            newCurrentRound = 1
+            newCurrentStitch = 0
+          }
+        } else if (currentProject.currentRound > roundNumber) {
+          // 如果刪除的圈數在當前圈數之前，圈數減1但保持針數
+          newCurrentRound = Math.max(1, currentProject.currentRound - 1)
+          // 保持原有的針數進度
+        }
+
+        // 確保進度不超出新的織圖範圍
+        const maxRoundNumber = Math.max(1, ...renumberedPattern.map(r => r.roundNumber))
+        if (newCurrentRound > maxRoundNumber) {
+          newCurrentRound = maxRoundNumber
+          const lastRound = renumberedPattern.find(r => r.roundNumber === maxRoundNumber)
+          newCurrentStitch = lastRound ? getRoundTotalStitches(lastRound) : 0
+        } else {
+          // 確保針數不超出當前圈的範圍
+          const currentRound = renumberedPattern.find(r => r.roundNumber === newCurrentRound)
+          if (currentRound) {
+            const maxStitches = getRoundTotalStitches(currentRound)
+            newCurrentStitch = Math.min(newCurrentStitch, maxStitches)
+          }
         }
 
         const updatedProject = {
           ...currentProject,
           pattern: renumberedPattern,
           currentRound: newCurrentRound,
-          currentStitch: 0,
+          currentStitch: newCurrentStitch,
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       addStitchToRound: async (roundNumber, stitch) => {
-        const { currentProject } = get()
-        if (!currentProject) return
+        console.log('[ADD-STITCH] Starting addStitchToRound:', {
+          roundNumber,
+          stitch,
+          timestamp: new Date().toISOString()
+        })
+        
+        const currentState = get()
+        const { currentProject } = currentState
+        if (!currentProject) {
+          console.log('[ADD-STITCH] No current project found')
+          return
+        }
+
+        console.log('[ADD-STITCH] Current state before update:', {
+          projectId: currentProject.id,
+          projectName: currentProject.name,
+          currentRoundInPattern: currentProject.pattern.find(r => r.roundNumber === roundNumber),
+          patternLength: currentProject.pattern.length,
+          isLocallyUpdating: currentState.isLocallyUpdating,
+          isSyncing: currentState.isSyncing,
+          error: currentState.error
+        })
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitches: [...round.stitches, stitch]
-            }
+            console.log('[ADD-STITCH] Adding stitch to round:', {
+              roundNumber,
+              originalStitchCount: round.stitches.length,
+              addedStitch: stitch
+            })
+            return addStitchToPatternItems(round, stitch)
           }
           return round
         })
@@ -605,19 +1045,47 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        console.log('[ADD-STITCH] About to call updateProjectLocally with:', {
+          projectId: updatedProject.id,
+          patternLength: updatedProject.pattern.length,
+          targetRoundStitches: updatedProject.pattern.find(r => r.roundNumber === roundNumber)?.stitches.length
+        })
+
+        await get().updateProjectLocally(updatedProject)
+        
+        // 驗證更新後的狀態
+        const afterState = get()
+        console.log('[ADD-STITCH] State after updateProjectLocally:', {
+          projectId: afterState.currentProject?.id,
+          patternLength: afterState.currentProject?.pattern.length,
+          targetRoundStitches: afterState.currentProject?.pattern.find(r => r.roundNumber === roundNumber)?.stitches.length,
+          isLocallyUpdating: afterState.isLocallyUpdating,
+          isSyncing: afterState.isSyncing,
+          error: afterState.error
+        })
       },
 
       addStitchGroupToRound: async (roundNumber, group) => {
+        console.log('[ADD-GROUP] Starting addStitchGroupToRound:', {
+          roundNumber,
+          group,
+          timestamp: new Date().toISOString()
+        })
+        
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[ADD-GROUP] No current project found')
+          return
+        }
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitchGroups: [...round.stitchGroups, group]
-            }
+            console.log('[ADD-GROUP] Adding group to round:', {
+              roundNumber,
+              originalGroupCount: round.stitchGroups.length,
+              addedGroup: group
+            })
+            return addGroupToPatternItems(round, group)
           }
           return round
         })
@@ -628,21 +1096,31 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       updateStitchInRound: async (roundNumber, stitchId, updatedStitch) => {
+        console.log('[UPDATE-STITCH] Starting updateStitchInRound:', {
+          roundNumber,
+          stitchId,
+          updatedStitch,
+          timestamp: new Date().toISOString()
+        })
+        
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[UPDATE-STITCH] No current project found')
+          return
+        }
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitches: round.stitches.map(stitch => 
-                stitch.id === stitchId ? updatedStitch : stitch
-              )
-            }
+            console.log('[UPDATE-STITCH] Updating stitch in round:', {
+              roundNumber,
+              stitchId,
+              updatedStitch
+            })
+            return updateStitchInPatternItems(round, stitchId, updatedStitch)
           }
           return round
         })
@@ -653,19 +1131,29 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       deleteStitchFromRound: async (roundNumber, stitchId) => {
+        console.log('[DELETE-STITCH] Starting deleteStitchFromRound:', {
+          roundNumber,
+          stitchId,
+          timestamp: new Date().toISOString()
+        })
+        
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[DELETE-STITCH] No current project found')
+          return
+        }
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitches: round.stitches.filter(stitch => stitch.id !== stitchId)
-            }
+            console.log('[DELETE-STITCH] Deleting stitch from round:', {
+              roundNumber,
+              stitchId
+            })
+            return deleteStitchFromPatternItems(round, stitchId)
           }
           return round
         })
@@ -676,7 +1164,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       reorderStitchesInRound: async (roundNumber, fromIndex, toIndex) => {
@@ -703,10 +1191,45 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       updateStitchGroupInRound: async (roundNumber, groupId, updatedGroup) => {
+        console.log('[UPDATE-GROUP] Starting updateStitchGroupInRound:', {
+          roundNumber,
+          groupId,
+          updatedGroup,
+          timestamp: new Date().toISOString()
+        })
+        
+        const { currentProject } = get()
+        if (!currentProject) {
+          console.log('[UPDATE-GROUP] No current project found')
+          return
+        }
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            console.log('[UPDATE-GROUP] Updating group in round:', {
+              roundNumber,
+              groupId,
+              updatedGroup
+            })
+            return updateGroupInPatternItems(round, groupId, updatedGroup)
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        await get().updateProjectLocally(updatedProject)
+      },
+
+      updateStitchInGroup: async (roundNumber, groupId, stitchId, updatedStitch) => {
         const { currentProject } = get()
         if (!currentProject) return
 
@@ -714,9 +1237,17 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           if (round.roundNumber === roundNumber) {
             return {
               ...round,
-              stitchGroups: round.stitchGroups.map(group => 
-                group.id === groupId ? updatedGroup : group
-              )
+              stitchGroups: round.stitchGroups.map(group => {
+                if (group.id === groupId) {
+                  return {
+                    ...group,
+                    stitches: group.stitches.map(stitch =>
+                      stitch.id === stitchId ? updatedStitch : stitch
+                    )
+                  }
+                }
+                return group
+              })
             }
           }
           return round
@@ -728,19 +1259,29 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       deleteStitchGroupFromRound: async (roundNumber, groupId) => {
+        console.log('[DELETE-GROUP] Starting deleteStitchGroupFromRound:', {
+          roundNumber,
+          groupId,
+          timestamp: new Date().toISOString()
+        })
+        
         const { currentProject } = get()
-        if (!currentProject) return
+        if (!currentProject) {
+          console.log('[DELETE-GROUP] No current project found')
+          return
+        }
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
-              ...round,
-              stitchGroups: round.stitchGroups.filter(group => group.id !== groupId)
-            }
+            console.log('[DELETE-GROUP] Deleting group from round:', {
+              roundNumber,
+              groupId
+            })
+            return deleteGroupFromPatternItems(round, groupId)
           }
           return round
         })
@@ -751,7 +1292,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       reorderStitchGroupsInRound: async (roundNumber, fromIndex, toIndex) => {
@@ -778,7 +1319,43 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
+      },
+
+      reorderPatternItemsInRound: async (roundNumber, fromIndex, toIndex) => {
+        console.log('[REORDER-PATTERN-ITEMS] Starting reorderPatternItemsInRound:', {
+          roundNumber,
+          fromIndex,
+          toIndex,
+          timestamp: new Date().toISOString()
+        })
+        
+        const { currentProject } = get()
+        if (!currentProject) {
+          console.log('[REORDER-PATTERN-ITEMS] No current project found')
+          return
+        }
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            console.log('[REORDER-PATTERN-ITEMS] Reordering pattern items in round:', {
+              roundNumber,
+              fromIndex,
+              toIndex,
+              currentItemsCount: round.stitches.length + round.stitchGroups.length
+            })
+            return reorderPatternItems(round, fromIndex, toIndex)
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        await get().updateProjectLocally(updatedProject)
       },
 
       // 毛線管理 - 包含同步功能
@@ -792,7 +1369,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       updateYarn: async (updatedYarn) => {
@@ -807,7 +1384,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
       },
 
       deleteYarn: async (id) => {
@@ -820,7 +1397,39 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           lastModified: new Date()
         }
 
-        await get().updateProject(updatedProject)
+        await get().updateProjectLocally(updatedProject)
+      },
+
+      // 初始化網絡狀態監聽器
+      initializeNetworkListener: () => {
+        const { networkStatusListener } = get()
+        if (networkStatusListener) {
+          networkStatusListener() // 先清除現有監聽器
+        }
+
+        const listener = networkStatus.addListener((isOnline) => {
+          console.log('[SYNC] Network status changed:', isOnline ? 'online' : 'offline')
+          
+          if (isOnline) {
+            // 網絡恢復時，嘗試同步待同步的數據
+            const { currentProject } = get()
+            if (currentProject) {
+              console.log('[SYNC] Network restored, attempting to sync current project...')
+              get().updateProjectLocally(currentProject)
+            }
+          }
+        })
+
+        set({ networkStatusListener: listener })
+      },
+
+      // 清理網絡狀態監聽器
+      cleanupNetworkListener: () => {
+        const { networkStatusListener } = get()
+        if (networkStatusListener) {
+          networkStatusListener()
+          set({ networkStatusListener: null })
+        }
       }
     }),
     {

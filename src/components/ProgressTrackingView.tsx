@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useSyncedAppStore } from '../store/syncedAppStore'
+import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
   formatDuration, 
   getProjectProgressPercentage, 
@@ -105,8 +106,10 @@ export default function ProgressTrackingView() {
     }
   }
 
-  const handleCompleteRound = () => {
+  const handleCompleteRound = async () => {
     if (!displayRound) return
+    
+    console.log('[DEBUG] handleCompleteRound: Completing round', displayRoundNumber)
     
     // 檢查是否為最後一圈
     const maxRoundNumber = Math.max(...currentProject.pattern.map(r => r.roundNumber))
@@ -119,11 +122,13 @@ export default function ProgressTrackingView() {
         currentStitch: getRoundTotalStitches(displayRound), // 設置到最後一針
         lastModified: new Date()
       }
-      updateProject(updatedProject)
+      console.log('[DEBUG] handleCompleteRound: Marking project as completed')
+      await updateProject(updatedProject)
     } else {
       // 將進度設置到下一圈的開始
       const nextRoundNumber = displayRoundNumber + 1
-      setCurrentRound(nextRoundNumber)
+      console.log('[DEBUG] handleCompleteRound: Moving to next round', nextRoundNumber)
+      await setCurrentRound(nextRoundNumber)
     }
     setViewingRound(null) // 退出查看模式
   }
@@ -206,9 +211,9 @@ export default function ProgressTrackingView() {
         stitchElements.push(
           <div
             key={`${stitch.id}-${i}`}
-            className="flex flex-col items-center justify-center w-12 h-12 transition-all duration-300"
+            className="flex flex-col items-center justify-center w-16 h-16 transition-all duration-300"
           >
-            <div className={`text-lg font-bold transition-colors duration-300 ${
+            <div className={`text-2xl font-bold transition-colors duration-300 ${
               isCompleted 
                 ? 'text-text-primary' 
                 : isCurrent 
@@ -218,7 +223,7 @@ export default function ProgressTrackingView() {
               {StitchTypeInfo[stitch.type]?.symbol || '○'}
             </div>
             <div 
-              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+              className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                 isCompleted || isCurrent
                   ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
                   : ''
@@ -246,9 +251,9 @@ export default function ProgressTrackingView() {
             stitchElements.push(
               <div
                 key={`${group.id}-${repeat}-${stitch.id}-${i}`}
-                className="flex flex-col items-center justify-center w-12 h-12 transition-all duration-300"
+                className="flex flex-col items-center justify-center w-16 h-16 transition-all duration-300"
               >
-                <div className={`text-lg font-bold transition-colors duration-300 ${
+                <div className={`text-2xl font-bold transition-colors duration-300 ${
                   isCompleted 
                     ? 'text-text-primary' 
                     : isCurrent 
@@ -258,7 +263,7 @@ export default function ProgressTrackingView() {
                   {StitchTypeInfo[stitch.type]?.symbol || '○'}
                 </div>
                 <div 
-                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                     isCompleted || isCurrent
                       ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
                       : ''
@@ -323,6 +328,7 @@ export default function ProgressTrackingView() {
                   <span className="sm:hidden">計時</span>
                 </button>
               )}
+              <SyncStatusIndicator />
             </div>
           </div>
         </div>

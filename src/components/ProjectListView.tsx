@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import UserProfile from './UserProfile'
+import SyncStatusIndicator from './SyncStatusIndicator'
 import { formatDate, getProjectProgressPercentage, getProjectTotalRounds, getProjectTotalStitches, getProjectCompletedStitches } from '../utils'
 
 export default function ProjectListView() {
@@ -22,6 +23,12 @@ export default function ProjectListView() {
     setShowCreateForm(false)
   }
 
+  const handleDeleteProject = (projectId: string, projectName: string) => {
+    if (confirm(`確定要刪除專案「${projectName}」嗎？此操作無法復原。`)) {
+      deleteProject(projectId)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* 標題列 */}
@@ -37,6 +44,7 @@ export default function ProjectListView() {
               >
                 新增專案
               </button>
+              <SyncStatusIndicator />
             </div>
           </div>
         </div>
@@ -62,18 +70,18 @@ export default function ProjectListView() {
         ) : (
           <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {projects.map((project) => (
-              <div key={project.id} className={`card hover:shadow-md transition-shadow ${project.isCompleted ? 'ring-2 ring-green-200 bg-green-50' : ''}`}>
+              <div key={project.id} className="card hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2 flex-1">
                     <h3 className="text-base sm:text-lg font-semibold text-text-primary truncate">
                       {project.name}
                     </h3>
                     {project.isCompleted && (
-                      <span className="text-green-600 text-sm font-medium">完成</span>
+                      <span className="text-text-secondary text-sm font-medium">完成</span>
                     )}
                   </div>
                   <button
-                    onClick={() => deleteProject(project.id)}
+                    onClick={() => handleDeleteProject(project.id, project.name)}
                     className="text-text-tertiary hover:text-red-500 transition-colors text-sm sm:text-base ml-2"
                   >
                     刪除
@@ -89,7 +97,7 @@ export default function ProjectListView() {
                   </div>
                   <div className="w-full bg-background-tertiary rounded-full h-1.5 sm:h-2">
                     <div
-                      className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${project.isCompleted ? 'bg-green-500' : 'bg-primary'}`}
+                      className="h-1.5 sm:h-2 rounded-full transition-all duration-300 bg-primary"
                       style={{ width: `${project.isCompleted ? 100 : getProjectProgressPercentage(project) * 100}%` }}
                     />
                   </div>

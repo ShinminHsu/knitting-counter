@@ -1,6 +1,11 @@
 import { useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
+import { IoPlayCircleOutline } from 'react-icons/io5'
+import { FaRegEdit } from 'react-icons/fa'
+import { LiaVolleyballBallSolid } from 'react-icons/lia'
+import { FiUploadCloud } from 'react-icons/fi'
 import { useSyncedAppStore } from '../store/syncedAppStore'
+import SyncStatusIndicator from './SyncStatusIndicator'
 import { formatDate, getProjectTotalRounds, getProjectTotalStitches, describeRound, getRoundTotalStitches } from '../utils'
 
 export default function ProjectDetailView() {
@@ -35,16 +40,19 @@ export default function ProjectDetailView() {
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Link
-              to="/"
-              className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
-            >
-              ← 返回
-            </Link>
-            <h1 className="text-lg sm:text-xl font-semibold text-text-primary truncate">
-              {currentProject.name}
-            </h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Link
+                to="/"
+                className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
+              >
+                ← 返回
+              </Link>
+              <h1 className="text-lg sm:text-xl font-semibold text-text-primary truncate">
+                {currentProject.name}
+              </h1>
+            </div>
+            <SyncStatusIndicator />
           </div>
         </div>
       </div>
@@ -115,7 +123,9 @@ export default function ProjectDetailView() {
             className="card hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="text-3xl">▶️</div>
+              <div className="w-12 h-12 flex items-center justify-center">
+                <IoPlayCircleOutline className="w-8 h-8 text-text-secondary" />
+              </div>
               <div>
                 <h3 className="font-semibold text-text-primary">開始編織</h3>
                 <p className="text-sm text-text-secondary">追蹤編織進度</p>
@@ -128,7 +138,9 @@ export default function ProjectDetailView() {
             className="card hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="text-3xl">📝</div>
+              <div className="w-12 h-12 flex items-center justify-center">
+                <FaRegEdit className="w-8 h-8 text-text-secondary" />
+              </div>
               <div>
                 <h3 className="font-semibold text-text-primary">編輯織圖</h3>
                 <p className="text-sm text-text-secondary">管理圈數和針法</p>
@@ -141,7 +153,9 @@ export default function ProjectDetailView() {
             className="card hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="text-3xl">🧶</div>
+              <div className="w-12 h-12 flex items-center justify-center">
+                <LiaVolleyballBallSolid className="w-8 h-8 text-text-secondary" />
+              </div>
               <div>
                 <h3 className="font-semibold text-text-primary">毛線管理</h3>
                 <p className="text-sm text-text-secondary">管理專案毛線</p>
@@ -154,7 +168,9 @@ export default function ProjectDetailView() {
             className="card hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="text-3xl">📤</div>
+              <div className="w-12 h-12 flex items-center justify-center">
+                <FiUploadCloud className="w-8 h-8 text-text-secondary" />
+              </div>
               <div>
                 <h3 className="font-semibold text-text-primary">匯入匯出</h3>
                 <p className="text-sm text-text-secondary">備份和分享</p>
@@ -169,7 +185,9 @@ export default function ProjectDetailView() {
           
           {currentProject.yarns.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-4xl mb-3">🧶</div>
+              <div className="mb-3 flex justify-center">
+                <LiaVolleyballBallSolid className="w-8 h-8 text-text-tertiary" />
+              </div>
               <p className="text-text-tertiary mb-3">尚未添加毛線</p>
               <Link
                 to={`/project/${currentProject.id}/yarns`}
@@ -205,7 +223,9 @@ export default function ProjectDetailView() {
           
           {currentProject.pattern.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-4xl mb-3">📝</div>
+              <div className="mb-3 flex justify-center">
+                <FaRegEdit className="w-8 h-8 text-text-tertiary" />
+              </div>
               <p className="text-text-tertiary mb-3">尚未建立織圖</p>
               <Link
                 to={`/project/${currentProject.id}/pattern`}
