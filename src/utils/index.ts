@@ -593,3 +593,21 @@ export function deleteGroupFromPatternItems(round: Round, groupId: string): Roun
 
   return syncPatternItemsToLegacyFormat(updatedRound)
 }
+
+// 獲取針法顯示信息的helper函數
+export function getStitchDisplayInfo(stitch: StitchInfo) {
+  // 確保針法對象有效
+  if (!stitch || !stitch.type) {
+    return { symbol: '?', rawValue: '未知', englishName: 'unknown' }
+  }
+  
+  if (stitch.type === StitchType.CUSTOM) {
+    return {
+      symbol: stitch.customSymbol || '?',
+      rawValue: stitch.customName || '自定義',
+      englishName: 'custom'
+    }
+  }
+  
+  return StitchTypeInfo[stitch.type] || { symbol: '?', rawValue: '未知', englishName: 'unknown' }
+}

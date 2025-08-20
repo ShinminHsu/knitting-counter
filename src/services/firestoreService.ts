@@ -14,7 +14,7 @@ import {
   disableNetwork
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { Project, Round, WorkSession, Yarn } from '../types'
+import { Project, Round, WorkSession, Yarn, StitchInfo, StitchGroup } from '../types'
 
 export interface UserProfile {
   uid: string
@@ -40,8 +40,8 @@ export interface FirestoreProject {
 export interface FirestoreRound {
   id: string
   roundNumber: number
-  stitches: any[]
-  stitchGroups: any[]
+  stitches: StitchInfo[]
+  stitchGroups: StitchGroup[]
   notes?: string
 }
 
