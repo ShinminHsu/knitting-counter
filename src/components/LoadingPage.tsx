@@ -1,14 +1,17 @@
 import React from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import yarnAnimationData from '../assets/images/CIrcles Yarn.json';
 
 interface LoadingPageProps {
   src?: string;
+  data?: any;
   message?: string;
   submessage?: string;
 }
 
 const LoadingPage: React.FC<LoadingPageProps> = ({ 
-  src = 'https://lottie.host/4faf8a98-3b5b-4069-a5e8-bc73e0dd9c89/b82v2UEcjX.lottie',
+  src,
+  data = yarnAnimationData,
   message = '載入中...',
   submessage
 }) => {
@@ -18,6 +21,7 @@ const LoadingPage: React.FC<LoadingPageProps> = ({
         <div className="w-32 h-32 mx-auto mb-6">
           <DotLottieReact
             src={src}
+            data={data}
             loop
             autoplay
             className="w-full h-full"

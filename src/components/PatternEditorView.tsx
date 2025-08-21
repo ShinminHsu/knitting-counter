@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { FaRegEdit } from 'react-icons/fa'
+// import { FaRegEdit } from 'react-icons/fa'
+import { FiEdit3 } from "react-icons/fi"
 import { VscEdit } from 'react-icons/vsc'
 import { BsTrash } from 'react-icons/bs'
 import { CiCircleCheck } from 'react-icons/ci'
@@ -442,7 +443,7 @@ export default function PatternEditorView() {
         </div>
       </div>
 
-      <div className="w-full px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 織圖總覽 */}
         <div className="card">
           <h2 className="text-lg font-semibold text-text-primary mb-4">織圖總覽</h2>
@@ -472,7 +473,7 @@ export default function PatternEditorView() {
         {currentProject.pattern.length === 0 ? (
           <div className="card text-center py-12">
             <div className="mb-4 flex justify-center">
-              <FaRegEdit className="w-8 h-8 text-text-tertiary" />
+              <FiEdit3 className="w-8 h-8 text-text-tertiary" />
             </div>
             <h3 className="text-xl font-semibold text-text-primary mb-2">
               還沒有織圖圈數
@@ -501,11 +502,6 @@ export default function PatternEditorView() {
                     <div className="text-sm text-text-secondary">
                       {getRoundTotalStitches(round)} 針
                     </div>
-                    {round.roundNumber === currentProject.currentRound && (
-                      <div className="px-2 py-1 bg-primary text-white text-xs rounded-full">
-                        目前
-                      </div>
-                    )}
                   </div>
                   
                   <div className="flex items-center gap-2">
@@ -623,25 +619,27 @@ export default function PatternEditorView() {
                                   </button>
                                 </div>
                               ) : (
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-text-primary">
-                                    {getStitchDisplayInfo(patternItem.data as StitchInfo).rawValue}
-                                  </span>
-                                  <span className="text-sm text-text-secondary">
-                                    ×{(patternItem.data as StitchInfo).count}
-                                  </span>
-                                  <div className="flex items-center gap-1 ml-auto">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-text-primary">
+                                      {getStitchDisplayInfo(patternItem.data as StitchInfo).rawValue}
+                                    </span>
+                                    <span className="text-sm text-text-secondary">
+                                      ×{(patternItem.data as StitchInfo).count}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
                                     <button
                                       onClick={() => handleEditStitch(round.roundNumber, patternItem.data as StitchInfo)}
-                                      className="text-text-tertiary hover:text-primary p-2"
+                                      className="text-text-tertiary hover:text-primary p-1"
                                     >
-                                      <VscEdit className="w-5 h-5" />
+                                      <VscEdit className="w-4 h-4" />
                                     </button>
                                     <button
                                       onClick={() => handleDeleteStitch(round.roundNumber, (patternItem.data as StitchInfo).id)}
-                                      className="text-text-tertiary hover:text-red-500 p-2"
+                                      className="text-text-tertiary hover:text-red-500 p-1"
                                     >
-                                      <BsTrash className="w-5 h-5" />
+                                      <BsTrash className="w-4 h-4" />
                                     </button>
                                   </div>
                                 </div>
@@ -766,25 +764,27 @@ export default function PatternEditorView() {
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-medium text-text-primary">
-                                          {getStitchDisplayInfo(stitch).rawValue}
-                                        </span>
-                                        <span className="text-sm text-text-secondary">
-                                          ×{stitch.count}
-                                        </span>
-                                        <div className="flex items-center gap-1 ml-auto">
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium text-text-primary">
+                                            {getStitchDisplayInfo(stitch).rawValue}
+                                          </span>
+                                          <span className="text-sm text-text-secondary">
+                                            ×{stitch.count}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
                                           <button
                                             onClick={() => handleEditGroupStitch(round.roundNumber, (patternItem.data as StitchGroup).id, stitch)}
-                                            className="text-text-tertiary hover:text-primary p-2"
+                                            className="text-text-tertiary hover:text-primary p-1"
                                           >
-                                            <VscEdit className="w-5 h-5" />
+                                            <VscEdit className="w-4 h-4" />
                                           </button>
                                           <button
                                             onClick={() => handleDeleteGroupStitch(round.roundNumber, (patternItem.data as StitchGroup).id, stitch.id)}
-                                            className="text-text-tertiary hover:text-red-500 p-2"
+                                            className="text-text-tertiary hover:text-red-500 p-1"
                                           >
-                                            <BsTrash className="w-5 h-5" />
+                                            <BsTrash className="w-4 h-4" />
                                           </button>
                                         </div>
                                       </div>
@@ -851,25 +851,27 @@ export default function PatternEditorView() {
                                 </button>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-text-primary">
-                                  {getStitchDisplayInfo(stitch).rawValue}
-                                </span>
-                                <span className="text-sm text-text-secondary">
-                                  ×{stitch.count}
-                                </span>
-                                <div className="flex items-center gap-1 ml-auto">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-text-primary">
+                                    {getStitchDisplayInfo(stitch).rawValue}
+                                  </span>
+                                  <span className="text-sm text-text-secondary">
+                                    ×{stitch.count}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
                                   <button
                                     onClick={() => handleEditStitch(round.roundNumber, stitch)}
-                                    className="text-text-tertiary hover:text-primary p-2"
+                                    className="text-text-tertiary hover:text-primary p-1"
                                   >
-                                    <VscEdit className="w-5 h-5" />
+                                    <VscEdit className="w-4 h-4" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteStitch(round.roundNumber, stitch.id)}
-                                    className="text-text-tertiary hover:text-red-500 p-2"
+                                    className="text-text-tertiary hover:text-red-500 p-1"
                                   >
-                                    <BsTrash className="w-5 h-5" />
+                                    <BsTrash className="w-4 h-4" />
                                   </button>
                                 </div>
                               </div>
@@ -1002,25 +1004,27 @@ export default function PatternEditorView() {
                                       </button>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium text-text-primary">
-                                        {getStitchDisplayInfo(stitch).rawValue}
-                                      </span>
-                                      <span className="text-sm text-text-secondary">
-                                        ×{stitch.count}
-                                      </span>
-                                      <div className="flex items-center gap-1 ml-auto">
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-text-primary">
+                                          {getStitchDisplayInfo(stitch).rawValue}
+                                        </span>
+                                        <span className="text-sm text-text-secondary">
+                                          ×{stitch.count}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
                                         <button
                                           onClick={() => handleEditGroupStitch(round.roundNumber, group.id, stitch)}
-                                          className="text-text-tertiary hover:text-primary p-2"
+                                          className="text-text-tertiary hover:text-primary p-1"
                                         >
-                                          <VscEdit className="w-5 h-5" />
+                                          <VscEdit className="w-4 h-4" />
                                         </button>
                                         <button
                                           onClick={() => handleDeleteGroupStitch(round.roundNumber, group.id, stitch.id)}
-                                          className="text-text-tertiary hover:text-red-500 p-2"
+                                          className="text-text-tertiary hover:text-red-500 p-1"
                                         >
-                                          <BsTrash className="w-5 h-5" />
+                                          <BsTrash className="w-4 h-4" />
                                         </button>
                                       </div>
                                     </div>
