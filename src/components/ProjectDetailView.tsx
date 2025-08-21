@@ -40,7 +40,7 @@ export default function ProjectDetailView() {
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+        <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
               <Link
@@ -58,7 +58,7 @@ export default function ProjectDetailView() {
         </div>
       </div>
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 專案資訊 */}
         <div className="card">
           <h2 className="text-xl font-semibold text-text-primary mb-4">專案資訊</h2>

@@ -118,7 +118,7 @@ export default function YarnManagerView() {
   return (
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       <div className="bg-background-secondary border-b border-border">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+        <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-4">
               <Link
@@ -142,7 +142,7 @@ export default function YarnManagerView() {
         </div>
       </div>
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 毛線列表 */}
         {currentProject.yarns.length === 0 ? (
           <div className="text-center py-12">
@@ -167,7 +167,7 @@ export default function YarnManagerView() {
                 <div className="flex items-center gap-4">
                   {/* 毛線顏色 */}
                   <div
-                    className="w-12 h-12 rounded-full border-2 border-border flex-shrink-0"
+                    className="w-12 h-12 rounded-full flex-shrink-0"
                     style={{ backgroundColor: yarn.color.hex }}
                   />
                   

@@ -254,7 +254,7 @@ export default function ProgressTrackingView() {
             <div 
               className={`w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
                 isCompleted || isCurrent
-                  ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
+                  ? (isLightColor(yarnColor) ? 'border border-black-100' : '')
                   : ''
               }`}
               style={{ 
@@ -322,7 +322,7 @@ export default function ProgressTrackingView() {
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border sticky top-0 z-10">
-        <div className="w-full px-2 sm:px-4 lg:px-6 py-3 sm:py-4">
+        <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-4">
               <Link
@@ -365,7 +365,7 @@ export default function ProgressTrackingView() {
         </div>
       </div>
 
-      <div className="w-full px-2 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 總體進度 */}
         <div className="card">
           <div className="flex items-center justify-between mb-3">
