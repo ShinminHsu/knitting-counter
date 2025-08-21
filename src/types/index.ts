@@ -14,6 +14,7 @@ export interface Yarn {
 
 export enum StitchType {
   SINGLE = 'single',
+  HALF_DOUBLE = 'half_double',
   DOUBLE = 'double',
   TRIPLE = 'triple', 
   CHAIN = 'chain',
@@ -22,7 +23,8 @@ export enum StitchType {
   DECREASE = 'decrease',
   MAGIC_RING = 'magic_ring',
   FRONT_POST = 'front_post',
-  BACK_POST = 'back_post'
+  BACK_POST = 'back_post',
+  CUSTOM = 'custom'
 }
 
 export const StitchTypeInfo: Record<StitchType, {
@@ -30,16 +32,18 @@ export const StitchTypeInfo: Record<StitchType, {
   symbol: string
   englishName: string
 }> = {
-  [StitchType.SINGLE]: { rawValue: '短針', symbol: '×', englishName: 'Single Crochet' },
-  [StitchType.DOUBLE]: { rawValue: '長針', symbol: '↑', englishName: 'Double Crochet' },
-  [StitchType.TRIPLE]: { rawValue: '長長針', symbol: '↟', englishName: 'Triple Crochet' },
-  [StitchType.CHAIN]: { rawValue: '鎖針', symbol: '○', englishName: 'Chain' },
-  [StitchType.SLIP]: { rawValue: '引拔針', symbol: '•', englishName: 'Slip Stitch' },
-  [StitchType.INCREASE]: { rawValue: '加針', symbol: '▲', englishName: 'Increase' },
-  [StitchType.DECREASE]: { rawValue: '減針', symbol: '▼', englishName: 'Decrease' },
-  [StitchType.MAGIC_RING]: { rawValue: '魔術環', symbol: '◉', englishName: 'Magic Ring' },
-  [StitchType.FRONT_POST]: { rawValue: '前柱針', symbol: '⟨', englishName: 'Front Post' },
-  [StitchType.BACK_POST]: { rawValue: '後柱針', symbol: '⟩', englishName: 'Back Post' }
+  [StitchType.SINGLE]: { rawValue: '短針', symbol: '×', englishName: 'sc' },
+  [StitchType.HALF_DOUBLE]: { rawValue: '中長針', symbol: '⊥', englishName: 'hdc' },
+  [StitchType.DOUBLE]: { rawValue: '長針', symbol: '↑', englishName: 'dc' },
+  [StitchType.TRIPLE]: { rawValue: '長長針', symbol: '↟', englishName: 'tr' },
+  [StitchType.CHAIN]: { rawValue: '鎖針', symbol: '○', englishName: 'ch' },
+  [StitchType.SLIP]: { rawValue: '引拔針', symbol: '•', englishName: 'sl st' },
+  [StitchType.INCREASE]: { rawValue: '加針', symbol: '▲', englishName: 'inc' },
+  [StitchType.DECREASE]: { rawValue: '減針', symbol: '▼', englishName: 'dec' },
+  [StitchType.MAGIC_RING]: { rawValue: '魔術環', symbol: '◉', englishName: 'mr' },
+  [StitchType.FRONT_POST]: { rawValue: '前柱針', symbol: '⟨', englishName: 'fp' },
+  [StitchType.BACK_POST]: { rawValue: '後柱針', symbol: '⟩', englishName: 'bp' },
+  [StitchType.CUSTOM]: { rawValue: '自定義', symbol: '?', englishName: 'custom' }
 }
 
 export interface StitchInfo {
@@ -47,6 +51,9 @@ export interface StitchInfo {
   type: StitchType
   yarnId: string
   count: number
+  // 自定義針法的名稱和符號（當type為CUSTOM時使用）
+  customName?: string
+  customSymbol?: string
 }
 
 export interface StitchGroup {

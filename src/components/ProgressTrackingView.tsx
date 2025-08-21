@@ -10,7 +10,7 @@ import {
   getProjectCompletedStitches,
   getRoundTotalStitches
 } from '../utils'
-import { StitchTypeInfo } from '../types'
+import { StitchTypeInfo, Round, StitchInfo, StitchGroup } from '../types'
 
 export default function ProgressTrackingView() {
   const { projectId } = useParams()
@@ -187,6 +187,35 @@ export default function ProgressTrackingView() {
   // const currentYarnId = getCurrentStitchYarn()
   // const currentYarnColor = currentYarnId ? getYarnColor(currentYarnId) : '#000000'
 
+  // 生成圈數針法描述
+  const generateRoundDescription = (round: Round): string => {
+    const descriptions: string[] = []
+    
+    // 處理個別針法
+    round.stitches.forEach((stitch: StitchInfo) => {
+      const stitchInfo = StitchTypeInfo[stitch.type]
+      if (stitchInfo) {
+        descriptions.push(`${stitchInfo.rawValue}${stitchInfo.symbol}${stitch.count}`)
+      }
+    })
+    
+    // 處理群組針法
+    round.stitchGroups.forEach((group: StitchGroup) => {
+      const groupDescriptions: string[] = []
+      group.stitches.forEach((stitch: StitchInfo) => {
+        const stitchInfo = StitchTypeInfo[stitch.type]
+        if (stitchInfo) {
+          groupDescriptions.push(`${stitchInfo.rawValue}${stitchInfo.symbol}${stitch.count}`)
+        }
+      })
+      if (groupDescriptions.length > 0) {
+        descriptions.push(`[${groupDescriptions.join(', ')}]×${group.repeatCount}`)
+      }
+    })
+    
+    return descriptions.join(', ')
+  }
+
   // 渲染針目進度視覺化
   const renderStitchProgress = () => {
     if (!displayRound || totalStitchesInCurrentRound === 0) {
@@ -211,9 +240,9 @@ export default function ProgressTrackingView() {
         stitchElements.push(
           <div
             key={`${stitch.id}-${i}`}
-            className="flex flex-col items-center justify-center w-16 h-16 transition-all duration-300"
+            className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
           >
-            <div className={`text-2xl font-bold transition-colors duration-300 ${
+            <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
               isCompleted 
                 ? 'text-text-primary' 
                 : isCurrent 
@@ -223,9 +252,9 @@ export default function ProgressTrackingView() {
               {StitchTypeInfo[stitch.type]?.symbol || '○'}
             </div>
             <div 
-              className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+              className={`w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
                 isCompleted || isCurrent
-                  ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
+                  ? (isLightColor(yarnColor) ? 'border border-black-100' : '')
                   : ''
               }`}
               style={{ 
@@ -251,9 +280,9 @@ export default function ProgressTrackingView() {
             stitchElements.push(
               <div
                 key={`${group.id}-${repeat}-${stitch.id}-${i}`}
-                className="flex flex-col items-center justify-center w-16 h-16 transition-all duration-300"
+                className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
               >
-                <div className={`text-2xl font-bold transition-colors duration-300 ${
+                <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
                   isCompleted 
                     ? 'text-text-primary' 
                     : isCurrent 
@@ -263,7 +292,7 @@ export default function ProgressTrackingView() {
                   {StitchTypeInfo[stitch.type]?.symbol || '○'}
                 </div>
                 <div 
-                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                  className={`w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
                     isCompleted || isCurrent
                       ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
                       : ''
@@ -281,8 +310,10 @@ export default function ProgressTrackingView() {
     })
 
     return (
-      <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
-        {stitchElements}
+      <div className="w-full px-1 sm:px-0">
+        <div className="grid grid-cols-8 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-x-0.5 gap-y-1 sm:gap-2 place-items-center w-full">
+          {stitchElements}
+        </div>
       </div>
     )
   }
@@ -334,7 +365,7 @@ export default function ProgressTrackingView() {
         </div>
       </div>
 
-      <div className="w-full px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 總體進度 */}
         <div className="card">
           <div className="flex items-center justify-between mb-3">
@@ -399,10 +430,15 @@ export default function ProgressTrackingView() {
                   <span className="text-sm ml-2" style={{ color: 'rgb(217, 115, 152)' }}>（查看中）</span>
                 )}
               </span>
+              {displayRound && (
+                <div className="text-xs text-gray-500 mt-1">
+                  {generateRoundDescription(displayRound)}
+                </div>
+              )}
             </div>
             {displayRound?.notes && (
-              <div className="text-text-primary mb-4">
-                <span className="text-text-secondary">備註：</span>{displayRound.notes}
+              <div className="text-xs text-gray-500 mb-4">
+                備註：{displayRound.notes}
               </div>
             )}
           </div>
@@ -410,7 +446,7 @@ export default function ProgressTrackingView() {
 
 
           {/* 針目進度視覺化 */}
-          <div className="mb-6">
+          <div className="mb-6 max-h-80 overflow-y-auto border border-border rounded-lg p-1 sm:p-3 bg-background-secondary">
             {renderStitchProgress()}
           </div>
 
@@ -470,7 +506,7 @@ export default function ProgressTrackingView() {
                 <button
                   onClick={handlePreviousStitch}
                   disabled={currentProject.currentRound === 1 && currentProject.currentStitch === 0}
-                  className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed text-lg py-4 flex items-center justify-center gap-2 flex-1"
+                  className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-lg py-4 flex items-center justify-center gap-2 flex-1"
                 >
                   <span>←</span>
                   上一針
@@ -483,7 +519,7 @@ export default function ProgressTrackingView() {
                 
                 <button
                   onClick={handleNextStitch}
-                  className="btn btn-primary text-lg py-4 flex items-center justify-center gap-2 flex-1"
+                  className="btn btn-primary text-sm sm:text-lg py-4 flex items-center justify-center gap-2 flex-1"
                 >
                   下一針
                   <span>→</span>

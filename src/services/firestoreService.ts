@@ -14,7 +14,7 @@ import {
   disableNetwork
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { Project, Round, WorkSession, Yarn } from '../types'
+import { Project, Round, WorkSession, Yarn, StitchInfo, StitchGroup } from '../types'
 
 export interface UserProfile {
   uid: string
@@ -40,8 +40,8 @@ export interface FirestoreProject {
 export interface FirestoreRound {
   id: string
   roundNumber: number
-  stitches: any[]
-  stitchGroups: any[]
+  stitches: StitchInfo[]
+  stitchGroups: StitchGroup[]
   notes?: string
 }
 
@@ -294,11 +294,40 @@ class FirestoreService {
       })
       
       const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', round.id)
+      // Clean the data to ensure no undefined values
+      const cleanStitches = (round.stitches || []).filter(stitch => stitch !== undefined && stitch !== null)
+      const cleanStitchGroups = (round.stitchGroups || []).filter(group => group !== undefined && group !== null)
+      
+      // Deep clean stitches to remove any undefined properties
+      const deepCleanedStitches = cleanStitches.map(stitch => ({
+        id: stitch.id || '',
+        type: stitch.type || 'single',
+        yarnId: stitch.yarnId || '',
+        count: stitch.count || 1,
+        ...(stitch.customName && { customName: stitch.customName }),
+        ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+      }))
+      
+      // Deep clean stitch groups
+      const deepCleanedStitchGroups = cleanStitchGroups.map(group => ({
+        id: group.id || '',
+        name: group.name || '',
+        repeatCount: group.repeatCount || 1,
+        stitches: (group.stitches || []).map(stitch => ({
+          id: stitch.id || '',
+          type: stitch.type || 'single',
+          yarnId: stitch.yarnId || '',
+          count: stitch.count || 1,
+          ...(stitch.customName && { customName: stitch.customName }),
+          ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+        }))
+      }))
+      
       const roundData: any = {
         id: round.id,
         roundNumber: round.roundNumber,
-        stitches: round.stitches,
-        stitchGroups: round.stitchGroups
+        stitches: deepCleanedStitches,
+        stitchGroups: deepCleanedStitchGroups
       }
       
       // Only include notes if it's defined and not empty
@@ -327,10 +356,46 @@ class FirestoreService {
       })
       
       const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', round.id)
+      // Clean the data to ensure no undefined values
+      const cleanStitches = (round.stitches || []).filter(stitch => stitch !== undefined && stitch !== null)
+      const cleanStitchGroups = (round.stitchGroups || []).filter(group => group !== undefined && group !== null)
+      
+      // Deep clean stitches to remove any undefined properties
+      const deepCleanedStitches = cleanStitches.map(stitch => ({
+        id: stitch.id || '',
+        type: stitch.type || 'single',
+        yarnId: stitch.yarnId || '',
+        count: stitch.count || 1,
+        ...(stitch.customName && { customName: stitch.customName }),
+        ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+      }))
+      
+      // Deep clean stitch groups
+      const deepCleanedStitchGroups = cleanStitchGroups.map(group => ({
+        id: group.id || '',
+        name: group.name || '',
+        repeatCount: group.repeatCount || 1,
+        stitches: (group.stitches || []).map(stitch => ({
+          id: stitch.id || '',
+          type: stitch.type || 'single',
+          yarnId: stitch.yarnId || '',
+          count: stitch.count || 1,
+          ...(stitch.customName && { customName: stitch.customName }),
+          ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+        }))
+      }))
+      
+      console.log('[FIRESTORE-UPDATE-ROUND] Cleaned data:', {
+        originalStitchesLength: round.stitches?.length || 0,
+        cleanStitchesLength: deepCleanedStitches.length,
+        originalGroupsLength: round.stitchGroups?.length || 0,
+        cleanGroupsLength: deepCleanedStitchGroups.length
+      })
+      
       const updateData: any = {
         roundNumber: round.roundNumber,
-        stitches: round.stitches,
-        stitchGroups: round.stitchGroups
+        stitches: deepCleanedStitches,
+        stitchGroups: deepCleanedStitchGroups
       }
       
       // Only include notes if it's defined and not empty

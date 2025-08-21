@@ -13,6 +13,7 @@ import YarnManagerView from './components/YarnManagerView'
 import ImportExportView from './components/ImportExportView'
 import NotFoundView from './components/NotFoundView'
 import GoogleSignIn from './components/GoogleSignIn'
+import LoadingPage from './components/LoadingPage'
 
 function AppWithSync() {
   const { 
@@ -62,21 +63,10 @@ function AppWithSync() {
 
   // 載入中狀態
   if (authLoading || appLoading) {
-    return (
-      <div className="min-h-screen bg-background-primary flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-text-secondary">
-            {authLoading ? '驗證中...' : '載入數據中...'}
-          </p>
-          {isSyncing && (
-            <p className="text-text-secondary text-sm mt-2">
-              正在同步跨裝置數據...
-            </p>
-          )}
-        </div>
-      </div>
-    )
+    const message = authLoading ? '驗證中...' : '載入數據中...';
+    const submessage = isSyncing ? '正在同步跨裝置數據...' : undefined;
+    
+    return <LoadingPage message={message} submessage={submessage} />
   }
 
   // 未登入狀態

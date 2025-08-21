@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { IoPlayCircleOutline } from 'react-icons/io5'
-import { FaRegEdit } from 'react-icons/fa'
+// import { FaRegEdit } from 'react-icons/fa'
+import { FiEdit3 } from "react-icons/fi"
 import { LiaVolleyballBallSolid } from 'react-icons/lia'
 import { FiUploadCloud } from 'react-icons/fi'
 import { useSyncedAppStore } from '../store/syncedAppStore'
@@ -39,7 +40,7 @@ export default function ProjectDetailView() {
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+        <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
               <Link
@@ -57,7 +58,7 @@ export default function ProjectDetailView() {
         </div>
       </div>
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 專案資訊 */}
         <div className="card">
           <h2 className="text-xl font-semibold text-text-primary mb-4">專案資訊</h2>
@@ -139,7 +140,7 @@ export default function ProjectDetailView() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 flex items-center justify-center">
-                <FaRegEdit className="w-8 h-8 text-text-secondary" />
+                <FiEdit3 className="w-7 h-7 text-text-secondary" />
               </div>
               <div>
                 <h3 className="font-semibold text-text-primary">編輯織圖</h3>
@@ -169,7 +170,7 @@ export default function ProjectDetailView() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 flex items-center justify-center">
-                <FiUploadCloud className="w-8 h-8 text-text-secondary" />
+                <FiUploadCloud className="w-7 h-7 text-text-secondary" />
               </div>
               <div>
                 <h3 className="font-semibold text-text-primary">匯入匯出</h3>
@@ -201,7 +202,7 @@ export default function ProjectDetailView() {
               {currentProject.yarns.map((yarn) => (
                 <div key={yarn.id} className="flex items-center gap-3 p-3 bg-background-secondary rounded-lg">
                   <div
-                    className="w-8 h-8 rounded-full border-2 border-white shadow-sm flex-shrink-0"
+                    className="w-8 h-8 rounded-full shadow-sm flex-shrink-0"
                     style={{ backgroundColor: yarn.color.hex }}
                   />
                   <div className="flex-1 min-w-0">
@@ -224,7 +225,7 @@ export default function ProjectDetailView() {
           {currentProject.pattern.length === 0 ? (
             <div className="text-center py-8">
               <div className="mb-3 flex justify-center">
-                <FaRegEdit className="w-8 h-8 text-text-tertiary" />
+                <FiEdit3 className="w-8 h-8 text-text-tertiary" />
               </div>
               <p className="text-text-tertiary mb-3">尚未建立織圖</p>
               <Link
@@ -237,8 +238,8 @@ export default function ProjectDetailView() {
           ) : (
             <div className="space-y-4">
               {/* 織圖列表 */}
-              <div className="space-y-3">
-                {currentProject.pattern.slice(0, 5).map((round) => {
+              <div className="max-h-96 overflow-y-auto space-y-3">
+                {currentProject.pattern.map((round) => {
                   const roundStitches = getRoundTotalStitches(round)
                   const roundDescription = describeRound(round, currentProject.yarns)
                   
@@ -277,16 +278,14 @@ export default function ProjectDetailView() {
                 </div>
               </div>
               
-              {currentProject.pattern.length > 5 && (
-                <div className="text-center pt-2">
-                  <Link
-                    to={`/project/${currentProject.id}/pattern`}
-                    className="text-primary hover:underline text-sm"
-                  >
-                    查看全部 {currentProject.pattern.length} 圈織圖
-                  </Link>
-                </div>
-              )}
+              <div className="text-center pt-2">
+                <Link
+                  to={`/project/${currentProject.id}/pattern`}
+                  className="text-primary hover:underline text-sm"
+                >
+                  前往織圖編輯頁面
+                </Link>
+              </div>
             </div>
           )}
         </div>

@@ -141,9 +141,33 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           
           if (firestoreProjects.length > 0) {
             console.log('Loaded projects from Firestore:', firestoreProjects.length)
+            
+            // 確保從 Firestore 載入的數據向後兼容
+            const migratedProjects = firestoreProjects.map((project: any) => ({
+              ...project,
+              pattern: project.pattern?.map((round: any) => ({
+                ...round,
+                stitches: round.stitches?.map((stitch: any) => ({
+                  ...stitch,
+                  // 確保新欄位存在（向後兼容）
+                  customName: stitch.customName || undefined,
+                  customSymbol: stitch.customSymbol || undefined
+                })) || [],
+                stitchGroups: round.stitchGroups?.map((group: any) => ({
+                  ...group,
+                  stitches: group.stitches?.map((stitch: any) => ({
+                    ...stitch,
+                    // 確保新欄位存在（向後兼容）
+                    customName: stitch.customName || undefined,
+                    customSymbol: stitch.customSymbol || undefined
+                  })) || []
+                })) || []
+              })) || []
+            }))
+            
             set({
-              projects: firestoreProjects,
-              currentProject: firestoreProjects[0] || null,
+              projects: migratedProjects,
+              currentProject: migratedProjects[0] || null,
               lastSyncTime: new Date()
             })
             return
@@ -159,7 +183,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
               const state = parsed.state || parsed
               
               if (state.projects && state.projects.length > 0) {
-                // 轉換日期格式
+                // 轉換日期格式並確保向後兼容
                 const localProjects = state.projects.map((project: any) => ({
                   ...project,
                   createdDate: new Date(project.createdDate),
@@ -167,6 +191,25 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                   sessions: project.sessions?.map((session: any) => ({
                     ...session,
                     startTime: new Date(session.startTime)
+                  })) || [],
+                  // 確保 pattern 中的針法有正確的結構
+                  pattern: project.pattern?.map((round: any) => ({
+                    ...round,
+                    stitches: round.stitches?.map((stitch: any) => ({
+                      ...stitch,
+                      // 確保新欄位存在（向後兼容）
+                      customName: stitch.customName || undefined,
+                      customSymbol: stitch.customSymbol || undefined
+                    })) || [],
+                    stitchGroups: round.stitchGroups?.map((group: any) => ({
+                      ...group,
+                      stitches: group.stitches?.map((stitch: any) => ({
+                        ...stitch,
+                        // 確保新欄位存在（向後兼容）
+                        customName: stitch.customName || undefined,
+                        customSymbol: stitch.customSymbol || undefined
+                      })) || []
+                    })) || []
                   })) || []
                 }))
                 
