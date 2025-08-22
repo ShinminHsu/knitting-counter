@@ -202,7 +202,7 @@ export default function ProjectDetailView() {
               {currentProject.yarns.map((yarn) => (
                 <div key={yarn.id} className="flex items-center gap-3 p-3 bg-background-secondary rounded-lg">
                   <div
-                    className="w-8 h-8 rounded-full shadow-sm flex-shrink-0"
+                    className="w-8 h-8 rounded-full shadow-sm flex-shrink-0 border border-gray-400"
                     style={{ backgroundColor: yarn.color.hex }}
                   />
                   <div className="flex-1 min-w-0">
