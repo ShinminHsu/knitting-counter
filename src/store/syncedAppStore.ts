@@ -232,16 +232,28 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
             }
           }
           
-          // 如果都沒有資料，建立樣本專案並上傳
-          console.log('No data found, creating sample project')
-          const sampleProject = createSampleProject()
-          await firestoreService.createProject(user.uid, sampleProject)
+          // 如果都沒有資料，檢查是否已存在範例專案，避免重複創建
+          const existingProjects = await firestoreService.getUserProjects(user.uid)
+          const hasSampleProject = existingProjects.some(p => p.name === '範例杯墊')
           
-          set({
-            projects: [sampleProject],
-            currentProject: sampleProject,
-            lastSyncTime: new Date()
-          })
+          if (!hasSampleProject) {
+            console.log('No data found, creating sample project')
+            const sampleProject = createSampleProject()
+            await firestoreService.createProject(user.uid, sampleProject)
+            
+            set({
+              projects: [sampleProject],
+              currentProject: sampleProject,
+              lastSyncTime: new Date()
+            })
+          } else {
+            console.log('Sample project already exists, loading existing projects')
+            set({
+              projects: existingProjects,
+              currentProject: existingProjects[0] || null,
+              lastSyncTime: new Date()
+            })
+          }
           
         } catch (error) {
           console.error('Error loading user projects:', error)
@@ -274,11 +286,15 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
               }
             } catch (localError) {
               console.error('Error loading from localStorage:', localError)
-              const sampleProject = createSampleProject()
-              set({
-                projects: [sampleProject],
-                currentProject: sampleProject
-              })
+              // 只有在完全沒有專案時才創建樣本專案
+              const { projects } = get()
+              if (!projects || projects.length === 0) {
+                const sampleProject = createSampleProject()
+                set({
+                  projects: [sampleProject],
+                  currentProject: sampleProject
+                })
+              }
             }
           }
         } finally {
@@ -517,7 +533,26 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
 
       loadProjects: async () => {
         const { projects } = get()
+        const user = useAuthStore.getState().user
+        
         if (projects.length === 0) {
+          // 如果有用戶登入，先嘗試從 Firestore 載入
+          if (user) {
+            try {
+              const firestoreProjects = await firestoreService.getUserProjects(user.uid)
+              if (firestoreProjects.length > 0) {
+                set({
+                  projects: firestoreProjects,
+                  currentProject: firestoreProjects[0]
+                })
+                return
+              }
+            } catch (error) {
+              console.error('Error loading from Firestore in loadProjects:', error)
+            }
+          }
+          
+          // 只有在完全沒有資料且沒有範例專案時才創建
           const sampleProject = createSampleProject()
           set({
             projects: [sampleProject],
