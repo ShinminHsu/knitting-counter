@@ -165,6 +165,29 @@ export default function PatternEditorView() {
       console.log('[UI-ADD-ROUND] Successfully added round, cleaning up UI state')
       setNewRoundNotes('')
       setShowAddRoundForm(false)
+      
+      // 新增圈數後自動滾動到最後一個圈數
+      const scrollToNewRound = () => {
+        // 尋找所有圈數的卡片元素
+        const roundCards = document.querySelectorAll('[data-round-card]')
+        if (roundCards.length > 0) {
+          const lastRoundCard = roundCards[roundCards.length - 1]
+          lastRoundCard.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center'
+          })
+        } else {
+          // 如果找不到圈數卡片，回退到滾動到底部
+          window.scrollTo({
+            top: document.documentElement.scrollHeight,
+            behavior: 'smooth'
+          })
+        }
+      }
+      
+      // 延遲滾動，確保新圈數已經渲染到 DOM
+      setTimeout(scrollToNewRound, 200)
+      setTimeout(scrollToNewRound, 500) // 再次嘗試確保成功
     } catch (error) {
       console.error('[UI-ADD-ROUND] Error adding round:', error)
       alert('新增圈數時發生錯誤，請查看控制台了解詳情')
@@ -489,7 +512,7 @@ export default function PatternEditorView() {
             {currentProject.pattern
               .sort((a, b) => a.roundNumber - b.roundNumber)
               .map((round) => (
-              <div key={round.id} className="card">
+              <div key={round.id} className="card" data-round-card={round.roundNumber}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-text-primary">
