@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAppStore } from './store'
+import { useSyncedAppStore } from './store/syncedAppStore'
 import { useAuthStore } from './store/authStore'
 import { cleanupLegacyData, migrateLegacyUserData, debugStorageInfo } from './utils/migrateLegacyData'
 import ProjectListView from './components/ProjectListView'
@@ -11,10 +11,11 @@ import YarnManagerView from './components/YarnManagerView'
 import ImportExportView from './components/ImportExportView'
 import NotFoundView from './components/NotFoundView'
 import GoogleSignIn from './components/GoogleSignIn'
+import WelcomeLoadingView from './components/WelcomeLoadingView'
 
 function App() {
-  const { loadUserProjects, clearUserDataSilently, setError, error } = useAppStore()
-  const { user, isLoading, initialize } = useAuthStore()
+  const { loadUserProjects, clearUserDataSilently, setError, error, isLoading: appIsLoading, isSyncing, projects } = useSyncedAppStore()
+  const { user, isLoading: authIsLoading, initialize } = useAuthStore()
 
   useEffect(() => {
     const unsubscribe = initialize()
@@ -52,13 +53,13 @@ function App() {
     }
   }, [user, loadUserProjects, clearUserDataSilently, setError]);
 
-  // 載入中狀態
-  if (isLoading) {
+  // 認證載入中狀態
+  if (authIsLoading) {
     return (
       <div className="min-h-screen bg-background-primary flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-text-secondary">載入中...</p>
+          <p className="text-text-secondary">正在驗證身份...</p>
         </div>
       </div>
     )
@@ -67,6 +68,11 @@ function App() {
   // 未登入狀態
   if (!user) {
     return <GoogleSignIn />
+  }
+
+  // 已登入但還在載入或同步中，或專案還沒準備好
+  if (appIsLoading || isSyncing || (projects.length === 0 && !error)) {
+    return <WelcomeLoadingView />
   }
 
   return (
@@ -88,6 +94,9 @@ function App() {
 
       {/* 主要路由 */}
       <Routes>
+        {/* 歡迎載入頁面 */}
+        <Route path="/welcome" element={<WelcomeLoadingView />} />
+        
         {/* 首頁 - 專案列表 */}
         <Route path="/" element={<ProjectListView />} />
         
