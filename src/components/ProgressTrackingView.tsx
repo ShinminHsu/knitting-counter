@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
@@ -31,6 +31,7 @@ export default function ProgressTrackingView() {
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [viewingRound, setViewingRound] = useState<number | null>(null) // 查看模式的圈數
+  const patternContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (projectId) {
@@ -54,6 +55,65 @@ export default function ProgressTrackingView() {
     return () => clearInterval(interval)
   }, [isSessionActive, sessionStartTime])
 
+  // 判斷是否在查看模式
+  const isViewMode = viewingRound !== null && viewingRound !== currentProject?.currentRound
+  const displayRoundNumber = viewingRound ?? currentProject?.currentRound ?? 1
+  const displayRound = currentProject?.pattern.find(r => r.roundNumber === displayRoundNumber)
+
+  // 針目行數自動滾動邏輯
+  useEffect(() => {
+    if (!currentProject || isViewMode || !patternContainerRef.current || !displayRound) return
+
+    const currentStitch = currentProject.currentStitch
+    const container = patternContainerRef.current
+    
+    // 等待容器渲染完成
+    setTimeout(() => {
+      if (!container) return
+      
+      const stitchesPerRow = 12 // 電腦版一排顯示12個針目
+      const maxVisibleRows = 4 // 一次最多顯示四排
+      
+      // 計算當前針目在第幾行 (從1開始)
+      const currentRow = Math.ceil((currentStitch + 1) / stitchesPerRow)
+      
+      // 計算總行數
+      const totalStitches = getRoundTotalStitches(displayRound)
+      const totalRows = Math.ceil(totalStitches / stitchesPerRow)
+      
+      // 如果總行數 <= 最大可視行數，不需要滾動
+      if (totalRows <= maxVisibleRows) return
+      
+      // 計算應該顯示的起始行 (從1開始計算)
+      let startRow = 1
+      
+      // 當用戶編織到第3行時開始滾動
+      if (currentRow >= 3) {
+        // 讓當前行顯示在第2個位置，所以起始行 = 當前行 - 1
+        startRow = currentRow - 1
+        
+        // 確保不會超出範圍
+        startRow = Math.min(startRow, totalRows - maxVisibleRows + 1)
+      }
+      
+      // 計算單行高度（基於實際的針目元素大小）
+      const stitchElements = container.querySelectorAll('.grid > div')
+      if (stitchElements.length === 0) return
+      
+      const firstStitchElement = stitchElements[0] as HTMLElement
+      const stitchHeight = firstStitchElement.offsetHeight + 8 // 包含 gap
+      
+      // 計算滾動位置
+      const targetScrollTop = (startRow - 1) * stitchHeight
+      
+      // 平滑滾動到目標位置
+      container.scrollTo({
+        top: targetScrollTop,
+        behavior: 'smooth'
+      })
+    }, 100) // 延遲確保 DOM 完成渲染
+  }, [currentProject?.currentStitch, isViewMode, currentProject, displayRound])
+
   if (!currentProject) {
     return (
       <div className="min-h-screen bg-background-primary flex items-center justify-center">
@@ -65,10 +125,6 @@ export default function ProgressTrackingView() {
     )
   }
 
-  // 判斷是否在查看模式
-  const isViewMode = viewingRound !== null && viewingRound !== currentProject.currentRound
-  const displayRoundNumber = viewingRound ?? currentProject.currentRound
-  const displayRound = currentProject.pattern.find(r => r.roundNumber === displayRoundNumber)
   
   const progressPercentage = getProjectProgressPercentage(currentProject)
   const currentStitchInRound = isViewMode ? 0 : currentProject.currentStitch // 查看模式下不顯示進度
@@ -443,10 +499,11 @@ export default function ProgressTrackingView() {
             )}
           </div>
 
-
-
           {/* 針目進度視覺化 */}
-          <div className="mb-6 max-h-80 overflow-y-auto border border-border rounded-lg p-1 sm:p-3 bg-background-secondary">
+          <div 
+            ref={patternContainerRef}
+            className="mb-6 max-h-80 overflow-y-auto border border-border rounded-lg p-1 sm:p-3 bg-background-secondary"
+          >
             {renderStitchProgress()}
           </div>
 
