@@ -91,10 +91,18 @@ export default function ProgressTrackingView() {
       if (currentRow >= 3) {
         // 讓當前行顯示在第2個位置，所以起始行 = 當前行 - 1
         startRow = currentRow - 1
+        
+        // 特殊處理：如果用戶接近最後幾行，優先保持當前行可見
+        // 而不是強制限制在固定範圍內
+        const isNearEnd = currentRow > totalRows - maxVisibleRows + 1
+        if (isNearEnd) {
+          // 當接近結尾時，讓當前行保持可見，允許滾動到最底部
+          startRow = Math.max(1, currentRow - 1)
+        } else {
+          // 在中間部分時，才使用標準的範圍限制
+          startRow = Math.max(1, Math.min(startRow, totalRows - maxVisibleRows + 1))
+        }
       }
-      
-      // 確保不會超出範圍，但允許滾動到最底部顯示最後的內容
-      startRow = Math.max(1, Math.min(startRow, totalRows - maxVisibleRows + 1))
       
       // 計算單行高度（基於實際的針目元素大小）
       const stitchElements = container.querySelectorAll('.grid > div')
