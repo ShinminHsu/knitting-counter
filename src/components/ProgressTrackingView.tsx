@@ -91,10 +91,10 @@ export default function ProgressTrackingView() {
       if (currentRow >= 3) {
         // 讓當前行顯示在第2個位置，所以起始行 = 當前行 - 1
         startRow = currentRow - 1
-        
-        // 確保不會超出範圍
-        startRow = Math.min(startRow, totalRows - maxVisibleRows + 1)
       }
+      
+      // 確保不會超出範圍，但允許滾動到最底部顯示最後的內容
+      startRow = Math.max(1, Math.min(startRow, totalRows - maxVisibleRows + 1))
       
       // 計算單行高度（基於實際的針目元素大小）
       const stitchElements = container.querySelectorAll('.grid > div')
@@ -559,7 +559,7 @@ export default function ProgressTrackingView() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-3">
                 <button
                   onClick={handlePreviousStitch}
                   disabled={currentProject.currentRound === 1 && currentProject.currentStitch === 0}
