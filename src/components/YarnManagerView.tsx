@@ -167,7 +167,7 @@ export default function YarnManagerView() {
                 <div className="flex items-center gap-4">
                   {/* 毛線顏色 */}
                   <div
-                    className="w-12 h-12 rounded-full flex-shrink-0"
+                    className="w-12 h-12 rounded-full flex-shrink-0 border border-gray-400"
                     style={{ backgroundColor: yarn.color.hex }}
                   />
                   
@@ -265,7 +265,7 @@ export default function YarnManagerView() {
                           className={`w-10 h-10 rounded-full border-2 ${
                             selectedColor.hex === color.hex && !customColor
                               ? 'border-primary ring-2 ring-primary/20'
-                              : 'border-border'
+                              : 'border border-gray-200'
                           }`}
                           style={{ backgroundColor: color.hex }}
                           title={color.name}
