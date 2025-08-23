@@ -302,6 +302,22 @@ export function getStitchGroupTotalStitches(group: StitchGroup): number {
 
 // 計算圈數總針數
 export function getRoundTotalStitches(round: Round): number {
+  // 優先使用新的 PatternItems 結構計算
+  const sortedPatternItems = getSortedPatternItems(round)
+  if (sortedPatternItems.length > 0) {
+    return sortedPatternItems.reduce((sum, item) => {
+      if (item.type === PatternItemType.STITCH) {
+        const stitch = item.data as StitchInfo
+        return sum + stitch.count
+      } else if (item.type === PatternItemType.GROUP) {
+        const group = item.data as StitchGroup
+        return sum + getStitchGroupTotalStitches(group)
+      }
+      return sum
+    }, 0)
+  }
+  
+  // 回退到舊格式計算（向後相容）
   const individualStitches = round.stitches.reduce((sum, stitch) => sum + stitch.count, 0)
   const groupStitches = round.stitchGroups.reduce((sum, group) => sum + getStitchGroupTotalStitches(group), 0)
   return individualStitches + groupStitches
