@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { StitchType, StitchTypeInfo, Yarn } from '../types'
+import { useState, useEffect } from 'react'
+import { StitchType, StitchTypeInfo, Yarn, StitchInfo } from '../types'
+import { getStitchDisplayInfo } from '../utils'
 
 interface StitchSelectionModalProps {
   isOpen: boolean
@@ -7,6 +8,7 @@ interface StitchSelectionModalProps {
   onConfirm: (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => void
   availableYarns: Yarn[]
   title?: string
+  initialStitch?: StitchInfo
 }
 
 export default function StitchSelectionModal({
@@ -14,7 +16,8 @@ export default function StitchSelectionModal({
   onClose,
   onConfirm,
   availableYarns,
-  title = "新增針法"
+  title = "新增針法",
+  initialStitch
 }: StitchSelectionModalProps) {
   const [selectedStitchType, setSelectedStitchType] = useState<StitchType>(StitchType.SINGLE)
   const [count, setCount] = useState<number>(1)
@@ -22,6 +25,26 @@ export default function StitchSelectionModal({
   const [selectedYarnId, setSelectedYarnId] = useState<string>(availableYarns[0]?.id || '')
   const [customName, setCustomName] = useState<string>('')
   const [customSymbol, setCustomSymbol] = useState<string>('')
+
+  // 當有初始針法時，預填表單
+  useEffect(() => {
+    if (isOpen && initialStitch) {
+      setSelectedStitchType(initialStitch.type)
+      setCount(initialStitch.count)
+      setCountText(initialStitch.count.toString())
+      setSelectedYarnId(initialStitch.yarnId)
+      setCustomName(initialStitch.customName || '')
+      setCustomSymbol(initialStitch.customSymbol || '')
+    } else if (isOpen && !initialStitch) {
+      // 重置為預設值
+      setSelectedStitchType(StitchType.SINGLE)
+      setCount(1)
+      setCountText("1")
+      setSelectedYarnId(availableYarns[0]?.id || '')
+      setCustomName('')
+      setCustomSymbol('')
+    }
+  }, [isOpen, initialStitch, availableYarns])
 
   const handleConfirm = () => {
     onConfirm(selectedStitchType, count, selectedYarnId, customName || undefined, customSymbol || undefined)
@@ -60,7 +83,7 @@ export default function StitchSelectionModal({
         {/* 針法類型選擇 */}
         <div className="mb-6">
           <h3 className="text-sm font-medium text-text-secondary mb-3">針法類型</h3>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-6 sm:grid-cols-6 gap-3">
             {Object.entries(StitchTypeInfo).map(([key, info]) => (
               <div
                 key={key}
@@ -234,11 +257,33 @@ export default function StitchSelectionModal({
                 />
               )}
               <div className="text-xl font-bold text-text-primary">
-                {selectedStitchType === StitchType.CUSTOM && customSymbol ? customSymbol : StitchTypeInfo[selectedStitchType]?.symbol}
+                {(() => {
+                  if (selectedStitchType === StitchType.CUSTOM) {
+                    return customSymbol || '?'
+                  }
+                  const tempStitch: StitchInfo = {
+                    id: 'temp',
+                    type: selectedStitchType,
+                    yarnId: '',
+                    count: 1
+                  }
+                  return getStitchDisplayInfo(tempStitch).symbol
+                })()}
               </div>
               <div className="flex-1">
                 <div className="font-medium text-text-primary">
-                  {selectedStitchType === StitchType.CUSTOM && customName ? customName : StitchTypeInfo[selectedStitchType]?.rawValue}
+                  {(() => {
+                    if (selectedStitchType === StitchType.CUSTOM) {
+                      return customName || '自定義'
+                    }
+                    const tempStitch: StitchInfo = {
+                      id: 'temp',
+                      type: selectedStitchType,
+                      yarnId: '',
+                      count: 1
+                    }
+                    return getStitchDisplayInfo(tempStitch).rawValue
+                  })()}
                 </div>
                 {selectedYarn && (
                   <div className="text-sm text-text-secondary">

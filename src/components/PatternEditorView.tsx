@@ -53,6 +53,9 @@ export default function PatternEditorView() {
   // 群組中新增針法的modal狀態
   const [showGroupStitchModal, setShowGroupStitchModal] = useState(false)
   
+  // 編輯新增群組中針法的modal狀態
+  const [showEditNewGroupStitchModal, setShowEditNewGroupStitchModal] = useState<{ stitchId: string } | null>(null)
+  
   // 編輯群組時新增針法的modal狀態
   const [showEditGroupStitchModal, setShowEditGroupStitchModal] = useState<{ roundNumber: number, groupId: string } | null>(null)
 
@@ -246,6 +249,7 @@ export default function PatternEditorView() {
       await addStitchToRound(showStitchModal.roundNumber, newStitch)
       
       console.log('[UI-ADD-STITCH] Successfully added stitch')
+      setShowStitchModal(null) // 關閉 modal
     } catch (error) {
       console.error('[UI-ADD-STITCH] Error adding stitch:', error)
       alert('新增針法時發生錯誤，請查看控制台了解詳情')
@@ -256,10 +260,23 @@ export default function PatternEditorView() {
   }
 
   const handleAddGroup = async (roundNumber: number) => {
+    console.log('[UI-ADD-GROUP] Starting handleAddGroup:', {
+      roundNumber,
+      newGroupStitches: newGroupStitches.length,
+      newGroupStitchesData: newGroupStitches
+    })
+
     if (newGroupStitches.length === 0) {
       alert('請先新增群組中的針法')
       return
     }
+
+    if (isLoading) {
+      console.log('[UI-ADD-GROUP] Already loading, returning')
+      return
+    }
+
+    setIsLoading(true)
 
     const newGroup: StitchGroup = {
       id: generateId(),
@@ -268,11 +285,36 @@ export default function PatternEditorView() {
       repeatCount: ensureNumber(newGroupRepeatCount)
     }
 
-    await addStitchGroupToRound(roundNumber, newGroup)
-    setNewGroupName('')
-    setNewGroupRepeatCount(1)
-    setNewGroupStitches([])
-    setShowAddGroupForm(null)
+    console.log('[UI-ADD-GROUP] Created new group:', newGroup)
+
+    try {
+      console.log('[UI-ADD-GROUP] About to call addStitchGroupToRound')
+      await addStitchGroupToRound(roundNumber, newGroup)
+      console.log('[UI-ADD-GROUP] Successfully added group')
+      
+      // 延遲檢查更新後的狀態，確保狀態已更新
+      setTimeout(() => {
+        const updatedRound = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+        console.log('[UI-ADD-GROUP] Updated round after addition:', {
+          roundNumber,
+          stitchGroups: updatedRound?.stitchGroups?.length,
+          patternItems: updatedRound?.patternItems?.length,
+          sortedPatternItems: updatedRound ? getSortedPatternItems(updatedRound).length : null
+        })
+      }, 100)
+
+      // 成功後才重置表單狀態
+      setNewGroupName('')
+      setNewGroupRepeatCount(1)
+      setNewGroupStitches([])
+      setShowAddGroupForm(null)
+      
+    } catch (error) {
+      console.error('[UI-ADD-GROUP] Error adding group:', error)
+      alert('新增群組失敗，請重試')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleGroupStitchModalConfirm = (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => {
@@ -288,6 +330,28 @@ export default function PatternEditorView() {
     }
 
     setNewGroupStitches([...newGroupStitches, newStitch])
+    setShowGroupStitchModal(false) // 關閉 modal
+  }
+
+  const handleEditNewGroupStitchModalConfirm = (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => {
+    if (!showEditNewGroupStitchModal) return
+
+    const { stitchId } = showEditNewGroupStitchModal
+    const updatedStitch: StitchInfo = {
+      id: stitchId,
+      type: stitchType,
+      yarnId: yarnId || currentProject?.yarns[0]?.id || '',
+      count: count,
+      ...(stitchType === StitchType.CUSTOM && {
+        customName,
+        customSymbol
+      })
+    }
+
+    setNewGroupStitches(newGroupStitches.map(stitch => 
+      stitch.id === stitchId ? updatedStitch : stitch
+    ))
+    setShowEditNewGroupStitchModal(null) // 關閉 modal
   }
 
   const handleEditGroupStitchModalConfirm = async (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => {
@@ -315,6 +379,7 @@ export default function PatternEditorView() {
       }
       
       await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+      setShowEditGroupStitchModal(null) // 關閉 modal
     }
   }
 
@@ -335,11 +400,22 @@ export default function PatternEditorView() {
   }
 
   const handleUpdateStitch = async (roundNumber: number, stitchId: string) => {
+    // 獲取原始針法資料
+    const round = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+    const originalStitch = round?.stitches.find(s => s.id === stitchId)
+    
     const updatedStitch: StitchInfo = {
       id: stitchId,
       type: editStitchType,
-      yarnId: currentProject!.yarns[0]?.id || '',
-      count: ensureNumber(editStitchCount)
+      yarnId: originalStitch?.yarnId || currentProject!.yarns[0]?.id || '',
+      count: ensureNumber(editStitchCount),
+      // 保留原有的自定義針法屬性，或者如果針法類型變更則清除
+      ...(editStitchType === StitchType.CUSTOM 
+        ? {
+            customName: originalStitch?.customName || '',
+            customSymbol: originalStitch?.customSymbol || ''
+          }
+        : {})
     }
 
     await updateStitchInRound(roundNumber, stitchId, updatedStitch)
@@ -382,11 +458,23 @@ export default function PatternEditorView() {
   }
 
   const handleUpdateGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
+    // 獲取原始針法資料
+    const round = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+    const group = round?.stitchGroups.find(g => g.id === groupId)
+    const originalStitch = group?.stitches.find(s => s.id === stitchId)
+    
     const updatedStitch: StitchInfo = {
       id: stitchId,
       type: editGroupStitchType,
-      yarnId: currentProject!.yarns[0]?.id || '',
-      count: ensureNumber(editGroupStitchCount)
+      yarnId: originalStitch?.yarnId || currentProject!.yarns[0]?.id || '',
+      count: ensureNumber(editGroupStitchCount),
+      // 保留原有的自定義針法屬性，或者如果針法類型變更則清除
+      ...(editGroupStitchType === StitchType.CUSTOM 
+        ? {
+            customName: originalStitch?.customName || '',
+            customSymbol: originalStitch?.customSymbol || ''
+          }
+        : {})
     }
 
     await updateStitchInGroup(roundNumber, groupId, stitchId, updatedStitch)
@@ -1139,17 +1227,11 @@ export default function PatternEditorView() {
                         <label className="block text-sm font-medium text-text-secondary">
                           群組針法
                         </label>
-                        <button
-                          onClick={() => setShowGroupStitchModal(true)}
-                          className="btn btn-ghost text-sm"
-                        >
-                          新增針法
-                        </button>
                       </div>
                       
                       <div className="space-y-2 mb-4">
                         {newGroupStitches.map((stitch) => (
-                          <div key={stitch.id} className="grid grid-cols-[40px_1fr_60px] items-center gap-3 p-2 bg-background-secondary rounded">
+                          <div key={stitch.id} className="grid grid-cols-[40px_1fr_100px] items-center gap-3 p-2 bg-background-secondary rounded">
                             {/* 針目圖標 - 固定寬度40px，居中對齊 */}
                             <div className="text-lg flex items-center justify-center">
                               {getStitchDisplayInfo(stitch).symbol}
@@ -1167,8 +1249,14 @@ export default function PatternEditorView() {
                               </div>
                             </div>
                             
-                            {/* 刪除按鈕 - 固定寬度60px，右對齊 */}
-                            <div className="flex items-center justify-end">
+                            {/* 編輯和刪除按鈕 - 固定寬度100px，右對齊 */}
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => setShowEditNewGroupStitchModal({ stitchId: stitch.id })}
+                                className="text-text-tertiary hover:text-primary transition-colors p-1 w-8 h-8 flex items-center justify-center"
+                              >
+                                <VscEdit className="w-4 h-4" />
+                              </button>
                               <button
                                 onClick={() => handleRemoveStitchFromGroup(stitch.id)}
                                 className="text-text-tertiary hover:text-red-500 transition-colors p-1 w-8 h-8 flex items-center justify-center"
@@ -1181,11 +1269,17 @@ export default function PatternEditorView() {
                       </div>
 
                     </div>
-
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleAddGroup(round.roundNumber)}
+                        onClick={() => setShowGroupStitchModal(true)}
                         className="btn btn-primary"
+                      >
+                        新增針法
+                      </button>
+
+                      <button
+                        onClick={() => handleAddGroup(round.roundNumber)}
+                        className="btn btn-secondary ml-auto"
                         disabled={newGroupStitches.length === 0}
                       >
                         新增群組
@@ -1275,6 +1369,16 @@ export default function PatternEditorView() {
         onConfirm={handleEditGroupStitchModalConfirm}
         availableYarns={currentProject?.yarns || []}
         title="新增針法到群組"
+      />
+
+      {/* 編輯新增群組中針法選擇彈窗 */}
+      <StitchSelectionModal
+        isOpen={showEditNewGroupStitchModal !== null}
+        onClose={() => setShowEditNewGroupStitchModal(null)}
+        onConfirm={handleEditNewGroupStitchModalConfirm}
+        availableYarns={currentProject?.yarns || []}
+        title="編輯群組針法"
+        initialStitch={showEditNewGroupStitchModal ? newGroupStitches.find(s => s.id === showEditNewGroupStitchModal.stitchId) : undefined}
       />
     </div>
   )

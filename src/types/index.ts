@@ -13,6 +13,7 @@ export interface Yarn {
 }
 
 export enum StitchType {
+  // 鉤針針法
   SINGLE = 'single',
   HALF_DOUBLE = 'half_double',
   DOUBLE = 'double',
@@ -24,6 +25,18 @@ export enum StitchType {
   MAGIC_RING = 'magic_ring',
   FRONT_POST = 'front_post',
   BACK_POST = 'back_post',
+  // 棒針針法
+  KNIT = 'knit',
+  PURL = 'purl',
+  KNIT_FRONT_BACK = 'knit_front_back',
+  PURL_FRONT_BACK = 'purl_front_back',
+  KNIT_TWO_TOGETHER = 'knit_two_together',
+  PURL_TWO_TOGETHER = 'purl_two_together',
+  SLIP_SLIP_KNIT = 'slip_slip_knit',
+  YARN_OVER = 'yarn_over',
+  SLIP_STITCH_KNIT = 'slip_stitch_knit',
+  CABLE_FRONT = 'cable_front',
+  CABLE_BACK = 'cable_back',
   CUSTOM = 'custom'
 }
 
@@ -32,6 +45,7 @@ export const StitchTypeInfo: Record<StitchType, {
   symbol: string
   englishName: string
 }> = {
+  // 鉤針針法
   [StitchType.SINGLE]: { rawValue: '短針', symbol: '×', englishName: 'sc' },
   [StitchType.HALF_DOUBLE]: { rawValue: '中長針', symbol: '⊥', englishName: 'hdc' },
   [StitchType.DOUBLE]: { rawValue: '長針', symbol: '↑', englishName: 'dc' },
@@ -43,6 +57,18 @@ export const StitchTypeInfo: Record<StitchType, {
   [StitchType.MAGIC_RING]: { rawValue: '魔術環', symbol: '◉', englishName: 'mr' },
   [StitchType.FRONT_POST]: { rawValue: '前柱針', symbol: '⟨', englishName: 'fp' },
   [StitchType.BACK_POST]: { rawValue: '後柱針', symbol: '⟩', englishName: 'bp' },
+  // 棒針針法
+  [StitchType.KNIT]: { rawValue: '下針', symbol: '∣', englishName: 'k' },
+  [StitchType.PURL]: { rawValue: '上針', symbol: '⌒', englishName: 'p' },
+  [StitchType.KNIT_FRONT_BACK]: { rawValue: '下針加針', symbol: '∣+', englishName: 'kfb' },
+  [StitchType.PURL_FRONT_BACK]: { rawValue: '上針加針', symbol: '⌒+', englishName: 'pfb' },
+  [StitchType.KNIT_TWO_TOGETHER]: { rawValue: '右上二併一', symbol: '∣2', englishName: 'k2tog' },
+  [StitchType.PURL_TWO_TOGETHER]: { rawValue: '上針二併一', symbol: '⌒2', englishName: 'p2tog' },
+  [StitchType.SLIP_SLIP_KNIT]: { rawValue: '左上二併一', symbol: 'ssk', englishName: 'ssk' },
+  [StitchType.YARN_OVER]: { rawValue: '掛線', symbol: '○', englishName: 'yo' },
+  [StitchType.SLIP_STITCH_KNIT]: { rawValue: '滑針下針', symbol: 'sk', englishName: 'skp' },
+  [StitchType.CABLE_FRONT]: { rawValue: '前交叉', symbol: '⟨∣', englishName: 'cf' },
+  [StitchType.CABLE_BACK]: { rawValue: '後交叉', symbol: '∣⟩', englishName: 'cb' },
   [StitchType.CUSTOM]: { rawValue: '自定義', symbol: '?', englishName: 'custom' }
 }
 
@@ -92,6 +118,16 @@ export interface Round {
   stitchGroups: StitchGroup[] // 保留舊格式以便向後相容
   patternItems?: PatternItem[] // 新的統一結構，用於排序
   notes?: string
+}
+
+export interface Pattern {
+  id: string
+  name: string
+  description?: string
+  rounds: Round[]
+  createdDate: Date
+  lastModified: Date
+  isCompleted?: boolean
 }
 
 export interface WorkSession {

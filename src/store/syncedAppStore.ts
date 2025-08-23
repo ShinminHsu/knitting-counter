@@ -11,7 +11,8 @@ import {
   updateStitchInPatternItems,
   deleteStitchFromPatternItems,
   updateGroupInPatternItems,
-  deleteGroupFromPatternItems
+  deleteGroupFromPatternItems,
+  migrateRoundToPatternItems
 } from '../utils'
 import { useAuthStore } from './authStore'
 import { firestoreService, UserProfile } from '../services/firestoreService'
@@ -1313,7 +1314,8 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
 
         const updatedPattern = currentProject.pattern.map(round => {
           if (round.roundNumber === roundNumber) {
-            return {
+            // 更新舊格式 stitchGroups
+            const updatedRound = {
               ...round,
               stitchGroups: round.stitchGroups.map(group => {
                 if (group.id === groupId) {
@@ -1327,6 +1329,27 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                 return group
               })
             }
+            
+            // 如果存在 patternItems，也需要同步更新
+            if (updatedRound.patternItems) {
+              updatedRound.patternItems = updatedRound.patternItems.map(item => {
+                if (item.type === 'group' && (item.data as StitchGroup).id === groupId) {
+                  const group = item.data as StitchGroup
+                  return {
+                    ...item,
+                    data: {
+                      ...group,
+                      stitches: group.stitches.map(stitch =>
+                        stitch.id === stitchId ? updatedStitch : stitch
+                      )
+                    }
+                  }
+                }
+                return item
+              })
+            }
+            
+            return updatedRound
           }
           return round
         })
