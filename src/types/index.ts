@@ -191,10 +191,24 @@ export interface ImportResult {
   warnings: string[]
 }
 
+// 針目群組範本類型
+export interface StitchGroupTemplate {
+  id: string
+  name: string
+  description?: string
+  stitches: StitchInfo[]
+  repeatCount: number
+  category?: string
+  createdDate: Date
+  lastUsed?: Date
+  useCount: number
+}
+
 // UI 狀態類型
 export interface AppState {
   currentProject?: Project
   projects: Project[]
+  stitchGroupTemplates: StitchGroupTemplate[]
   isLoading: boolean
   error?: string
 }

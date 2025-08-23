@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Project, WorkSession, Yarn, Round, StitchInfo, StitchGroup } from '../types'
+import { Project, WorkSession, Yarn, Round, StitchInfo, StitchGroup, StitchGroupTemplate } from '../types'
 import { 
   generateId, 
   createSampleProject, 
@@ -21,6 +21,7 @@ interface SyncedAppStore {
   // 狀態
   projects: Project[]
   currentProject: Project | null
+  stitchGroupTemplates: StitchGroupTemplate[]
   isLoading: boolean
   error: string | null
   isSyncing: boolean
@@ -81,6 +82,15 @@ interface SyncedAppStore {
   updateYarn: (yarn: Yarn) => Promise<void>
   deleteYarn: (id: string) => Promise<void>
   
+  // 針目群組範本管理
+  saveStitchGroupAsTemplate: (group: StitchGroup, name: string, description?: string, category?: string) => Promise<void>
+  deleteStitchGroupTemplate: (templateId: string) => Promise<void>
+  createStitchGroupFromTemplate: (templateId: string, repeatCount?: number) => StitchGroup | null
+  loadStitchGroupTemplates: () => Promise<void>
+  
+  // 圈數複製
+  copyRound: (roundNumber: number, targetRoundNumber: number, insertPosition: 'before' | 'after') => Promise<void>
+  
   // 網絡狀態管理
   initializeNetworkListener: () => void
   cleanupNetworkListener: () => void
@@ -92,6 +102,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       // 初始狀態
       projects: [],
       currentProject: null,
+      stitchGroupTemplates: [],
       isLoading: false,
       error: null,
       isSyncing: false,
@@ -1523,6 +1534,167 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         set({ networkStatusListener: listener })
       },
 
+      // 針目群組範本管理
+      saveStitchGroupAsTemplate: async (group, name, description, category) => {
+        const template: StitchGroupTemplate = {
+          id: generateId(),
+          name: name.trim(),
+          description: description?.trim(),
+          stitches: group.stitches.map(stitch => ({
+            ...stitch,
+            id: generateId() // 為範本中的針法生成新ID
+          })),
+          repeatCount: group.repeatCount,
+          category: category?.trim(),
+          createdDate: new Date(),
+          useCount: 0
+        }
+        
+        const { stitchGroupTemplates } = get()
+        set({ 
+          stitchGroupTemplates: [...stitchGroupTemplates, template]
+        })
+        
+        console.log('[TEMPLATE] Saved stitch group template:', template.name)
+      },
+
+      deleteStitchGroupTemplate: async (templateId) => {
+        const { stitchGroupTemplates } = get()
+        set({ 
+          stitchGroupTemplates: stitchGroupTemplates.filter(t => t.id !== templateId)
+        })
+        
+        console.log('[TEMPLATE] Deleted stitch group template:', templateId)
+      },
+
+      createStitchGroupFromTemplate: (templateId, repeatCount) => {
+        const { stitchGroupTemplates } = get()
+        const template = stitchGroupTemplates.find(t => t.id === templateId)
+        
+        if (!template) {
+          console.error('[TEMPLATE] Template not found:', templateId)
+          return null
+        }
+        
+        // 更新使用統計
+        const updatedTemplates = stitchGroupTemplates.map(t => 
+          t.id === templateId 
+            ? { ...t, useCount: t.useCount + 1, lastUsed: new Date() }
+            : t
+        )
+        set({ stitchGroupTemplates: updatedTemplates })
+        
+        // 創建新的針目群組
+        const newGroup: StitchGroup = {
+          id: generateId(),
+          name: template.name,
+          stitches: template.stitches.map(stitch => ({
+            ...stitch,
+            id: generateId() // 為新群組中的針法生成新ID
+          })),
+          repeatCount: repeatCount || template.repeatCount
+        }
+        
+        console.log('[TEMPLATE] Created stitch group from template:', template.name)
+        return newGroup
+      },
+
+      loadStitchGroupTemplates: async () => {
+        // 這個方法為未來可能的雲端同步範本功能預留
+        console.log('[TEMPLATE] Loading stitch group templates')
+      },
+
+      // 圈數複製
+      copyRound: async (roundNumber, targetRoundNumber, insertPosition) => {
+        const { currentProject } = get()
+        if (!currentProject) {
+          console.error('[COPY-ROUND] No current project found')
+          return
+        }
+
+        const sourceRound = currentProject.pattern.find(r => r.roundNumber === roundNumber)
+        if (!sourceRound) {
+          console.error('[COPY-ROUND] Source round not found:', roundNumber)
+          return
+        }
+
+        console.log('[COPY-ROUND] Copying round:', {
+          source: roundNumber,
+          target: targetRoundNumber,
+          position: insertPosition
+        })
+
+        // 計算插入點和需要重新編號的圈數
+        let insertAfterRoundNumber: number
+        
+        if (insertPosition === 'before') {
+          // 插入到目標圈數前面
+          insertAfterRoundNumber = targetRoundNumber - 1
+        } else {
+          // 插入到目標圈數後面
+          insertAfterRoundNumber = targetRoundNumber
+        }
+
+        // 重新編號：將插入點之後的所有圈數編號+1
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber > insertAfterRoundNumber) {
+            return {
+              ...round,
+              roundNumber: round.roundNumber + 1
+            }
+          }
+          return round
+        })
+
+        // 決定新圈數的編號
+        const newRoundNumber = insertAfterRoundNumber + 1
+
+        // 創建新圈數，深拷貝所有數據並生成新ID
+        const newRound: Round = {
+          id: generateId(),
+          roundNumber: newRoundNumber,
+          stitches: sourceRound.stitches.map(stitch => ({
+            ...stitch,
+            id: generateId()
+          })),
+          stitchGroups: sourceRound.stitchGroups.map(group => ({
+            ...group,
+            id: generateId(),
+            stitches: group.stitches.map(stitch => ({
+              ...stitch,
+              id: generateId()
+            }))
+          })),
+          patternItems: sourceRound.patternItems?.map(item => ({
+            ...item,
+            id: generateId(),
+            createdAt: new Date(),
+            data: item.type === 'stitch' 
+              ? { ...(item.data as StitchInfo), id: generateId() }
+              : { 
+                  ...(item.data as StitchGroup), 
+                  id: generateId(),
+                  stitches: (item.data as StitchGroup).stitches.map(stitch => ({
+                    ...stitch,
+                    id: generateId()
+                  }))
+                }
+          })),
+          notes: sourceRound.notes
+        }
+
+        // 添加到專案中
+        const finalPattern = [...updatedPattern, newRound].sort((a, b) => a.roundNumber - b.roundNumber)
+        const updatedProject = {
+          ...currentProject,
+          pattern: finalPattern,
+          lastModified: new Date()
+        }
+
+        await get().updateProjectLocally(updatedProject)
+        console.log('[COPY-ROUND] Copied round:', roundNumber, 'to position', newRoundNumber, insertPosition, 'target', targetRoundNumber)
+      },
+
       // 清理網絡狀態監聽器
       cleanupNetworkListener: () => {
         const { networkStatusListener } = get()
@@ -1538,6 +1710,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
       partialize: (state) => ({
         projects: state.projects,
         currentProject: state.currentProject,
+        stitchGroupTemplates: state.stitchGroupTemplates,
         lastSyncTime: state.lastSyncTime
       }),
       // 自定義序列化和反序列化來處理日期和用戶隔離

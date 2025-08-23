@@ -9,6 +9,8 @@ import { RxCrossCircled } from 'react-icons/rx'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import StitchSelectionModal from './StitchSelectionModal'
+import StitchGroupTemplateModal from './StitchGroupTemplateModal'
+import CopyRoundModal from './CopyRoundModal'
 import { 
   generateId,
   getRoundTotalStitches,
@@ -35,7 +37,9 @@ export default function PatternEditorView() {
     updateStitchGroupInRound,
     updateStitchInGroup,
     deleteStitchGroupFromRound,
-    reorderPatternItemsInRound
+    reorderPatternItemsInRound,
+    createStitchGroupFromTemplate,
+    copyRound
   } = useSyncedAppStore()
 
   const [showAddRoundForm, setShowAddRoundForm] = useState(false)
@@ -58,6 +62,18 @@ export default function PatternEditorView() {
   
   // 編輯群組時新增針法的modal狀態
   const [showEditGroupStitchModal, setShowEditGroupStitchModal] = useState<{ roundNumber: number, groupId: string } | null>(null)
+  
+  // 範本管理模態狀態
+  const [showTemplateModal, setShowTemplateModal] = useState<{ 
+    mode: 'save' | 'select', 
+    group?: StitchGroup, 
+    roundNumber?: number 
+  } | null>(null)
+  
+  // 複製圈數模態狀態
+  const [showCopyRoundModal, setShowCopyRoundModal] = useState<{
+    sourceRound: Round
+  } | null>(null)
 
   // 新增群組表單狀態
   const [newGroupName, setNewGroupName] = useState('')
@@ -524,6 +540,40 @@ export default function PatternEditorView() {
     }
   }
 
+  // 範本管理處理函數
+  const handleSaveAsTemplate = (group: StitchGroup) => {
+    setShowTemplateModal({ mode: 'save', group })
+  }
+
+  const handleSelectFromTemplate = (roundNumber: number) => {
+    setShowTemplateModal({ mode: 'select', roundNumber })
+  }
+
+  const handleTemplateSelect = async (template: any) => {
+    if (showTemplateModal?.roundNumber) {
+      const newGroup = createStitchGroupFromTemplate(template.id)
+      if (newGroup) {
+        await addStitchGroupToRound(showTemplateModal.roundNumber, newGroup)
+      }
+    }
+    setShowTemplateModal(null)
+  }
+
+  // 複製圈數處理函數
+  const handleCopyRound = (roundNumber: number) => {
+    const sourceRound = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+    if (sourceRound) {
+      setShowCopyRoundModal({ sourceRound })
+    }
+  }
+
+  const handleCopyRoundConfirm = async (targetRoundNumber: number, insertPosition: 'before' | 'after') => {
+    if (showCopyRoundModal?.sourceRound) {
+      await copyRound(showCopyRoundModal.sourceRound.roundNumber, targetRoundNumber, insertPosition)
+      setShowCopyRoundModal(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* 標題列 */}
@@ -620,6 +670,18 @@ export default function PatternEditorView() {
                       className="btn btn-ghost text-sm"
                     >
                       新增群組
+                    </button>
+                    <button
+                      onClick={() => handleSelectFromTemplate(round.roundNumber)}
+                      className="btn btn-ghost text-sm"
+                    >
+                      從範本
+                    </button>
+                    <button
+                      onClick={() => handleCopyRound(round.roundNumber)}
+                      className="btn btn-ghost text-sm"
+                    >
+                      複製圈數
                     </button>
                     <button
                       onClick={() => handleDeleteRound(round.roundNumber)}
@@ -821,6 +883,13 @@ export default function PatternEditorView() {
                                     <div className="text-sm text-text-secondary">
                                       重複 {(patternItem.data as StitchGroup).repeatCount} 次 (共 {getStitchGroupTotalStitches(patternItem.data as StitchGroup)} 針)
                                     </div>
+                                    <button
+                                      onClick={() => handleSaveAsTemplate(patternItem.data as StitchGroup)}
+                                      className="btn btn-ghost text-xs px-2 py-1"
+                                      title="存成範本"
+                                    >
+                                      儲存為範本
+                                    </button>
                                     <button
                                       onClick={() => handleEditGroup(round.roundNumber, patternItem.data as StitchGroup)}
                                       className="text-text-tertiary hover:text-primary p-2"
@@ -1272,14 +1341,14 @@ export default function PatternEditorView() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setShowGroupStitchModal(true)}
-                        className="btn btn-primary"
+                        className="btn btn-secondary"
                       >
                         新增針法
                       </button>
 
                       <button
                         onClick={() => handleAddGroup(round.roundNumber)}
-                        className="btn btn-secondary ml-auto"
+                        className="btn btn-primary ml-auto"
                         disabled={newGroupStitches.length === 0}
                       >
                         新增群組
@@ -1379,6 +1448,25 @@ export default function PatternEditorView() {
         availableYarns={currentProject?.yarns || []}
         title="編輯群組針法"
         initialStitch={showEditNewGroupStitchModal ? newGroupStitches.find(s => s.id === showEditNewGroupStitchModal.stitchId) : undefined}
+      />
+
+      {/* 範本管理模態 */}
+      <StitchGroupTemplateModal
+        isOpen={showTemplateModal !== null}
+        onClose={() => setShowTemplateModal(null)}
+        onSelectTemplate={handleTemplateSelect}
+        groupToSave={showTemplateModal?.group}
+        mode={showTemplateModal?.mode || 'select'}
+        title={showTemplateModal?.mode === 'save' ? '存為範本' : '選擇範本'}
+      />
+
+      {/* 複製圈數位置選擇模態 */}
+      <CopyRoundModal
+        isOpen={showCopyRoundModal !== null}
+        onClose={() => setShowCopyRoundModal(null)}
+        onConfirm={handleCopyRoundConfirm}
+        sourceRound={showCopyRoundModal?.sourceRound || null}
+        allRounds={currentProject?.pattern || []}
       />
     </div>
   )
