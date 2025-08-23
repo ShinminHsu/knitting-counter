@@ -11,8 +11,7 @@ import {
   updateStitchInPatternItems,
   deleteStitchFromPatternItems,
   updateGroupInPatternItems,
-  deleteGroupFromPatternItems,
-  migrateRoundToPatternItems
+  deleteGroupFromPatternItems
 } from '../utils'
 import { useAuthStore } from './authStore'
 import { firestoreService, UserProfile } from '../services/firestoreService'

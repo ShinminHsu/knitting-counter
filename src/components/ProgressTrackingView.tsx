@@ -1,9 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useSyncedAppStore } from '../store/syncedAppStore'
-import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
-  formatDuration, 
   getProjectProgressPercentage, 
   getProjectTotalRounds, 
   getProjectTotalStitches,
@@ -24,14 +22,9 @@ export default function ProgressTrackingView() {
     nextStitch, 
     previousStitch, 
     setCurrentRound,
-    startSession,
-    endSession,
     updateProject
   } = useSyncedAppStore()
 
-  const [isSessionActive, setIsSessionActive] = useState(false)
-  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
-  const [elapsedTime, setElapsedTime] = useState(0)
   const [viewingRound, setViewingRound] = useState<number | null>(null) // 查看模式的圈數
   const patternContainerRef = useRef<HTMLDivElement>(null)
 
@@ -46,16 +39,6 @@ export default function ProgressTrackingView() {
     }
   }, [projectId, setCurrentProject, projects, navigate])
 
-  // 計時器更新
-  useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (isSessionActive && sessionStartTime) {
-      interval = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - sessionStartTime.getTime()) / 1000))
-      }, 1000)
-    }
-    return () => clearInterval(interval)
-  }, [isSessionActive, sessionStartTime])
 
   // 判斷是否在查看模式
   const isViewMode = viewingRound !== null && viewingRound !== currentProject?.currentRound
@@ -140,19 +123,6 @@ export default function ProgressTrackingView() {
   const currentStitchInRound = isViewMode ? 0 : currentProject.currentStitch // 查看模式下不顯示進度
   const totalStitchesInCurrentRound = displayRound ? getRoundTotalStitches(displayRound) : 0
 
-  const handleStartSession = () => {
-    startSession()
-    setIsSessionActive(true)
-    setSessionStartTime(new Date())
-    setElapsedTime(0)
-  }
-
-  const handleEndSession = () => {
-    endSession()
-    setIsSessionActive(false)
-    setSessionStartTime(null)
-    setElapsedTime(0)
-  }
 
   const handleNextStitch = () => {
     nextStitch()
