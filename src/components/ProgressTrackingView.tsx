@@ -474,24 +474,26 @@ export default function ProgressTrackingView() {
       <div className="bg-background-secondary border-b border-border sticky top-0 z-10">
         <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-base sm:text-xl font-semibold text-text-primary truncate">
-              {currentProject.name}
-            </h1>
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-3">
               <Link
                 to={`/project/${projectId}`}
-                className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
+                className="text-text-secondary hover:text-text-primary transition-colors"
+                title="返回"
               >
-                ← 返回
+                ←
               </Link>
               <Link
                 to="/"
-                className="text-text-secondary hover:text-text-primary transition-colors p-2 text-sm sm:text-base flex items-center gap-1"
-                title="回到首頁"
+                className="text-text-secondary hover:text-text-primary transition-colors"
+                title="首頁"
               >
                 <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>首頁</span>
               </Link>
+              <h1 className="text-base sm:text-xl font-semibold text-text-primary truncate">
+                {currentProject.name}
+              </h1>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
               <SyncStatusIndicator />
             </div>
           </div>

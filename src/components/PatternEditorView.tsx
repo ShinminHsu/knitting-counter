@@ -608,7 +608,23 @@ export default function PatternEditorView() {
         <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <Link
+                to={`/project/${projectId}`}
+                className="text-text-secondary hover:text-text-primary transition-colors"
+                title="返回"
+              >
+                ←
+              </Link>
+              <Link
+                to="/"
+                className="text-text-secondary hover:text-text-primary transition-colors"
+                title="首頁"
+              >
+                <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
+              </Link>
               <h1 className="text-base sm:text-xl font-semibold text-text-primary">織圖編輯</h1>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setShowAddRoundForm(true)}
                 className="btn btn-primary text-sm"
@@ -616,22 +632,6 @@ export default function PatternEditorView() {
               >
                 {isLoading ? '處理中...' : '新增圈數'}
               </button>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Link
-                to={`/project/${projectId}`}
-                className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
-              >
-                ← 返回
-              </Link>
-              <Link
-                to="/"
-                className="text-text-secondary hover:text-text-primary transition-colors p-2 text-sm sm:text-base flex items-center gap-1"
-                title="回到首頁"
-              >
-                <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>首頁</span>
-              </Link>
               <SyncStatusIndicator />
             </div>
           </div>

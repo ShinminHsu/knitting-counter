@@ -87,6 +87,7 @@ export interface StitchGroup {
   name: string
   stitches: StitchInfo[]
   repeatCount: number
+  completedRepeats?: number // 已完成的重複次數，預設為0
 }
 
 // 用於統一處理針法和群組順序的類型

@@ -73,6 +73,7 @@ interface SyncedAppStore {
   reorderStitchesInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
   updateStitchGroupInRound: (roundNumber: number, groupId: string, updatedGroup: StitchGroup) => Promise<void>
   updateStitchInGroup: (roundNumber: number, groupId: string, stitchId: string, updatedStitch: StitchInfo) => Promise<void>
+  updateGroupCompletedRepeats: (roundNumber: number, groupId: string, completedRepeats: number) => Promise<void>
   deleteStitchGroupFromRound: (roundNumber: number, groupId: string) => Promise<void>
   reorderStitchGroupsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
   reorderPatternItemsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
@@ -1352,6 +1353,57 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
                       stitches: group.stitches.map(stitch =>
                         stitch.id === stitchId ? updatedStitch : stitch
                       )
+                    }
+                  }
+                }
+                return item
+              })
+            }
+            
+            return updatedRound
+          }
+          return round
+        })
+
+        const updatedProject = {
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        }
+
+        await get().updateProjectLocally(updatedProject)
+      },
+
+      updateGroupCompletedRepeats: async (roundNumber, groupId, completedRepeats) => {
+        const { currentProject } = get()
+        if (!currentProject) return
+
+        const updatedPattern = currentProject.pattern.map(round => {
+          if (round.roundNumber === roundNumber) {
+            // 更新舊格式 stitchGroups
+            const updatedRound = {
+              ...round,
+              stitchGroups: round.stitchGroups.map(group => {
+                if (group.id === groupId) {
+                  return {
+                    ...group,
+                    completedRepeats: Math.max(0, Math.min(completedRepeats, group.repeatCount))
+                  }
+                }
+                return group
+              })
+            }
+
+            // 更新新格式 patternItems
+            if (round.patternItems) {
+              updatedRound.patternItems = round.patternItems.map(item => {
+                if (item.type === 'group' && (item.data as StitchGroup).id === groupId) {
+                  const group = item.data as StitchGroup
+                  return {
+                    ...item,
+                    data: {
+                      ...group,
+                      completedRepeats: Math.max(0, Math.min(completedRepeats, group.repeatCount))
                     }
                   }
                 }
