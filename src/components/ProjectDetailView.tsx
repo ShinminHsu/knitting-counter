@@ -5,6 +5,7 @@ import { IoPlayCircleOutline } from 'react-icons/io5'
 import { FiEdit3 } from "react-icons/fi"
 import { LiaVolleyballBallSolid } from 'react-icons/lia'
 import { FiUploadCloud } from 'react-icons/fi'
+import { BsHouse } from 'react-icons/bs'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { formatDate, getProjectTotalRounds, getProjectTotalStitches, describeRound, getRoundTotalStitches } from '../utils'
@@ -42,18 +43,26 @@ export default function ProjectDetailView() {
       <div className="bg-background-secondary border-b border-border">
         <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4">
+            <h1 className="text-base sm:text-xl font-semibold text-text-primary truncate">
+              {currentProject.name}
+            </h1>
+            <div className="flex items-center gap-2 sm:gap-3">
               <Link
                 to="/"
                 className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
               >
                 ← 返回
               </Link>
-              <h1 className="text-lg sm:text-xl font-semibold text-text-primary truncate">
-                {currentProject.name}
-              </h1>
+              <Link
+                to="/"
+                className="text-text-secondary hover:text-text-primary transition-colors p-2 text-sm sm:text-base flex items-center gap-1"
+                title="回到首頁"
+              >
+                <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>首頁</span>
+              </Link>
+              <SyncStatusIndicator />
             </div>
-            <SyncStatusIndicator />
           </div>
         </div>
       </div>

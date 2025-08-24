@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 // import { FaRegEdit } from 'react-icons/fa'
 import { FiEdit3 } from "react-icons/fi"
 import { VscEdit } from 'react-icons/vsc'
-import { BsTrash } from 'react-icons/bs'
+import { BsTrash, BsHouse } from 'react-icons/bs'
 import { CiCircleCheck } from 'react-icons/ci'
 import { RxCrossCircled } from 'react-icons/rx'
 import { useSyncedAppStore } from '../store/syncedAppStore'
@@ -325,6 +325,38 @@ export default function PatternEditorView() {
       setNewGroupStitches([])
       setShowAddGroupForm(null)
       
+      // 滾動到新增的群組
+      const scrollToNewGroup = () => {
+        console.log('[SCROLL] Attempting to scroll to new group:', newGroup.id)
+        
+        // 嘗試找到新群組的元素（使用群組ID作為標識）
+        const groupElement = document.querySelector(`[data-group-id="${newGroup.id}"]`)
+        console.log('[SCROLL] Found group element:', !!groupElement)
+        
+        if (groupElement) {
+          console.log('[SCROLL] Scrolling to group element')
+          groupElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          })
+        } else {
+          console.log('[SCROLL] Group not found, scrolling to round end')
+          // 如果找不到特定群組，滾動到該圈數的底部
+          const roundElement = document.querySelector(`[data-round-card="${roundNumber}"]`)
+          if (roundElement) {
+            roundElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'end' 
+            })
+          }
+        }
+      }
+      
+      // 延遲滾動，確保 DOM 已更新
+      setTimeout(scrollToNewGroup, 300)
+      setTimeout(scrollToNewGroup, 800) // 增加延遲時間
+      setTimeout(scrollToNewGroup, 1500) // 更長的延遲確保成功
+      
     } catch (error) {
       console.error('[UI-ADD-GROUP] Error adding group:', error)
       alert('新增群組失敗，請重試')
@@ -579,25 +611,32 @@ export default function PatternEditorView() {
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border sticky top-0 z-10">
         <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h1 className="text-base sm:text-xl font-semibold text-text-primary">織圖編輯</h1>
+              <button
+                onClick={() => setShowAddRoundForm(true)}
+                className="btn btn-primary text-sm"
+                disabled={isLoading}
+              >
+                {isLoading ? '處理中...' : '新增圈數'}
+              </button>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
               <Link
                 to={`/project/${projectId}`}
                 className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
               >
                 ← 返回
               </Link>
-              <h1 className="text-base sm:text-xl font-semibold text-text-primary">織圖編輯</h1>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowAddRoundForm(true)}
-                className="btn btn-primary w-full sm:w-auto"
-                disabled={isLoading}
+              <Link
+                to="/"
+                className="text-text-secondary hover:text-text-primary transition-colors p-2 text-sm sm:text-base flex items-center gap-1"
+                title="回到首頁"
               >
-                {isLoading ? '處理中...' : '新增圈數'}
-              </button>
+                <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>首頁</span>
+              </Link>
               <SyncStatusIndicator />
             </div>
           </div>
@@ -656,7 +695,7 @@ export default function PatternEditorView() {
                   <div className="block sm:hidden">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-semibold text-text-primary">
-                        R{round.roundNumber}
+                        第 {round.roundNumber} 圈
                       </h3>
                       <button
                         onClick={() => handleDeleteRound(round.roundNumber)}
@@ -670,22 +709,19 @@ export default function PatternEditorView() {
                         onClick={() => setShowStitchModal({ roundNumber: round.roundNumber, mode: 'add' })}
                         className="btn btn-ghost p-2 h-auto flex flex-col items-center"
                       >
-                        <span className="font-medium">新增</span>
-                        <span>針目</span>
+                        <span className="font-medium text-sm">新增針目</span>
                       </button>
                       <button
                         onClick={() => setShowAddGroupForm(round.roundNumber)}
                         className="btn btn-ghost p-2 h-auto flex flex-col items-center"
                       >
-                        <span className="font-medium">新增</span>
-                        <span>群組</span>
+                        <span className="font-medium text-sm">新增群組</span>
                       </button>
                       <button
                         onClick={() => handleCopyRound(round.roundNumber)}
                         className="btn btn-ghost p-2 h-auto flex flex-col items-center"
                       >
-                        <span className="font-medium">複製</span>
-                        <span>圈數</span>
+                        <span className="font-medium text-sm">複製圈數</span>
                       </button>
                     </div>
                   </div>
@@ -862,6 +898,7 @@ export default function PatternEditorView() {
                           <div 
                             key={patternItem.id} 
                             className="border border-border rounded-lg p-3 cursor-move"
+                            data-group-id={(patternItem.data as StitchGroup).id}
                             draggable
                             onDragStart={(e) => handleDragStart(e, index, round.roundNumber)}
                             onDragOver={handleDragOver}
@@ -1140,6 +1177,7 @@ export default function PatternEditorView() {
                         <div 
                           key={group.id} 
                           className="border border-border rounded-lg p-3 cursor-move"
+                          data-group-id={group.id}
                           draggable
                           onDragStart={(e) => handleDragStart(e, index, round.roundNumber)}
                           onDragOver={handleDragOver}

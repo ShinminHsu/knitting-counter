@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
+import { BsHouse } from 'react-icons/bs'
 import { useSyncedAppStore } from '../store/syncedAppStore'
+import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
   getProjectProgressPercentage, 
   getProjectTotalRounds, 
@@ -471,44 +473,27 @@ export default function ProgressTrackingView() {
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border sticky top-0 z-10">
         <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-base sm:text-xl font-semibold text-text-primary truncate">
+              {currentProject.name}
+            </h1>
+            <div className="flex items-center gap-2 sm:gap-3">
               <Link
                 to={`/project/${projectId}`}
                 className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
               >
                 ← 返回
               </Link>
-              <h1 className="text-base sm:text-xl font-semibold text-text-primary truncate">
-                {currentProject.name}
-              </h1>
-            </div>
-            
-            {/* 工作階段控制 */}
-            {/* <div className="flex items-center gap-2">
-              {isSessionActive ? (
-                <>
-                  <div className="text-sm text-text-secondary hidden sm:block">
-                    {formatDuration(elapsedTime)}
-                  </div>
-                  <button
-                    onClick={handleEndSession}
-                    className="btn btn-secondary text-sm"
-                  >
-                    結束
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleStartSession}
-                  className="btn btn-primary text-sm"
-                >
-                  <span className="hidden sm:inline">開始計時</span>
-                  <span className="sm:hidden">計時</span>
-                </button>
-              )}
+              <Link
+                to="/"
+                className="text-text-secondary hover:text-text-primary transition-colors p-2 text-sm sm:text-base flex items-center gap-1"
+                title="回到首頁"
+              >
+                <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>首頁</span>
+              </Link>
               <SyncStatusIndicator />
-            </div> */}
+            </div>
           </div>
         </div>
       </div>
