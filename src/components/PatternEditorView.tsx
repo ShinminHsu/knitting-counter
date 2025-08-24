@@ -651,44 +651,79 @@ export default function PatternEditorView() {
               .sort((a, b) => a.roundNumber - b.roundNumber)
               .map((round) => (
               <div key={round.id} className="card" data-round-card={round.roundNumber}>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-text-primary">
-                      第 {round.roundNumber} 圈
-                    </h3>
+                <div className="mb-4">
+                  {/* 手機版：兩行佈局 */}
+                  <div className="block sm:hidden">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-semibold text-text-primary">
+                        R{round.roundNumber}
+                      </h3>
+                      <button
+                        onClick={() => handleDeleteRound(round.roundNumber)}
+                        className="text-text-tertiary hover:text-red-500 transition-colors p-2"
+                      >
+                        <BsTrash className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 text-sm">
+                      <button
+                        onClick={() => setShowStitchModal({ roundNumber: round.roundNumber, mode: 'add' })}
+                        className="btn btn-ghost p-2 h-auto flex flex-col items-center"
+                      >
+                        <span className="font-medium">新增</span>
+                        <span>針目</span>
+                      </button>
+                      <button
+                        onClick={() => setShowAddGroupForm(round.roundNumber)}
+                        className="btn btn-ghost p-2 h-auto flex flex-col items-center"
+                      >
+                        <span className="font-medium">新增</span>
+                        <span>群組</span>
+                      </button>
+                      <button
+                        onClick={() => handleCopyRound(round.roundNumber)}
+                        className="btn btn-ghost p-2 h-auto flex flex-col items-center"
+                      >
+                        <span className="font-medium">複製</span>
+                        <span>圈數</span>
+                      </button>
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowStitchModal({ roundNumber: round.roundNumber, mode: 'add' })}
-                      className="btn btn-ghost text-sm"
-                    >
-                      新增針法
-                    </button>
-                    <button
-                      onClick={() => setShowAddGroupForm(round.roundNumber)}
-                      className="btn btn-ghost text-sm"
-                    >
-                      新增群組
-                    </button>
-                    <button
-                      onClick={() => handleSelectFromTemplate(round.roundNumber)}
-                      className="btn btn-ghost text-sm"
-                    >
-                      從範本
-                    </button>
-                    <button
-                      onClick={() => handleCopyRound(round.roundNumber)}
-                      className="btn btn-ghost text-sm"
-                    >
-                      複製圈數
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRound(round.roundNumber)}
-                      className="text-text-tertiary hover:text-red-500 transition-colors p-2"
-                    >
-                      <BsTrash className="w-5 h-5" />
-                    </button>
+
+                  {/* 電腦版：原本佈局 */}
+                  <div className="hidden sm:flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-text-primary">
+                        第 {round.roundNumber} 圈
+                      </h3>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowStitchModal({ roundNumber: round.roundNumber, mode: 'add' })}
+                        className="btn btn-ghost text-sm"
+                      >
+                        新增針法
+                      </button>
+                      <button
+                        onClick={() => setShowAddGroupForm(round.roundNumber)}
+                        className="btn btn-ghost text-sm"
+                      >
+                        新增群組
+                      </button>
+                      <button
+                        onClick={() => handleCopyRound(round.roundNumber)}
+                        className="btn btn-ghost text-sm"
+                      >
+                        複製圈數
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRound(round.roundNumber)}
+                        className="text-text-tertiary hover:text-red-500 transition-colors p-2"
+                      >
+                        <BsTrash className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -880,16 +915,6 @@ export default function PatternEditorView() {
                                     {(patternItem.data as StitchGroup).name}
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <div className="text-sm text-text-secondary">
-                                      重複 {(patternItem.data as StitchGroup).repeatCount} 次 (共 {getStitchGroupTotalStitches(patternItem.data as StitchGroup)} 針)
-                                    </div>
-                                    <button
-                                      onClick={() => handleSaveAsTemplate(patternItem.data as StitchGroup)}
-                                      className="btn btn-ghost text-xs px-2 py-1"
-                                      title="存成範本"
-                                    >
-                                      儲存為範本
-                                    </button>
                                     <button
                                       onClick={() => handleEditGroup(round.roundNumber, patternItem.data as StitchGroup)}
                                       className="text-text-tertiary hover:text-primary p-2"
@@ -986,6 +1011,22 @@ export default function PatternEditorView() {
                                 </div>
                               ))}
                             </div>
+                            
+                            {/* 範本按鈕和針數統計 - 獨立一行 */}
+                            {!editingGroup?.groupId && (
+                              <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
+                                <button
+                                  onClick={() => handleSaveAsTemplate(patternItem.data as StitchGroup)}
+                                  className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                                  title="存成範本"
+                                >
+                                  存成範本
+                                </button>
+                                <div className="text-sm text-text-secondary">
+                                  重複 {(patternItem.data as StitchGroup).repeatCount} 次 (共 {getStitchGroupTotalStitches(patternItem.data as StitchGroup)} 針)
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )
                       ))}
@@ -1152,9 +1193,6 @@ export default function PatternEditorView() {
                                   {group.name}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <div className="text-sm text-text-secondary">
-                                    重複 {group.repeatCount} 次 (共 {getStitchGroupTotalStitches(group)} 針)
-                                  </div>
                                   <button
                                     onClick={() => handleEditGroup(round.roundNumber, group)}
                                     className="text-text-tertiary hover:text-primary p-2"
@@ -1251,6 +1289,22 @@ export default function PatternEditorView() {
                               </div>
                             ))}
                           </div>
+                          
+                          {/* 範本按鈕和針數統計 - 獨立一行 */}
+                          {!editingGroup?.groupId && (
+                            <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
+                              <button
+                                onClick={() => handleSaveAsTemplate(group)}
+                                className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                                title="存成範本"
+                              >
+                                存成範本
+                              </button>
+                              <div className="text-sm text-text-secondary">
+                                重複 {group.repeatCount} 次 (共 {getStitchGroupTotalStitches(group)} 針)
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1344,6 +1398,12 @@ export default function PatternEditorView() {
                         className="btn btn-secondary"
                       >
                         新增針法
+                      </button>
+                      <button
+                        onClick={() => handleSelectFromTemplate(round.roundNumber)}
+                        className="btn btn-secondary"
+                      >
+                        從範本
                       </button>
 
                       <button

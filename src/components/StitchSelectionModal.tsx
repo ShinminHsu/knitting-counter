@@ -83,7 +83,25 @@ export default function StitchSelectionModal({
         {/* 針法類型選擇 */}
         <div className="mb-6">
           <h3 className="text-sm font-medium text-text-secondary mb-3">針法類型</h3>
-          <div className="grid grid-cols-6 sm:grid-cols-6 gap-3">
+          
+          {/* 手機版：下拉式選單 */}
+          <div className="block sm:hidden">
+            <select
+              value={selectedStitchType}
+              onChange={(e) => setSelectedStitchType(e.target.value as StitchType)}
+              className="input w-full text-base"
+              style={{ fontSize: '16px' }}
+            >
+              {Object.entries(StitchTypeInfo).map(([key, info]) => (
+                <option key={key} value={key} style={{ fontSize: '16px' }}>
+                  {info.symbol} {info.rawValue} ({info.englishName})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 電腦版：網格選擇 */}
+          <div className="hidden sm:grid grid-cols-6 gap-3">
             {Object.entries(StitchTypeInfo).map(([key, info]) => (
               <div
                 key={key}
