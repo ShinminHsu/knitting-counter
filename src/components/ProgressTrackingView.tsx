@@ -1,16 +1,16 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useSyncedAppStore } from '../store/syncedAppStore'
-import SyncStatusIndicator from './SyncStatusIndicator'
 import { 
-  formatDuration, 
   getProjectProgressPercentage, 
   getProjectTotalRounds, 
   getProjectTotalStitches,
   getProjectCompletedStitches,
-  getRoundTotalStitches
+  getRoundTotalStitches,
+  getStitchDisplayInfo,
+  getSortedPatternItems
 } from '../utils'
-import { StitchTypeInfo, Round, StitchInfo, StitchGroup } from '../types'
+import { Round, StitchInfo, StitchGroup, PatternItemType } from '../types'
 
 export default function ProgressTrackingView() {
   const { projectId } = useParams()
@@ -22,14 +22,9 @@ export default function ProgressTrackingView() {
     nextStitch, 
     previousStitch, 
     setCurrentRound,
-    startSession,
-    endSession,
     updateProject
   } = useSyncedAppStore()
 
-  const [isSessionActive, setIsSessionActive] = useState(false)
-  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
-  const [elapsedTime, setElapsedTime] = useState(0)
   const [viewingRound, setViewingRound] = useState<number | null>(null) // 查看模式的圈數
   const patternContainerRef = useRef<HTMLDivElement>(null)
 
@@ -44,16 +39,6 @@ export default function ProgressTrackingView() {
     }
   }, [projectId, setCurrentProject, projects, navigate])
 
-  // 計時器更新
-  useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (isSessionActive && sessionStartTime) {
-      interval = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - sessionStartTime.getTime()) / 1000))
-      }, 1000)
-    }
-    return () => clearInterval(interval)
-  }, [isSessionActive, sessionStartTime])
 
   // 判斷是否在查看模式
   const isViewMode = viewingRound !== null && viewingRound !== currentProject?.currentRound
@@ -138,19 +123,6 @@ export default function ProgressTrackingView() {
   const currentStitchInRound = isViewMode ? 0 : currentProject.currentStitch // 查看模式下不顯示進度
   const totalStitchesInCurrentRound = displayRound ? getRoundTotalStitches(displayRound) : 0
 
-  const handleStartSession = () => {
-    startSession()
-    setIsSessionActive(true)
-    setSessionStartTime(new Date())
-    setElapsedTime(0)
-  }
-
-  const handleEndSession = () => {
-    endSession()
-    setIsSessionActive(false)
-    setSessionStartTime(null)
-    setElapsedTime(0)
-  }
 
   const handleNextStitch = () => {
     nextStitch()
@@ -255,27 +227,48 @@ export default function ProgressTrackingView() {
   const generateRoundDescription = (round: Round): string => {
     const descriptions: string[] = []
     
-    // 處理個別針法
-    round.stitches.forEach((stitch: StitchInfo) => {
-      const stitchInfo = StitchTypeInfo[stitch.type]
-      if (stitchInfo) {
-        descriptions.push(`${stitchInfo.rawValue}${stitchInfo.symbol}${stitch.count}`)
-      }
-    })
+    // 使用 getSortedPatternItems 獲取正確順序的針法項目
+    const sortedPatternItems = getSortedPatternItems(round)
     
-    // 處理群組針法
-    round.stitchGroups.forEach((group: StitchGroup) => {
-      const groupDescriptions: string[] = []
-      group.stitches.forEach((stitch: StitchInfo) => {
-        const stitchInfo = StitchTypeInfo[stitch.type]
-        if (stitchInfo) {
-          groupDescriptions.push(`${stitchInfo.rawValue}${stitchInfo.symbol}${stitch.count}`)
+    if (sortedPatternItems.length > 0) {
+      // 如果有新的排序格式，使用它
+      sortedPatternItems.forEach((item) => {
+        if (item.type === PatternItemType.STITCH) {
+          const stitch = item.data as StitchInfo
+          const displayInfo = getStitchDisplayInfo(stitch)
+          descriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+        } else if (item.type === PatternItemType.GROUP) {
+          const group = item.data as StitchGroup
+          const groupDescriptions: string[] = []
+          group.stitches.forEach((stitch: StitchInfo) => {
+            const displayInfo = getStitchDisplayInfo(stitch)
+            groupDescriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+          })
+          if (groupDescriptions.length > 0) {
+            descriptions.push(`[${groupDescriptions.join(', ')}] * ${group.repeatCount}`)
+          }
         }
       })
-      if (groupDescriptions.length > 0) {
-        descriptions.push(`[${groupDescriptions.join(', ')}]×${group.repeatCount}`)
-      }
-    })
+    } else {
+      // 兼容舊格式
+      // 處理個別針法
+      round.stitches.forEach((stitch: StitchInfo) => {
+        const displayInfo = getStitchDisplayInfo(stitch)
+        descriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+      })
+      
+      // 處理群組針法
+      round.stitchGroups.forEach((group: StitchGroup) => {
+        const groupDescriptions: string[] = []
+        group.stitches.forEach((stitch: StitchInfo) => {
+          const displayInfo = getStitchDisplayInfo(stitch)
+          groupDescriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+        })
+        if (groupDescriptions.length > 0) {
+          descriptions.push(`[${groupDescriptions.join(', ')}] * ${group.repeatCount}`)
+        }
+      })
+    }
     
     return descriptions.join(', ')
   }
@@ -293,49 +286,16 @@ export default function ProgressTrackingView() {
     const stitchElements: JSX.Element[] = []
     let stitchIndex = 0
 
-    // 渲染個別針法
-    displayRound.stitches.forEach((stitch) => {
-      const yarnColor = getYarnColor(stitch.yarnId)
-      
-      for (let i = 0; i < stitch.count; i++) {
-        const isCompleted = stitchIndex < currentStitchInRound
-        const isCurrent = stitchIndex === currentStitchInRound
-        
-        stitchElements.push(
-          <div
-            key={`${stitch.id}-${i}`}
-            className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
-          >
-            <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
-              isCompleted 
-                ? 'text-text-primary' 
-                : isCurrent 
-                ? 'text-primary' 
-                : 'text-text-tertiary/50'
-            }`}>
-              {StitchTypeInfo[stitch.type]?.symbol || '○'}
-            </div>
-            <div 
-              className={`w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
-                isCompleted || isCurrent
-                  ? (isLightColor(yarnColor) ? 'border border-black-100' : '')
-                  : ''
-              }`}
-              style={{ 
-                backgroundColor: isCompleted || isCurrent ? yarnColor : '#f3f4f6'
-              }}
-            />
-          </div>
-        )
-        stitchIndex++
-      }
-    })
-
-    // 渲染群組針法
-    displayRound.stitchGroups.forEach((group) => {
-      for (let repeat = 0; repeat < group.repeatCount; repeat++) {
-        group.stitches.forEach((stitch) => {
+    // 使用 getSortedPatternItems 獲取正確順序的針法項目
+    const sortedPatternItems = getSortedPatternItems(displayRound)
+    
+    if (sortedPatternItems.length > 0) {
+      // 如果有新的排序格式，使用它
+      sortedPatternItems.forEach((item) => {
+        if (item.type === PatternItemType.STITCH) {
+          const stitch = item.data as StitchInfo
           const yarnColor = getYarnColor(stitch.yarnId)
+          const displayInfo = getStitchDisplayInfo(stitch)
           
           for (let i = 0; i < stitch.count; i++) {
             const isCompleted = stitchIndex < currentStitchInRound
@@ -343,7 +303,7 @@ export default function ProgressTrackingView() {
             
             stitchElements.push(
               <div
-                key={`${group.id}-${repeat}-${stitch.id}-${i}`}
+                key={`${stitch.id}-${i}`}
                 className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
               >
                 <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
@@ -353,12 +313,12 @@ export default function ProgressTrackingView() {
                     ? 'text-primary' 
                     : 'text-text-tertiary/50'
                 }`}>
-                  {StitchTypeInfo[stitch.type]?.symbol || '○'}
+                  {displayInfo.symbol}
                 </div>
                 <div 
                   className={`w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
                     isCompleted || isCurrent
-                      ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
+                      ? (isLightColor(yarnColor) ? 'border border-black-100' : '')
                       : ''
                   }`}
                   style={{ 
@@ -369,9 +329,133 @@ export default function ProgressTrackingView() {
             )
             stitchIndex++
           }
-        })
-      }
-    })
+        } else if (item.type === PatternItemType.GROUP) {
+          const group = item.data as StitchGroup
+          for (let repeat = 0; repeat < group.repeatCount; repeat++) {
+            group.stitches.forEach((stitch) => {
+              const yarnColor = getYarnColor(stitch.yarnId)
+              const displayInfo = getStitchDisplayInfo(stitch)
+              
+              for (let i = 0; i < stitch.count; i++) {
+                const isCompleted = stitchIndex < currentStitchInRound
+                const isCurrent = stitchIndex === currentStitchInRound
+                
+                stitchElements.push(
+                  <div
+                    key={`${group.id}-${repeat}-${stitch.id}-${i}`}
+                    className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
+                  >
+                    <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
+                      isCompleted 
+                        ? 'text-text-primary' 
+                        : isCurrent 
+                        ? 'text-primary' 
+                        : 'text-text-tertiary/50'
+                    }`}>
+                      {displayInfo.symbol}
+                    </div>
+                    <div 
+                      className={`w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
+                        isCompleted || isCurrent
+                          ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
+                          : ''
+                      }`}
+                      style={{ 
+                        backgroundColor: isCompleted || isCurrent ? yarnColor : '#f3f4f6'
+                      }}
+                    />
+                  </div>
+                )
+                stitchIndex++
+              }
+            })
+          }
+        }
+      })
+    } else {
+      // 兼容舊格式：依次渲染個別針法和群組針法
+      // 渲染個別針法
+      displayRound.stitches.forEach((stitch) => {
+        const yarnColor = getYarnColor(stitch.yarnId)
+        const displayInfo = getStitchDisplayInfo(stitch)
+        
+        for (let i = 0; i < stitch.count; i++) {
+          const isCompleted = stitchIndex < currentStitchInRound
+          const isCurrent = stitchIndex === currentStitchInRound
+          
+          stitchElements.push(
+            <div
+              key={`${stitch.id}-${i}`}
+              className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
+            >
+              <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
+                isCompleted 
+                  ? 'text-text-primary' 
+                  : isCurrent 
+                  ? 'text-primary' 
+                  : 'text-text-tertiary/50'
+              }`}>
+                {displayInfo.symbol}
+              </div>
+              <div 
+                className={`w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
+                  isCompleted || isCurrent
+                    ? (isLightColor(yarnColor) ? 'border border-black-100' : '')
+                    : ''
+                }`}
+                style={{ 
+                  backgroundColor: isCompleted || isCurrent ? yarnColor : '#f3f4f6'
+                }}
+              />
+            </div>
+          )
+          stitchIndex++
+        }
+      })
+
+      // 渲染群組針法
+      displayRound.stitchGroups.forEach((group) => {
+        for (let repeat = 0; repeat < group.repeatCount; repeat++) {
+          group.stitches.forEach((stitch) => {
+            const yarnColor = getYarnColor(stitch.yarnId)
+            const displayInfo = getStitchDisplayInfo(stitch)
+            
+            for (let i = 0; i < stitch.count; i++) {
+              const isCompleted = stitchIndex < currentStitchInRound
+              const isCurrent = stitchIndex === currentStitchInRound
+              
+              stitchElements.push(
+                <div
+                  key={`${group.id}-${repeat}-${stitch.id}-${i}`}
+                  className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
+                >
+                  <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
+                    isCompleted 
+                      ? 'text-text-primary' 
+                      : isCurrent 
+                      ? 'text-primary' 
+                      : 'text-text-tertiary/50'
+                  }`}>
+                    {displayInfo.symbol}
+                  </div>
+                  <div 
+                    className={`w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
+                      isCompleted || isCurrent
+                        ? (isLightColor(yarnColor) ? 'border border-gray-400' : '')
+                        : ''
+                    }`}
+                    style={{ 
+                      backgroundColor: isCompleted || isCurrent ? yarnColor : '#f3f4f6'
+                    }}
+                  />
+                </div>
+              )
+              stitchIndex++
+            }
+          })
+        }
+      })
+    }
 
     return (
       <div className="w-full px-1 sm:px-0">
@@ -401,7 +485,7 @@ export default function ProgressTrackingView() {
             </div>
             
             {/* 工作階段控制 */}
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               {isSessionActive ? (
                 <>
                   <div className="text-sm text-text-secondary hidden sm:block">
@@ -424,7 +508,7 @@ export default function ProgressTrackingView() {
                 </button>
               )}
               <SyncStatusIndicator />
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

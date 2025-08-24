@@ -403,7 +403,8 @@ class FirestoreService {
         updateData.notes = round.notes
       }
       
-      await updateDoc(roundRef, updateData)
+      // Use setDoc with merge to handle both create and update cases
+      await setDoc(roundRef, updateData, { merge: true })
       
       console.log('[FIRESTORE-UPDATE-ROUND] Round updated successfully:', round.id)
     } catch (error) {

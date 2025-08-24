@@ -156,21 +156,42 @@ export function createSampleProject(): Project {
 export function describeRound(round: Round, yarns: Yarn[]): string {
   const allDescriptions: string[] = []
   
-  // 個別針法
-  const stitchDescriptions = round.stitches.map(stitchInfo => {
-    const yarn = yarns.find(y => y.id === stitchInfo.yarnId)
-    const yarnName = yarn?.name || '未知毛線'
-    const count = stitchInfo.count > 1 ? ` ×${stitchInfo.count}` : ''
-    const stitchName = StitchTypeInfo[stitchInfo.type]?.rawValue || stitchInfo.type
-    return `${stitchName}(${yarnName})${count}`
-  })
-  allDescriptions.push(...stitchDescriptions)
+  // 使用 getSortedPatternItems 獲取正確順序的針法項目
+  const sortedPatternItems = getSortedPatternItems(round)
   
-  // 群組針法
-  const groupDescriptions = round.stitchGroups.map(group => {
-    return describeStitchGroup(group, yarns)
-  })
-  allDescriptions.push(...groupDescriptions)
+  if (sortedPatternItems.length > 0) {
+    // 如果有新的排序格式，使用它
+    sortedPatternItems.forEach((item) => {
+      if (item.type === PatternItemType.STITCH) {
+        const stitchInfo = item.data as StitchInfo
+        const yarn = yarns.find(y => y.id === stitchInfo.yarnId)
+        const yarnName = yarn?.name || '未知毛線'
+        const count = stitchInfo.count > 1 ? ` ×${stitchInfo.count}` : ''
+        const displayInfo = getStitchDisplayInfo(stitchInfo)
+        allDescriptions.push(`${displayInfo.rawValue}(${yarnName})${count}`)
+      } else if (item.type === PatternItemType.GROUP) {
+        const group = item.data as StitchGroup
+        allDescriptions.push(describeStitchGroup(group, yarns))
+      }
+    })
+  } else {
+    // 兼容舊格式
+    // 個別針法
+    const stitchDescriptions = round.stitches.map(stitchInfo => {
+      const yarn = yarns.find(y => y.id === stitchInfo.yarnId)
+      const yarnName = yarn?.name || '未知毛線'
+      const count = stitchInfo.count > 1 ? ` ×${stitchInfo.count}` : ''
+      const displayInfo = getStitchDisplayInfo(stitchInfo)
+      return `${displayInfo.rawValue}(${yarnName})${count}`
+    })
+    allDescriptions.push(...stitchDescriptions)
+    
+    // 群組針法
+    const groupDescriptions = round.stitchGroups.map(group => {
+      return describeStitchGroup(group, yarns)
+    })
+    allDescriptions.push(...groupDescriptions)
+  }
   
   return allDescriptions.join(', ') || '無針法'
 }
@@ -180,8 +201,8 @@ export function describeStitchGroup(group: StitchGroup, yarns: Yarn[]): string {
     const yarn = yarns.find(y => y.id === stitch.yarnId)
     const yarnName = yarn?.name || '未知毛線'
     const count = stitch.count > 1 ? ` ×${stitch.count}` : ''
-    const stitchName = StitchTypeInfo[stitch.type]?.rawValue || stitch.type
-    return `${stitchName}(${yarnName})${count}`
+    const displayInfo = getStitchDisplayInfo(stitch)
+    return `${displayInfo.rawValue}(${yarnName})${count}`
   })
   
   const groupName = group.name || '針目群組'
@@ -281,6 +302,22 @@ export function getStitchGroupTotalStitches(group: StitchGroup): number {
 
 // 計算圈數總針數
 export function getRoundTotalStitches(round: Round): number {
+  // 優先使用新的 PatternItems 結構計算
+  const sortedPatternItems = getSortedPatternItems(round)
+  if (sortedPatternItems.length > 0) {
+    return sortedPatternItems.reduce((sum, item) => {
+      if (item.type === PatternItemType.STITCH) {
+        const stitch = item.data as StitchInfo
+        return sum + stitch.count
+      } else if (item.type === PatternItemType.GROUP) {
+        const group = item.data as StitchGroup
+        return sum + getStitchGroupTotalStitches(group)
+      }
+      return sum
+    }, 0)
+  }
+  
+  // 回退到舊格式計算（向後相容）
   const individualStitches = round.stitches.reduce((sum, stitch) => sum + stitch.count, 0)
   const groupStitches = round.stitchGroups.reduce((sum, group) => sum + getStitchGroupTotalStitches(group), 0)
   return individualStitches + groupStitches
@@ -365,13 +402,33 @@ export function isProjectCompleted(project: Project): boolean {
 
 // 從舊格式轉換為新格式：將 stitches 和 stitchGroups 轉換為 patternItems
 export function migrateRoundToPatternItems(round: Round): Round {
-  if (round.patternItems) {
-    // 已經有新格式，直接返回
-    return round
+  if (round.patternItems && round.patternItems.length > 0) {
+    // 已經有新格式，但檢查是否需要重新排序
+    const sortedItems = round.patternItems.slice().sort((a, b) => {
+      // 首先按 order 排序
+      if (a.order !== b.order) {
+        return a.order - b.order
+      }
+      // 如果 order 相同，按創建時間排序
+      return a.createdAt.getTime() - b.createdAt.getTime()
+    })
+    
+    // 重新分配連續的 order 值
+    sortedItems.forEach((item, index) => {
+      item.order = index
+    })
+    
+    return {
+      ...round,
+      patternItems: sortedItems
+    }
   }
 
   const patternItems: PatternItem[] = []
   let order = 0
+  
+  // 創建一個基準時間，然後為每個項目分配遞增的時間
+  const baseTime = new Date()
 
   // 將個別針法轉換為 PatternItem
   round.stitches.forEach(stitch => {
@@ -379,7 +436,7 @@ export function migrateRoundToPatternItems(round: Round): Round {
       id: generateId(),
       type: PatternItemType.STITCH,
       order: order++,
-      createdAt: new Date(),
+      createdAt: new Date(baseTime.getTime() + order * 1000), // 每個項目間隔1秒
       data: stitch
     })
   })
@@ -390,7 +447,7 @@ export function migrateRoundToPatternItems(round: Round): Round {
       id: generateId(),
       type: PatternItemType.GROUP,
       order: order++,
-      createdAt: new Date(),
+      createdAt: new Date(baseTime.getTime() + order * 1000), // 每個項目間隔1秒
       data: group
     })
   })
