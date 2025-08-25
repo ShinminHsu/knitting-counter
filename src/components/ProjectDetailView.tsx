@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { IoPlayCircleOutline } from 'react-icons/io5'
 // import { FaRegEdit } from 'react-icons/fa'
 import { FiEdit3 } from "react-icons/fi"
 import { LiaVolleyballBallSolid } from 'react-icons/lia'
 import { FiUploadCloud } from 'react-icons/fi'
+import { BsHouse } from 'react-icons/bs'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { formatDate, getProjectTotalRounds, getProjectTotalStitches, describeRound, getRoundTotalStitches } from '../utils'
@@ -12,7 +13,12 @@ import { formatDate, getProjectTotalRounds, getProjectTotalStitches, describeRou
 export default function ProjectDetailView() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
-  const { currentProject, setCurrentProject, projects } = useSyncedAppStore()
+  const { currentProject, setCurrentProject, projects, updateProject } = useSyncedAppStore()
+  
+  // 編輯專案模態狀態
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editSource, setEditSource] = useState('')
 
   useEffect(() => {
     if (projectId) {
@@ -24,6 +30,30 @@ export default function ProjectDetailView() {
       }
     }
   }, [projectId, setCurrentProject, projects, navigate])
+
+  // 打開編輯模態
+  const handleOpenEditModal = () => {
+    if (!currentProject) return
+    setEditName(currentProject.name)
+    setEditSource(currentProject.source || '')
+    setShowEditModal(true)
+  }
+
+  // 更新專案資訊
+  const handleUpdateProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentProject || !editName.trim()) return
+    
+    const updatedProject = {
+      ...currentProject,
+      name: editName.trim(),
+      source: editSource.trim() || undefined,
+      lastModified: new Date()
+    }
+    
+    await updateProject(updatedProject)
+    setShowEditModal(false)
+  }
 
   if (!currentProject) {
     return (
@@ -42,26 +72,41 @@ export default function ProjectDetailView() {
       <div className="bg-background-secondary border-b border-border">
         <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-3">
               <Link
                 to="/"
-                className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
+                className="text-text-secondary hover:text-text-primary transition-colors"
+                title="返回"
               >
-                ← 返回
+                ←
               </Link>
-              <h1 className="text-lg sm:text-xl font-semibold text-text-primary truncate">
+              <Link
+                to="/"
+                className="text-text-secondary hover:text-text-primary transition-colors"
+                title="首頁"
+              >
+                <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
+              </Link>
+              <h1 className="text-base sm:text-xl font-semibold text-text-primary truncate">
                 {currentProject.name}
               </h1>
             </div>
-            <SyncStatusIndicator />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <SyncStatusIndicator />
+            </div>
           </div>
         </div>
       </div>
 
       <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* 專案資訊 */}
-        <div className="card">
-          <h2 className="text-xl font-semibold text-text-primary mb-4">專案資訊</h2>
+        <div className="card cursor-pointer hover:shadow-md transition-shadow" onClick={handleOpenEditModal}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-text-primary">專案資訊</h2>
+            <button className="text-text-tertiary hover:text-text-primary p-2">
+              <FiEdit3 className="w-5 h-5" />
+            </button>
+          </div>
           
           <div className="space-y-4">
             {currentProject.source && (
@@ -72,6 +117,7 @@ export default function ProjectDetailView() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline break-all text-sm"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {currentProject.source}
                 </a>
@@ -290,6 +336,63 @@ export default function ProjectDetailView() {
           )}
         </div>
       </div>
+
+      {/* 編輯專案彈窗 */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-background-secondary rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold text-text-primary mb-4">
+              編輯專案資訊
+            </h2>
+            
+            <form onSubmit={handleUpdateProject} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  專案名稱 *
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input"
+                  placeholder="輸入專案名稱"
+                  required
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  來源網址（選填）
+                </label>
+                <input
+                  type="url"
+                  value={editSource}
+                  onChange={(e) => setEditSource(e.target.value)}
+                  className="input"
+                  placeholder="https://..."
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="btn btn-secondary flex-1"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary flex-1"
+                >
+                  儲存
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

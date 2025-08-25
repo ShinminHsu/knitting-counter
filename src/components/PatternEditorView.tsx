@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 // import { FaRegEdit } from 'react-icons/fa'
 import { FiEdit3 } from "react-icons/fi"
 import { VscEdit } from 'react-icons/vsc'
-import { BsTrash } from 'react-icons/bs'
+import { BsTrash, BsHouse } from 'react-icons/bs'
 import { CiCircleCheck } from 'react-icons/ci'
 import { RxCrossCircled } from 'react-icons/rx'
 import { useSyncedAppStore } from '../store/syncedAppStore'
@@ -44,7 +44,6 @@ export default function PatternEditorView() {
 
   const [showAddRoundForm, setShowAddRoundForm] = useState(false)
   const [showStitchModal, setShowStitchModal] = useState<{ roundNumber: number, mode: 'add' | 'edit', stitchId?: string } | null>(null)
-  const [showAddGroupForm, setShowAddGroupForm] = useState<number | null>(null)
   const [editingRound, setEditingRound] = useState<Round | null>(null)
   const [editingStitch, setEditingStitch] = useState<{ roundNumber: number, stitchId: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ roundNumber: number, groupId: string } | null>(null)
@@ -74,6 +73,9 @@ export default function PatternEditorView() {
   const [showCopyRoundModal, setShowCopyRoundModal] = useState<{
     sourceRound: Round
   } | null>(null)
+  
+  // 新增群組模態狀態
+  const [showAddGroupModal, setShowAddGroupModal] = useState<{ roundNumber: number } | null>(null)
 
   // 新增群組表單狀態
   const [newGroupName, setNewGroupName] = useState('')
@@ -275,7 +277,9 @@ export default function PatternEditorView() {
     }
   }
 
-  const handleAddGroup = async (roundNumber: number) => {
+  const handleAddGroup = async () => {
+    if (!showAddGroupModal) return
+    const { roundNumber } = showAddGroupModal
     console.log('[UI-ADD-GROUP] Starting handleAddGroup:', {
       roundNumber,
       newGroupStitches: newGroupStitches.length,
@@ -323,7 +327,10 @@ export default function PatternEditorView() {
       setNewGroupName('')
       setNewGroupRepeatCount(1)
       setNewGroupStitches([])
-      setShowAddGroupForm(null)
+      setShowAddGroupModal(null)
+      
+      // 顯示成功提示
+      alert('群組新增成功！')
       
     } catch (error) {
       console.error('[UI-ADD-GROUP] Error adding group:', error)
@@ -550,7 +557,26 @@ export default function PatternEditorView() {
   }
 
   const handleTemplateSelect = async (template: any) => {
-    if (showTemplateModal?.roundNumber) {
+    if (showAddGroupModal) {
+      // 如果是在新增群組模態視窗中，載入範本內容到當前編輯的群組
+      console.log('[TEMPLATE] Loading template in add group modal:', template)
+      const templateGroup = createStitchGroupFromTemplate(template.id)
+      if (templateGroup) {
+        console.log('[TEMPLATE] Loaded template group:', templateGroup)
+        
+        // 如果是第一次載入範本（沒有現有針法），設定群組名稱
+        if (newGroupStitches.length === 0) {
+          setNewGroupName(templateGroup.name)
+        }
+        
+        // 重複次數固定設為1，讓用戶自己調整
+        setNewGroupRepeatCount(1)
+        
+        // 將範本的針法加到現有針法列表後面（append），而不是取代
+        setNewGroupStitches(prevStitches => [...prevStitches, ...templateGroup.stitches])
+      }
+    } else if (showTemplateModal?.roundNumber) {
+      // 如果是在圈數中直接使用範本，直接新增群組
       const newGroup = createStitchGroupFromTemplate(template.id)
       if (newGroup) {
         await addStitchGroupToRound(showTemplateModal.roundNumber, newGroup)
@@ -579,21 +605,28 @@ export default function PatternEditorView() {
       {/* 標題列 */}
       <div className="bg-background-secondary border-b border-border sticky top-0 z-10">
         <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <Link
                 to={`/project/${projectId}`}
-                className="text-text-secondary hover:text-text-primary transition-colors text-sm sm:text-base"
+                className="text-text-secondary hover:text-text-primary transition-colors"
+                title="返回"
               >
-                ← 返回
+                ←
+              </Link>
+              <Link
+                to="/"
+                className="text-text-secondary hover:text-text-primary transition-colors"
+                title="首頁"
+              >
+                <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
               </Link>
               <h1 className="text-base sm:text-xl font-semibold text-text-primary">織圖編輯</h1>
             </div>
-            
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setShowAddRoundForm(true)}
-                className="btn btn-primary w-full sm:w-auto"
+                className="btn btn-primary text-sm"
                 disabled={isLoading}
               >
                 {isLoading ? '處理中...' : '新增圈數'}
@@ -656,7 +689,7 @@ export default function PatternEditorView() {
                   <div className="block sm:hidden">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-semibold text-text-primary">
-                        R{round.roundNumber}
+                        第 {round.roundNumber} 圈
                       </h3>
                       <button
                         onClick={() => handleDeleteRound(round.roundNumber)}
@@ -670,22 +703,19 @@ export default function PatternEditorView() {
                         onClick={() => setShowStitchModal({ roundNumber: round.roundNumber, mode: 'add' })}
                         className="btn btn-ghost p-2 h-auto flex flex-col items-center"
                       >
-                        <span className="font-medium">新增</span>
-                        <span>針目</span>
+                        <span className="font-medium text-sm">新增針目</span>
                       </button>
                       <button
-                        onClick={() => setShowAddGroupForm(round.roundNumber)}
+                        onClick={() => setShowAddGroupModal({ roundNumber: round.roundNumber })}
                         className="btn btn-ghost p-2 h-auto flex flex-col items-center"
                       >
-                        <span className="font-medium">新增</span>
-                        <span>群組</span>
+                        <span className="font-medium text-sm">新增群組</span>
                       </button>
                       <button
                         onClick={() => handleCopyRound(round.roundNumber)}
                         className="btn btn-ghost p-2 h-auto flex flex-col items-center"
                       >
-                        <span className="font-medium">複製</span>
-                        <span>圈數</span>
+                        <span className="font-medium text-sm">複製圈數</span>
                       </button>
                     </div>
                   </div>
@@ -706,7 +736,7 @@ export default function PatternEditorView() {
                         新增針法
                       </button>
                       <button
-                        onClick={() => setShowAddGroupForm(round.roundNumber)}
+                        onClick={() => setShowAddGroupModal({ roundNumber: round.roundNumber })}
                         className="btn btn-ghost text-sm"
                       >
                         新增群組
@@ -862,6 +892,7 @@ export default function PatternEditorView() {
                           <div 
                             key={patternItem.id} 
                             className="border border-border rounded-lg p-3 cursor-move"
+                            data-group-id={(patternItem.data as StitchGroup).id}
                             draggable
                             onDragStart={(e) => handleDragStart(e, index, round.roundNumber)}
                             onDragOver={handleDragOver}
@@ -1015,13 +1046,13 @@ export default function PatternEditorView() {
                             {/* 範本按鈕和針數統計 - 獨立一行 */}
                             {!editingGroup?.groupId && (
                               <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
-                                <button
+                                {/* <button
                                   onClick={() => handleSaveAsTemplate(patternItem.data as StitchGroup)}
                                   className="text-sm text-text-secondary hover:text-text-primary transition-colors"
                                   title="存成範本"
                                 >
                                   存成範本
-                                </button>
+                                </button> */}
                                 <div className="text-sm text-text-secondary">
                                   重複 {(patternItem.data as StitchGroup).repeatCount} 次 (共 {getStitchGroupTotalStitches(patternItem.data as StitchGroup)} 針)
                                 </div>
@@ -1140,6 +1171,7 @@ export default function PatternEditorView() {
                         <div 
                           key={group.id} 
                           className="border border-border rounded-lg p-3 cursor-move"
+                          data-group-id={group.id}
                           draggable
                           onDragStart={(e) => handleDragStart(e, index, round.roundNumber)}
                           onDragOver={handleDragOver}
@@ -1312,121 +1344,6 @@ export default function PatternEditorView() {
                 )}
 
 
-                {/* 新增群組表單 */}
-                {showAddGroupForm === round.roundNumber && (
-                  <div className="bg-background-tertiary rounded-lg p-4 mb-4">
-                    <h4 className="font-medium text-text-primary mb-3">新增針目群組</h4>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-1">
-                          群組名稱
-                        </label>
-                        <input
-                          type="text"
-                          value={newGroupName}
-                          onChange={(e) => setNewGroupName(e.target.value)}
-                          className="input"
-                          placeholder="針目群組"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-1">
-                          重複次數
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={newGroupRepeatCount}
-                          {...handleNumberInputChange(setNewGroupRepeatCount)}
-                          className="input"
-                        />
-                      </div>
-                    </div>
-
-                    {/* 群組中的針法 */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium text-text-secondary">
-                          群組針法
-                        </label>
-                      </div>
-                      
-                      <div className="space-y-2 mb-4">
-                        {newGroupStitches.map((stitch) => (
-                          <div key={stitch.id} className="grid grid-cols-[40px_1fr_100px] items-center gap-3 p-2 bg-background-secondary rounded">
-                            {/* 針目圖標 - 固定寬度40px，居中對齊 */}
-                            <div className="text-lg flex items-center justify-center">
-                              {getStitchDisplayInfo(stitch).symbol}
-                            </div>
-                            
-                            {/* 針目資訊 - 彈性寬度 */}
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-text-primary">
-                                  {getStitchDisplayInfo(stitch).rawValue}
-                                </span>
-                                <span className="text-sm text-text-secondary">
-                                  ×{stitch.count}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            {/* 編輯和刪除按鈕 - 固定寬度100px，右對齊 */}
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => setShowEditNewGroupStitchModal({ stitchId: stitch.id })}
-                                className="text-text-tertiary hover:text-primary transition-colors p-1 w-8 h-8 flex items-center justify-center"
-                              >
-                                <VscEdit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleRemoveStitchFromGroup(stitch.id)}
-                                className="text-text-tertiary hover:text-red-500 transition-colors p-1 w-8 h-8 flex items-center justify-center"
-                              >
-                                <BsTrash className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowGroupStitchModal(true)}
-                        className="btn btn-secondary"
-                      >
-                        新增針法
-                      </button>
-                      <button
-                        onClick={() => handleSelectFromTemplate(round.roundNumber)}
-                        className="btn btn-secondary"
-                      >
-                        從範本
-                      </button>
-
-                      <button
-                        onClick={() => handleAddGroup(round.roundNumber)}
-                        className="btn btn-primary ml-auto"
-                        disabled={newGroupStitches.length === 0}
-                      >
-                        新增群組
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowAddGroupForm(null)
-                          setNewGroupStitches([])
-                          setNewGroupName('')
-                          setNewGroupRepeatCount(1)
-                        }}
-                        className="btn btn-secondary"
-                      >
-                        取消
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>
@@ -1519,6 +1436,145 @@ export default function PatternEditorView() {
         mode={showTemplateModal?.mode || 'select'}
         title={showTemplateModal?.mode === 'save' ? '存為範本' : '選擇範本'}
       />
+
+      {/* 新增群組模態視窗 */}
+      {showAddGroupModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-background-primary rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold text-text-primary mb-4">
+              新增針目群組
+            </h2>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  群組名稱
+                </label>
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  className="input"
+                  placeholder="針目群組"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  重複次數
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={newGroupRepeatCount}
+                  {...handleNumberInputChange(setNewGroupRepeatCount)}
+                  className="input"
+                />
+              </div>
+            </div>
+
+            {/* 群組中的針法 */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-text-secondary">
+                  群組針法
+                </label>
+              </div>
+              
+              <div className="space-y-2 mb-4">
+                {newGroupStitches.map((stitch) => (
+                  <div key={stitch.id} className="grid grid-cols-[40px_1fr_100px] items-center gap-3 p-2 bg-background-secondary rounded">
+                    {/* 針目圖標 - 固定寬度40px，居中對齊 */}
+                    <div className="text-lg flex items-center justify-center">
+                      {getStitchDisplayInfo(stitch).symbol}
+                    </div>
+                    
+                    {/* 針目資訊 - 彈性寬度 */}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-text-primary">
+                          {getStitchDisplayInfo(stitch).rawValue}
+                        </span>
+                        <span className="text-sm text-text-secondary">
+                          ×{stitch.count}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* 編輯和刪除按鈕 - 固定寬度100px，右對齊 */}
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => setShowEditNewGroupStitchModal({ stitchId: stitch.id })}
+                        className="text-text-tertiary hover:text-primary transition-colors p-1 w-8 h-8 flex items-center justify-center"
+                      >
+                        <VscEdit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleRemoveStitchFromGroup(stitch.id)}
+                        className="text-text-tertiary hover:text-red-500 transition-colors p-1 w-8 h-8 flex items-center justify-center"
+                      >
+                        <BsTrash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <button
+                  onClick={() => setShowGroupStitchModal(true)}
+                  className="btn btn-secondary text-sm"
+                >
+                  新增針法
+                </button>
+                <button
+                  onClick={() => showAddGroupModal && handleSelectFromTemplate(showAddGroupModal.roundNumber)}
+                  className="btn btn-secondary text-sm"
+                >
+                  從範本複製
+                </button>
+                <button
+                  onClick={() => {
+                    if (newGroupStitches.length > 0) {
+                      const tempGroup = {
+                        id: 'temp',
+                        name: newGroupName || '針目群組',
+                        stitches: newGroupStitches,
+                        repeatCount: typeof newGroupRepeatCount === 'number' ? newGroupRepeatCount : parseInt(newGroupRepeatCount) || 1
+                      }
+                      setShowTemplateModal({ mode: 'save', group: tempGroup })
+                    }
+                  }}
+                  className="btn btn-secondary text-sm"
+                  disabled={newGroupStitches.length === 0}
+                >
+                  存成範本
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowAddGroupModal(null)
+                  setNewGroupStitches([])
+                  setNewGroupName('')
+                  setNewGroupRepeatCount(1)
+                }}
+                className="btn btn-secondary flex-1"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleAddGroup}
+                className="btn btn-primary flex-1"
+                disabled={newGroupStitches.length === 0}
+              >
+                新增群組
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 複製圈數位置選擇模態 */}
       <CopyRoundModal

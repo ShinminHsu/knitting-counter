@@ -29,7 +29,6 @@ export default function StitchGroupTemplateModal({
   
   // 選擇範本的狀態
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
-  const [repeatCount, setRepeatCount] = useState<number>(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
 
@@ -45,7 +44,6 @@ export default function StitchGroupTemplateModal({
         setTemplateDescription('')
         setTemplateCategory('')
         setSelectedTemplateId('')
-        setRepeatCount(1)
         setSearchQuery('')
         setSelectedCategory('')
       }
@@ -93,7 +91,7 @@ export default function StitchGroupTemplateModal({
   const modalTitle = title || (mode === 'save' ? '存為範本' : '選擇範本')
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
       <div className="bg-background-secondary rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold text-text-primary mb-6">
           {modalTitle}
@@ -244,7 +242,6 @@ export default function StitchGroupTemplateModal({
                     </div>
                     
                     <div className="flex justify-between items-center text-xs text-text-tertiary">
-                      <span>重複 {template.repeatCount} 次</span>
                       <div className="flex gap-4">
                         <span>建立於 {formatDate(template.createdDate)}</span>
                         <span>使用 {template.useCount} 次</span>
@@ -252,32 +249,6 @@ export default function StitchGroupTemplateModal({
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
-
-            {/* 重複次數設定 */}
-            {selectedTemplateId && (
-              <div className="p-4 bg-background-tertiary rounded-lg">
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  重複次數
-                </label>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setRepeatCount(Math.max(1, repeatCount - 1))}
-                    className="w-8 h-8 rounded border border-border hover:border-primary flex items-center justify-center text-text-primary hover:bg-background-tertiary transition-colors"
-                  >
-                    -
-                  </button>
-                  <span className="text-lg font-medium text-text-primary w-8 text-center">
-                    {repeatCount}
-                  </span>
-                  <button
-                    onClick={() => setRepeatCount(repeatCount + 1)}
-                    className="w-8 h-8 rounded border border-border hover:border-primary flex items-center justify-center text-text-primary hover:bg-background-tertiary transition-colors"
-                  >
-                    +
-                  </button>
-                </div>
               </div>
             )}
           </div>
