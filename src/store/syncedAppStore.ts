@@ -1303,7 +1303,16 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = getProjectPattern(currentProject).map(round => {
+        // 確保專案已遷移到新格式
+        migrateProjectToMultiChart(currentProject)
+
+        const currentChart = getCurrentChart(currentProject)
+        if (!currentChart) {
+          console.log('[REORDER-STITCHES] No current chart found')
+          return
+        }
+
+        const updatedRounds = currentChart.rounds.map(round => {
           if (round.roundNumber === roundNumber) {
             const newStitches = [...round.stitches]
             const [removed] = newStitches.splice(fromIndex, 1)
@@ -1317,13 +1326,13 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return round
         })
 
-        const updatedProject = {
-          ...currentProject,
-          pattern: updatedPattern,
+        const updatedChart = {
+          ...currentChart,
+          rounds: updatedRounds,
           lastModified: new Date()
         }
 
-        await get().updateProjectLocally(updatedProject)
+        await get().updateChart(updatedChart)
       },
 
       updateStitchGroupInRound: async (roundNumber, groupId, updatedGroup) => {
@@ -1502,7 +1511,16 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return
         }
 
-        const updatedPattern = getProjectPattern(currentProject).map(round => {
+        // 確保專案已遷移到新格式
+        migrateProjectToMultiChart(currentProject)
+
+        const currentChart = getCurrentChart(currentProject)
+        if (!currentChart) {
+          console.log('[REORDER-PATTERN-ITEMS] No current chart found')
+          return
+        }
+
+        const updatedRounds = currentChart.rounds.map(round => {
           if (round.roundNumber === roundNumber) {
             console.log('[REORDER-PATTERN-ITEMS] Reordering pattern items in round:', {
               roundNumber,
@@ -1515,13 +1533,13 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return round
         })
 
-        const updatedProject = {
-          ...currentProject,
-          pattern: updatedPattern,
+        const updatedChart = {
+          ...currentChart,
+          rounds: updatedRounds,
           lastModified: new Date()
         }
 
-        await get().updateProjectLocally(updatedProject)
+        await get().updateChart(updatedChart)
       },
 
       // 毛線管理 - 包含同步功能

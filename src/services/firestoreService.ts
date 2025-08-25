@@ -14,7 +14,7 @@ import {
   disableNetwork
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { Project, Round, WorkSession, Yarn, StitchInfo, StitchGroup } from '../types'
+import { Project, Round, WorkSession, Yarn, StitchInfo, StitchGroup, Chart } from '../types'
 
 export interface UserProfile {
   uid: string
@@ -28,8 +28,13 @@ export interface FirestoreProject {
   id: string
   name: string
   source?: string
+  notes?: string
+  // 向後兼容：保留舊的欄位
   currentRound: number
   currentStitch: number
+  // 新的多織圖結構
+  charts?: Chart[]
+  currentChartId?: string
   yarns: Yarn[]
   sessions: WorkSession[]
   createdDate: Date
@@ -122,14 +127,48 @@ class FirestoreService {
           }
         })
         
+        // 檢查是否為舊格式專案（有 rounds 子集合但沒有 charts）
+        const isLegacyProject = rounds.length > 0 && (!projectData.charts || projectData.charts.length === 0)
+        
+        let finalCharts = projectData.charts || []
+        
+        // 如果是舊專案，自動遷移到新格式
+        if (isLegacyProject) {
+          console.log('[FIRESTORE] Migrating legacy project to multi-chart format:', projectData.id)
+          const migratedChart: Chart = {
+            id: `chart-${projectData.id}`,
+            name: '主織圖',
+            description: '從舊版本遷移的織圖',
+            rounds: rounds,
+            currentRound: projectData.currentRound || 1,
+            currentStitch: projectData.currentStitch || 0,
+            createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate && (projectData.createdDate as any).toDate ? (projectData.createdDate as any).toDate() : new Date()),
+            lastModified: new Date(),
+            isCompleted: projectData.isCompleted || false,
+            notes: ''
+          }
+          
+          finalCharts = [migratedChart]
+          
+          // 異步更新 Firebase 中的專案結構（但不等待，避免阻塞讀取）
+          setTimeout(() => {
+            this.migrateProjectToNewFormat(userId, projectData.id, migratedChart)
+          }, 100)
+        }
+
         projects.push({
           id: projectData.id,
           name: projectData.name,
           source: projectData.source,
+          notes: projectData.notes || '',
+          // 向後兼容：保留舊的 pattern 欄位
           pattern: rounds,
-          currentRound: projectData.currentRound,
-          currentStitch: projectData.currentStitch,
-          yarns: projectData.yarns,
+          currentRound: projectData.currentRound || 1,
+          currentStitch: projectData.currentStitch || 0,
+          // 新的多織圖結構
+          charts: finalCharts,
+          currentChartId: isLegacyProject ? finalCharts[0]?.id : (projectData.currentChartId || ''),
+          yarns: projectData.yarns || [],
           sessions: projectData.sessions ? projectData.sessions.map(session => ({
             ...session,
             startTime: session.startTime instanceof Date ? session.startTime : (session.startTime && (session.startTime as any).toDate ? (session.startTime as any).toDate() : new Date())
@@ -168,8 +207,11 @@ class FirestoreService {
         id: project.id,
         name: project.name || '',
         source: project.source || '',
+        notes: project.notes || '',
         currentRound: project.currentRound || 1,
         currentStitch: project.currentStitch || 0,
+        charts: project.charts || [],
+        currentChartId: project.currentChartId || '',
         yarns: cleanedYarns,
         sessions: project.sessions?.map(session => ({
           ...session,
@@ -191,12 +233,61 @@ class FirestoreService {
           startTime: Timestamp.fromDate(session.startTime)
         }))
 
+      // Deep clean charts data to ensure no undefined values  
+      const cleanedChartsForCreate = (firestoreProject.charts || [])
+        .filter(chart => chart && chart.id && chart.name)
+        .map(chart => {
+          const cleanedRounds = (chart.rounds || []).map(round => ({
+            id: round.id,
+            roundNumber: round.roundNumber,
+            stitches: (round.stitches || []).map(stitch => ({
+              id: stitch.id || '',
+              type: stitch.type || 'single',
+              yarnId: stitch.yarnId || '',
+              count: stitch.count || 1,
+              ...(stitch.customName && { customName: stitch.customName }),
+              ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+            })),
+            stitchGroups: (round.stitchGroups || []).map(group => ({
+              id: group.id || '',
+              name: group.name || '',
+              repeatCount: group.repeatCount || 1,
+              stitches: (group.stitches || []).map(stitch => ({
+                id: stitch.id || '',
+                type: stitch.type || 'single',
+                yarnId: stitch.yarnId || '',
+                count: stitch.count || 1,
+                ...(stitch.customName && { customName: stitch.customName }),
+                ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+              })),
+              ...(group.completedRepeats !== undefined && { completedRepeats: group.completedRepeats })
+            })),
+            ...(round.notes && { notes: round.notes })
+          }))
+
+          return {
+            id: chart.id,
+            name: chart.name,
+            description: chart.description || '',
+            rounds: cleanedRounds,
+            currentRound: chart.currentRound || 1,
+            currentStitch: chart.currentStitch || 0,
+            createdDate: chart.createdDate,
+            lastModified: chart.lastModified,
+            isCompleted: chart.isCompleted || false,
+            notes: chart.notes || ''
+          }
+        })
+
       await setDoc(projectRef, {
         id: firestoreProject.id,
         name: firestoreProject.name,
         source: firestoreProject.source,
+        notes: firestoreProject.notes,
         currentRound: firestoreProject.currentRound,
         currentStitch: firestoreProject.currentStitch,
+        charts: cleanedChartsForCreate,
+        currentChartId: firestoreProject.currentChartId || '',
         yarns: firestoreProject.yarns,
         sessions: cleanedSessions,
         createdDate: Timestamp.fromDate(firestoreProject.createdDate),
@@ -246,8 +337,11 @@ class FirestoreService {
       const firestoreProject: Partial<FirestoreProject> = {
         name: project.name || '',
         source: project.source || '',
+        notes: project.notes || '',
         currentRound: project.currentRound || 1,
         currentStitch: project.currentStitch || 0,
+        charts: project.charts || [],
+        currentChartId: project.currentChartId || '',
         yarns: cleanedYarns,
         sessions: project.sessions?.map(session => ({
           ...session,
@@ -269,11 +363,60 @@ class FirestoreService {
         }))
       
       console.log('[FIRESTORE] Updating project document...')
+      // Deep clean charts data to ensure no undefined values
+      const cleanedCharts = (firestoreProject.charts || [])
+        .filter(chart => chart && chart.id && chart.name)
+        .map(chart => {
+          const cleanedRounds = (chart.rounds || []).map(round => ({
+            id: round.id,
+            roundNumber: round.roundNumber,
+            stitches: (round.stitches || []).map(stitch => ({
+              id: stitch.id || '',
+              type: stitch.type || 'single',
+              yarnId: stitch.yarnId || '',
+              count: stitch.count || 1,
+              ...(stitch.customName && { customName: stitch.customName }),
+              ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+            })),
+            stitchGroups: (round.stitchGroups || []).map(group => ({
+              id: group.id || '',
+              name: group.name || '',
+              repeatCount: group.repeatCount || 1,
+              stitches: (group.stitches || []).map(stitch => ({
+                id: stitch.id || '',
+                type: stitch.type || 'single',
+                yarnId: stitch.yarnId || '',
+                count: stitch.count || 1,
+                ...(stitch.customName && { customName: stitch.customName }),
+                ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+              })),
+              ...(group.completedRepeats !== undefined && { completedRepeats: group.completedRepeats })
+            })),
+            ...(round.notes && { notes: round.notes })
+          }))
+
+          return {
+            id: chart.id,
+            name: chart.name,
+            description: chart.description || '',
+            rounds: cleanedRounds,
+            currentRound: chart.currentRound || 1,
+            currentStitch: chart.currentStitch || 0,
+            createdDate: chart.createdDate,
+            lastModified: chart.lastModified,
+            isCompleted: chart.isCompleted || false,
+            notes: chart.notes || ''
+          }
+        })
+
       await updateDoc(projectRef, {
         name: firestoreProject.name,
         source: firestoreProject.source,
+        notes: firestoreProject.notes,
         currentRound: firestoreProject.currentRound,
         currentStitch: firestoreProject.currentStitch,
+        charts: cleanedCharts,
+        currentChartId: firestoreProject.currentChartId || '',
         yarns: firestoreProject.yarns,
         sessions: cleanedSessions,
         lastModified: Timestamp.fromDate(firestoreProject.lastModified!),
@@ -565,14 +708,48 @@ class FirestoreService {
             }
           })
           
+          // 檢查是否為舊格式專案（有 rounds 子集合但沒有 charts）
+          const isLegacyProject = rounds.length > 0 && (!projectData.charts || projectData.charts.length === 0)
+          
+          let finalCharts = projectData.charts || []
+          
+          // 如果是舊專案，自動遷移到新格式
+          if (isLegacyProject) {
+            console.log('[FIRESTORE-SUBSCRIPTION] Migrating legacy project to multi-chart format:', projectData.id)
+            const migratedChart: Chart = {
+              id: `chart-${projectData.id}`,
+              name: '主織圖',
+              description: '從舊版本遷移的織圖',
+              rounds: rounds,
+              currentRound: projectData.currentRound || 1,
+              currentStitch: projectData.currentStitch || 0,
+              createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate && (projectData.createdDate as any).toDate ? (projectData.createdDate as any).toDate() : new Date()),
+              lastModified: new Date(),
+              isCompleted: projectData.isCompleted || false,
+              notes: ''
+            }
+            
+            finalCharts = [migratedChart]
+            
+            // 異步更新 Firebase 中的專案結構（但不等待，避免阻塞訂閱）
+            setTimeout(() => {
+              this.migrateProjectToNewFormat(userId, projectData.id, migratedChart)
+            }, 100)
+          }
+
           projects.push({
             id: projectData.id,
             name: projectData.name,
             source: projectData.source,
+            notes: projectData.notes || '',
+            // 向後兼容：保留舊的 pattern 欄位
             pattern: rounds,
-            currentRound: projectData.currentRound,
-            currentStitch: projectData.currentStitch,
-            yarns: projectData.yarns,
+            currentRound: projectData.currentRound || 1,
+            currentStitch: projectData.currentStitch || 0,
+            // 新的多織圖結構
+            charts: finalCharts,
+            currentChartId: isLegacyProject ? finalCharts[0]?.id : (projectData.currentChartId || ''),
+            yarns: projectData.yarns || [],
             sessions: projectData.sessions ? projectData.sessions.map(session => ({
               ...session,
               startTime: session.startTime instanceof Date ? session.startTime : (session.startTime && (session.startTime as any).toDate ? (session.startTime as any).toDate() : new Date())
@@ -605,6 +782,66 @@ class FirestoreService {
       console.log('[FIRESTORE] Network disabled successfully')
     } catch (error) {
       console.error('[FIRESTORE] Error disabling network:', error)
+    }
+  }
+
+  async migrateProjectToNewFormat(userId: string, projectId: string, migratedChart: Chart): Promise<void> {
+    try {
+      console.log('[FIRESTORE] Starting migration for project:', projectId)
+      
+      const projectRef = doc(db, 'users', userId, 'projects', projectId)
+      
+      // Deep clean the chart data to ensure no undefined values
+      const cleanedRounds = (migratedChart.rounds || []).map(round => ({
+        id: round.id,
+        roundNumber: round.roundNumber,
+        stitches: (round.stitches || []).map(stitch => ({
+          id: stitch.id || '',
+          type: stitch.type || 'single',
+          yarnId: stitch.yarnId || '',
+          count: stitch.count || 1,
+          ...(stitch.customName && { customName: stitch.customName }),
+          ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+        })),
+        stitchGroups: (round.stitchGroups || []).map(group => ({
+          id: group.id || '',
+          name: group.name || '',
+          repeatCount: group.repeatCount || 1,
+          stitches: (group.stitches || []).map(stitch => ({
+            id: stitch.id || '',
+            type: stitch.type || 'single',
+            yarnId: stitch.yarnId || '',
+            count: stitch.count || 1,
+            ...(stitch.customName && { customName: stitch.customName }),
+            ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
+          })),
+          ...(group.completedRepeats !== undefined && { completedRepeats: group.completedRepeats })
+        })),
+        ...(round.notes && { notes: round.notes })
+      }))
+
+      const cleanedChart = {
+        id: migratedChart.id,
+        name: migratedChart.name,
+        description: migratedChart.description || '',
+        rounds: cleanedRounds,
+        currentRound: migratedChart.currentRound || 1,
+        currentStitch: migratedChart.currentStitch || 0,
+        createdDate: migratedChart.createdDate,
+        lastModified: migratedChart.lastModified,
+        isCompleted: migratedChart.isCompleted || false,
+        notes: migratedChart.notes || ''
+      }
+      
+      // 更新專案結構，添加 charts 欄位
+      await updateDoc(projectRef, {
+        charts: [cleanedChart],
+        currentChartId: cleanedChart.id
+      })
+      
+      console.log('[FIRESTORE] Project migration completed:', projectId)
+    } catch (error) {
+      console.error('[FIRESTORE] Error migrating project:', projectId, error)
     }
   }
 
