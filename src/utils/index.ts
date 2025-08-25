@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { Project, Round, StitchGroup, Yarn, StitchType, StitchTypeInfo, PatternItem, PatternItemType, StitchInfo } from '../types'
+import { Project, Round, StitchGroup, Yarn, StitchType, StitchTypeInfo, PatternItem, PatternItemType, StitchInfo, Chart, ChartSummary, ProjectMigrationResult } from '../types'
 
 // CSS 類名合併工具
 export function cn(...inputs: ClassValue[]) {
@@ -330,33 +330,38 @@ export function getProjectTotalTime(project: Project): number {
 
 // 計算專案總圈數
 export function getProjectTotalRounds(project: Project): number {
-  return project.pattern.map(round => round.roundNumber).reduce((max, num) => Math.max(max, num), 0)
+  const pattern = getProjectPattern(project)
+  return pattern.map(round => round.roundNumber).reduce((max, num) => Math.max(max, num), 0)
 }
 
 // 計算專案總針數
 export function getProjectTotalStitches(project: Project): number {
-  return project.pattern.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)
+  const pattern = getProjectPattern(project)
+  return pattern.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)
 }
 
 // 計算專案已完成針數
 export function getProjectCompletedStitches(project: Project): number {
-  if (!project.pattern || project.pattern.length === 0) return 0
+  const pattern = getProjectPattern(project)
+  if (!pattern || pattern.length === 0) return 0
   
   let completed = 0
+  const currentRound = getProjectCurrentRound(project)
+  const currentStitch = getProjectCurrentStitch(project)
   
   // 計算已完成的完整圈數
-  for (let roundNumber = 1; roundNumber < project.currentRound; roundNumber++) {
-    const round = project.pattern.find(r => r.roundNumber === roundNumber)
+  for (let roundNumber = 1; roundNumber < currentRound; roundNumber++) {
+    const round = pattern.find(r => r.roundNumber === roundNumber)
     if (round) {
       completed += getRoundTotalStitches(round)
     }
   }
   
   // 添加當前圈的進度，但要確保不超出範圍
-  const currentRound = project.pattern.find(r => r.roundNumber === project.currentRound)
-  if (currentRound) {
-    const maxStitchesInCurrentRound = getRoundTotalStitches(currentRound)
-    const validCurrentStitch = Math.min(Math.max(0, project.currentStitch), maxStitchesInCurrentRound)
+  const currentRoundData = pattern.find(r => r.roundNumber === currentRound)
+  if (currentRoundData) {
+    const maxStitchesInCurrentRound = getRoundTotalStitches(currentRoundData)
+    const validCurrentStitch = Math.min(Math.max(0, currentStitch), maxStitchesInCurrentRound)
     completed += validCurrentStitch
   }
   
@@ -365,7 +370,8 @@ export function getProjectCompletedStitches(project: Project): number {
 
 // 計算專案進度百分比
 export function getProjectProgressPercentage(project: Project): number {
-  if (!project.pattern || project.pattern.length === 0) return 0
+  const pattern = getProjectPattern(project)
+  if (!pattern || pattern.length === 0) return 0
   
   const totalStitches = getProjectTotalStitches(project)
   if (totalStitches === 0) return 0
@@ -379,19 +385,22 @@ export function getProjectProgressPercentage(project: Project): number {
 
 // 檢查專案是否完成
 export function isProjectCompleted(project: Project): boolean {
-  if (!project.pattern || project.pattern.length === 0) return false
+  const pattern = getProjectPattern(project)
+  if (!pattern || pattern.length === 0) return false
   
   const totalRounds = getProjectTotalRounds(project)
+  const currentRound = getProjectCurrentRound(project)
+  const currentStitch = getProjectCurrentStitch(project)
   
   // 如果當前圈數超過總圈數，認為已完成
-  if (project.currentRound > totalRounds) return true
+  if (currentRound > totalRounds) return true
   
   // 如果在最後一圈且針數達到最後一針，也認為已完成
-  if (project.currentRound === totalRounds) {
-    const lastRound = project.pattern.find(r => r.roundNumber === totalRounds)
+  if (currentRound === totalRounds) {
+    const lastRound = pattern.find(r => r.roundNumber === totalRounds)
     if (lastRound) {
       const totalStitchesInLastRound = getRoundTotalStitches(lastRound)
-      return project.currentStitch >= totalStitchesInLastRound
+      return currentStitch >= totalStitchesInLastRound
     }
   }
   
@@ -629,6 +638,62 @@ export function updateGroupInPatternItems(round: Round, groupId: string, updated
   return syncPatternItemsToLegacyFormat(updatedRound)
 }
 
+// 更新群組中的針目
+export function updateStitchInGroupPatternItems(round: Round, groupId: string, stitchId: string, updatedStitch: StitchInfo): Round {
+  const migratedRound = migrateRoundToPatternItems(round)
+  const patternItems = migratedRound.patternItems || []
+  
+  const updatedPatternItems = patternItems.map(item => {
+    if (item.type === PatternItemType.GROUP && (item.data as StitchGroup).id === groupId) {
+      const group = item.data as StitchGroup
+      return {
+        ...item,
+        data: {
+          ...group,
+          stitches: group.stitches.map(stitch => 
+            stitch.id === stitchId ? updatedStitch : stitch
+          )
+        }
+      }
+    }
+    return item
+  })
+
+  const updatedRound = {
+    ...migratedRound,
+    patternItems: updatedPatternItems
+  }
+
+  return syncPatternItemsToLegacyFormat(updatedRound)
+}
+
+// 更新群組完成重複次數
+export function updateGroupCompletedRepeatsInPatternItems(round: Round, groupId: string, completedRepeats: number): Round {
+  const migratedRound = migrateRoundToPatternItems(round)
+  const patternItems = migratedRound.patternItems || []
+  
+  const updatedPatternItems = patternItems.map(item => {
+    if (item.type === PatternItemType.GROUP && (item.data as StitchGroup).id === groupId) {
+      const group = item.data as StitchGroup
+      return {
+        ...item,
+        data: {
+          ...group,
+          completedRepeats: Math.max(0, Math.min(completedRepeats, group.repeatCount))
+        }
+      }
+    }
+    return item
+  })
+
+  const updatedRound = {
+    ...migratedRound,
+    patternItems: updatedPatternItems
+  }
+
+  return syncPatternItemsToLegacyFormat(updatedRound)
+}
+
 // 刪除 PatternItem 中的群組
 export function deleteGroupFromPatternItems(round: Round, groupId: string): Round {
   const migratedRound = migrateRoundToPatternItems(round)
@@ -667,4 +732,342 @@ export function getStitchDisplayInfo(stitch: StitchInfo) {
   }
   
   return StitchTypeInfo[stitch.type] || { symbol: '?', rawValue: '未知', englishName: 'unknown' }
+}
+
+// ==================== 多織圖支持工具函數 ====================
+
+// 兼容性函數：獲取專案的織圖數據（支持新舊格式）
+export function getProjectPattern(project: Project): Round[] {
+  // 優先使用當前織圖的數據
+  const currentChart = getCurrentChart(project)
+  if (currentChart && currentChart.rounds) {
+    return currentChart.rounds
+  }
+  
+  // 回退到舊格式
+  return project.pattern || []
+}
+
+// 兼容性函數：獲取專案的當前圈數
+export function getProjectCurrentRound(project: Project): number {
+  // 優先使用當前織圖的數據
+  const currentChart = getCurrentChart(project)
+  if (currentChart) {
+    return currentChart.currentRound
+  }
+  
+  // 回退到舊格式
+  return project.currentRound || 1
+}
+
+// 兼容性函數：獲取專案的當前針數
+export function getProjectCurrentStitch(project: Project): number {
+  // 優先使用當前織圖的數據
+  const currentChart = getCurrentChart(project)
+  if (currentChart) {
+    return currentChart.currentStitch
+  }
+  
+  // 回退到舊格式
+  return project.currentStitch || 0
+}
+
+// 檢查專案是否為舊格式（只有 pattern 沒有 charts）
+export function isLegacyProject(project: Project): boolean {
+  return !project.charts && !!project.pattern && Array.isArray(project.pattern) && project.pattern.length > 0
+}
+
+// 檢查專案是否為新格式（有 charts）
+export function isMultiChartProject(project: Project): boolean {
+  return !!project.charts && Array.isArray(project.charts) && project.charts.length > 0
+}
+
+// 將舊格式專案遷移為新格式（向後兼容）
+export function migrateProjectToMultiChart(project: Project): ProjectMigrationResult {
+  try {
+    // 如果已經是新格式，直接返回
+    if (isMultiChartProject(project)) {
+      return {
+        success: true,
+        migratedChartsCount: 0,
+        errors: []
+      }
+    }
+
+    // 如果是舊格式，進行遷移
+    if (isLegacyProject(project)) {
+      const defaultChart: Chart = {
+        id: generateId(),
+        name: '主織圖',
+        description: '從舊版本遷移的織圖',
+        rounds: project.pattern || [],
+        currentRound: project.currentRound || 1,
+        currentStitch: project.currentStitch || 0,
+        createdDate: project.createdDate,
+        lastModified: new Date(),
+        isCompleted: project.isCompleted || false,
+        notes: ''
+      }
+
+      // 更新專案結構
+      const migratedProject: Project = {
+        ...project,
+        charts: [defaultChart],
+        currentChartId: defaultChart.id,
+        // 保留舊欄位以確保向後兼容
+        pattern: project.pattern,
+        currentRound: project.currentRound,
+        currentStitch: project.currentStitch
+      }
+
+      Object.assign(project, migratedProject)
+
+      return {
+        success: true,
+        migratedChartsCount: 1,
+        errors: []
+      }
+    }
+
+    // 如果沒有任何織圖資料，創建空的 charts 陣列
+    if (!project.charts) {
+      project.charts = []
+    }
+    return {
+      success: true,
+      migratedChartsCount: 0,
+      errors: []
+    }
+
+  } catch (error) {
+    console.error('Migration failed:', error)
+    return {
+      success: false,
+      migratedChartsCount: 0,
+      errors: [error instanceof Error ? error.message : '未知錯誤']
+    }
+  }
+}
+
+// 創建新織圖
+export function createChart(name: string, description?: string, notes?: string): Chart {
+  return {
+    id: generateId(),
+    name: name.trim() || '新織圖',
+    description: description?.trim(),
+    rounds: [],
+    currentRound: 1,
+    currentStitch: 0,
+    createdDate: new Date(),
+    lastModified: new Date(),
+    isCompleted: false,
+    notes: notes?.trim()
+  }
+}
+
+// 獲取專案的當前織圖
+export function getCurrentChart(project: Project): Chart | null {
+  // 確保專案已遷移到新格式
+  migrateProjectToMultiChart(project)
+  
+  if (!project.charts || project.charts.length === 0) {
+    return null
+  }
+
+  // 如果有指定的當前織圖ID，優先使用
+  if (project.currentChartId) {
+    const chart = project.charts.find(c => c.id === project.currentChartId)
+    if (chart) return chart
+  }
+
+  // 否則返回第一個織圖
+  return project.charts[0]
+}
+
+// 獲取專案的所有織圖摘要
+export function getProjectChartSummaries(project: Project): ChartSummary[] {
+  // 確保專案已遷移到新格式
+  migrateProjectToMultiChart(project)
+  
+  if (!project.charts) return []
+
+  return project.charts.map(chart => ({
+    id: chart.id,
+    name: chart.name,
+    description: chart.description,
+    notes: chart.notes,
+    roundCount: chart.rounds ? chart.rounds.length : 0,
+    totalStitches: chart.rounds ? chart.rounds.reduce((sum, round) => sum + getRoundTotalStitches(round), 0) : 0,
+    currentProgress: getChartProgressPercentage(chart),
+    isCompleted: chart.isCompleted || false,
+    lastModified: chart.lastModified
+  }))
+}
+
+// 計算織圖進度百分比
+export function getChartProgressPercentage(chart: Chart): number {
+  if (!chart.rounds || chart.rounds.length === 0) return 0
+  
+  const totalStitches = chart.rounds.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)
+  if (totalStitches === 0) return 0
+  
+  let completedStitches = 0
+  
+  // 計算已完成的完整圈數
+  for (let roundNumber = 1; roundNumber < chart.currentRound; roundNumber++) {
+    const round = chart.rounds.find(r => r.roundNumber === roundNumber)
+    if (round) {
+      completedStitches += getRoundTotalStitches(round)
+    }
+  }
+  
+  // 添加當前圈的進度
+  const currentRound = chart.rounds.find(r => r.roundNumber === chart.currentRound)
+  if (currentRound) {
+    const maxStitchesInCurrentRound = getRoundTotalStitches(currentRound)
+    const validCurrentStitch = Math.min(Math.max(0, chart.currentStitch), maxStitchesInCurrentRound)
+    completedStitches += validCurrentStitch
+  }
+  
+  const progressRatio = completedStitches / totalStitches
+  return Math.min(Math.max(0, progressRatio * 100), 100)
+}
+
+// 計算織圖已完成針數
+export function getChartCompletedStitches(chart: Chart): number {
+  if (!chart.rounds || chart.rounds.length === 0) return 0
+  
+  let completed = 0
+  
+  // 計算已完成的完整圈數
+  for (let roundNumber = 1; roundNumber < chart.currentRound; roundNumber++) {
+    const round = chart.rounds.find(r => r.roundNumber === roundNumber)
+    if (round) {
+      completed += getRoundTotalStitches(round)
+    }
+  }
+  
+  // 添加當前圈的進度
+  const currentRound = chart.rounds.find(r => r.roundNumber === chart.currentRound)
+  if (currentRound) {
+    const maxStitchesInCurrentRound = getRoundTotalStitches(currentRound)
+    const validCurrentStitch = Math.min(Math.max(0, chart.currentStitch), maxStitchesInCurrentRound)
+    completed += validCurrentStitch
+  }
+  
+  return completed
+}
+
+// 檢查織圖是否完成
+export function isChartCompleted(chart: Chart): boolean {
+  if (!chart.rounds || chart.rounds.length === 0) return false
+  
+  const totalRounds = Math.max(...chart.rounds.map(r => r.roundNumber))
+  
+  // 如果當前圈數超過總圈數，認為已完成
+  if (chart.currentRound > totalRounds) return true
+  
+  // 如果在最後一圈且針數達到最後一針，也認為已完成
+  if (chart.currentRound === totalRounds) {
+    const lastRound = chart.rounds.find(r => r.roundNumber === totalRounds)
+    if (lastRound) {
+      const totalStitchesInLastRound = getRoundTotalStitches(lastRound)
+      return chart.currentStitch >= totalStitchesInLastRound
+    }
+  }
+  
+  return false
+}
+
+// 更新專案的當前織圖
+export function setCurrentChart(project: Project, chartId: string): boolean {
+  // 確保專案已遷移到新格式
+  migrateProjectToMultiChart(project)
+  
+  if (!project.charts) return false
+  
+  const chart = project.charts.find(c => c.id === chartId)
+  if (!chart) return false
+  
+  project.currentChartId = chartId
+  return true
+}
+
+// 添加織圖到專案
+export function addChartToProject(project: Project, chart: Chart): boolean {
+  // 確保專案已遷移到新格式
+  migrateProjectToMultiChart(project)
+  
+  if (!project.charts) {
+    project.charts = []
+  }
+  
+  // 檢查是否已存在相同ID的織圖
+  if (project.charts.some(c => c.id === chart.id)) {
+    return false
+  }
+  
+  project.charts.push(chart)
+  
+  // 如果這是第一個織圖，設為當前織圖
+  if (project.charts.length === 1) {
+    project.currentChartId = chart.id
+  }
+  
+  return true
+}
+
+// 從專案中移除織圖
+export function removeChartFromProject(project: Project, chartId: string): boolean {
+  // 確保專案已遷移到新格式
+  migrateProjectToMultiChart(project)
+  
+  if (!project.charts) return false
+  
+  const initialLength = project.charts.length
+  project.charts = project.charts.filter(c => c.id !== chartId)
+  
+  // 如果移除的是當前織圖，切換到第一個可用的織圖
+  if (project.currentChartId === chartId && project.charts.length > 0) {
+    project.currentChartId = project.charts[0].id
+  } else if (project.charts.length === 0) {
+    project.currentChartId = undefined
+  }
+  
+  return project.charts.length < initialLength
+}
+
+// 更新專案中的織圖
+export function updateChartInProject(project: Project, updatedChart: Chart): boolean {
+  // 確保專案已遷移到新格式
+  migrateProjectToMultiChart(project)
+  
+  if (!project.charts) return false
+  
+  const index = project.charts.findIndex(c => c.id === updatedChart.id)
+  if (index === -1) return false
+  
+  project.charts[index] = {
+    ...project.charts[index],
+    ...updatedChart,
+    lastModified: new Date()
+  }
+  
+  return true
+}
+
+// Additional safe utilities for null/undefined checking
+export function getProjectCurrentRoundSafe(project: Project | null | undefined): number {
+  if (!project) return 1
+  return getProjectCurrentRound(project)
+}
+
+export function getProjectCurrentStitchSafe(project: Project | null | undefined): number {
+  if (!project) return 0
+  return getProjectCurrentStitch(project)
+}
+
+export function getProjectPatternSafe(project: Project | null | undefined): Round[] {
+  if (!project) return []
+  return getProjectPattern(project)
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 // import { FaRegEdit } from 'react-icons/fa'
 import { FiEdit3 } from "react-icons/fi"
 import { VscEdit } from 'react-icons/vsc'
@@ -16,12 +16,17 @@ import {
   getRoundTotalStitches,
   getStitchGroupTotalStitches,
   getSortedPatternItems,
-  getStitchDisplayInfo
+  getStitchDisplayInfo,
+  getCurrentChart,
+  getProjectPattern,
+  isLegacyProject,
+  describeRound
 } from '../utils'
 import { Round, StitchInfo, StitchGroup, StitchType, StitchTypeInfo, PatternItemType } from '../types'
 
 export default function PatternEditorView() {
   const { projectId } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { 
     currentProject, 
@@ -39,9 +44,13 @@ export default function PatternEditorView() {
     deleteStitchGroupFromRound,
     reorderPatternItemsInRound,
     createStitchGroupFromTemplate,
-    copyRound
+    copyRound,
+    updateChart,
+    migrateCurrentProjectToMultiChart
   } = useSyncedAppStore()
 
+  const [currentChart, setCurrentChart] = useState<any>(null)
+  const [chartPattern, setChartPattern] = useState<Round[]>([])
   const [showAddRoundForm, setShowAddRoundForm] = useState(false)
   const [showStitchModal, setShowStitchModal] = useState<{ roundNumber: number, mode: 'add' | 'edit', stitchId?: string } | null>(null)
   const [editingRound, setEditingRound] = useState<Round | null>(null)
@@ -94,6 +103,12 @@ export default function PatternEditorView() {
   const [editGroupStitchType, setEditGroupStitchType] = useState<StitchType>(StitchType.SINGLE)
   const [editGroupStitchCount, setEditGroupStitchCount] = useState<number | string>(1)
 
+  // 編輯織圖資訊狀態
+  const [showEditChartModal, setShowEditChartModal] = useState(false)
+  const [editChartName, setEditChartName] = useState('')
+  const [editChartDescription, setEditChartDescription] = useState('')
+  const [editChartNotes, setEditChartNotes] = useState('')
+
   // 拖拽狀態
   const [draggedItem, setDraggedItem] = useState<{ index: number, roundNumber: number } | null>(null)
 
@@ -102,11 +117,46 @@ export default function PatternEditorView() {
       const project = projects.find(p => p.id === projectId)
       if (project) {
         setCurrentProject(projectId)
+        
+        // 如果是舊格式專案，自動遷移
+        if (isLegacyProject(project)) {
+          console.log('Migrating legacy project to multi-chart format')
+          migrateCurrentProjectToMultiChart()
+        }
       } else {
         navigate('/404')
       }
     }
-  }, [projectId, projects, navigate])
+  }, [projectId, projects, navigate, migrateCurrentProjectToMultiChart])
+
+  // 處理織圖選擇和數據
+  useEffect(() => {
+    if (!currentProject) return
+
+    const chartId = searchParams.get('chartId')
+    let targetChart = null
+
+    if (chartId && currentProject.charts) {
+      // 查找指定的織圖
+      targetChart = currentProject.charts.find(c => c.id === chartId)
+      if (!targetChart) {
+        console.warn('指定的織圖不存在，使用當前織圖')
+        targetChart = getCurrentChart(currentProject)
+      }
+    } else {
+      // 使用當前織圖
+      targetChart = getCurrentChart(currentProject)
+    }
+
+    if (targetChart) {
+      setCurrentChart(targetChart)
+      setChartPattern(targetChart.rounds || [])
+    } else {
+      // 回退到舊格式
+      setCurrentChart(null)
+      setChartPattern(getProjectPattern(currentProject))
+    }
+  }, [currentProject, searchParams])
 
   // 處理數字輸入的輔助函數
   const handleNumberInputChange = (setValue: (value: number | string) => void, minValue: number = 1) => ({
@@ -164,7 +214,7 @@ export default function PatternEditorView() {
         return
       }
       
-      const roundNumbers = currentProject.pattern?.map(r => r.roundNumber) || []
+      const roundNumbers = chartPattern?.map(r => r.roundNumber) || []
       const nextRoundNumber = Math.max(0, ...roundNumbers) + 1
       
       const newRound: Round = {
@@ -178,10 +228,20 @@ export default function PatternEditorView() {
       console.log('[UI-ADD-ROUND] About to call addRound with:', {
         newRound,
         currentProjectId: currentProject.id,
-        currentPatternLength: currentProject.pattern.length
+        currentPatternLength: chartPattern.length
       })
 
-      await addRound(newRound)
+      // 如果有特定織圖，更新織圖；否則使用原有的 addRound
+      if (currentChart) {
+        const updatedChart = {
+          ...currentChart,
+          rounds: [...currentChart.rounds, newRound],
+          lastModified: new Date()
+        }
+        await updateChart(updatedChart)
+      } else {
+        await addRound(newRound)
+      }
       
       console.log('[UI-ADD-ROUND] Successfully added round, cleaning up UI state')
       setNewRoundNotes('')
@@ -220,7 +280,16 @@ export default function PatternEditorView() {
 
   const handleDeleteRound = async (roundNumber: number) => {
     if (confirm(`確定要刪除第 ${roundNumber} 圈嗎？`)) {
-      await deleteRound(roundNumber)
+      if (currentChart) {
+        const updatedChart = {
+          ...currentChart,
+          rounds: currentChart.rounds.filter((r: Round) => r.roundNumber !== roundNumber),
+          lastModified: new Date()
+        }
+        await updateChart(updatedChart)
+      } else {
+        await deleteRound(roundNumber)
+      }
     }
   }
 
@@ -264,7 +333,25 @@ export default function PatternEditorView() {
         currentProjectId: currentProject.id
       })
 
-      await addStitchToRound(showStitchModal.roundNumber, newStitch)
+      if (currentChart) {
+        const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === showStitchModal.roundNumber)
+        if (targetRound) {
+          const updatedRound = {
+            ...targetRound,
+            stitches: [...targetRound.stitches, newStitch]
+          }
+          const updatedChart = {
+            ...currentChart,
+            rounds: currentChart.rounds.map((r: Round) => 
+              r.roundNumber === showStitchModal.roundNumber ? updatedRound : r
+            ),
+            lastModified: new Date()
+          }
+          await updateChart(updatedChart)
+        }
+      } else {
+        await addStitchToRound(showStitchModal.roundNumber, newStitch)
+      }
       
       console.log('[UI-ADD-STITCH] Successfully added stitch')
       setShowStitchModal(null) // 關閉 modal
@@ -308,13 +395,36 @@ export default function PatternEditorView() {
     console.log('[UI-ADD-GROUP] Created new group:', newGroup)
 
     try {
-      console.log('[UI-ADD-GROUP] About to call addStitchGroupToRound')
-      await addStitchGroupToRound(roundNumber, newGroup)
+      console.log('[UI-ADD-GROUP] About to add stitch group to round')
+      
+      if (currentChart) {
+        // 多織圖模式：更新織圖
+        const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+        if (targetRound) {
+          const updatedRound = {
+            ...targetRound,
+            stitchGroups: [...targetRound.stitchGroups, newGroup]
+          }
+          const updatedChart = {
+            ...currentChart,
+            rounds: currentChart.rounds.map((r: Round) => 
+              r.roundNumber === roundNumber ? updatedRound : r
+            ),
+            lastModified: new Date()
+          }
+          await updateChart(updatedChart)
+        }
+      } else {
+        // 舊格式模式
+        await addStitchGroupToRound(roundNumber, newGroup)
+      }
+      
       console.log('[UI-ADD-GROUP] Successfully added group')
       
       // 延遲檢查更新後的狀態，確保狀態已更新
       setTimeout(() => {
-        const updatedRound = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+        const pattern = currentChart ? currentChart.rounds : getProjectPattern(currentProject)
+        const updatedRound = pattern.find((r: Round) => r.roundNumber === roundNumber)
         console.log('[UI-ADD-GROUP] Updated round after addition:', {
           roundNumber,
           stitchGroups: updatedRound?.stitchGroups?.length,
@@ -381,7 +491,8 @@ export default function PatternEditorView() {
     if (!showEditGroupStitchModal) return
 
     const { roundNumber, groupId } = showEditGroupStitchModal
-    const round = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+    const pattern = getProjectPattern(currentProject)
+    const round = pattern.find(r => r.roundNumber === roundNumber)
     const group = round?.stitchGroups.find(g => g.id === groupId)
     
     if (group) {
@@ -424,7 +535,8 @@ export default function PatternEditorView() {
 
   const handleUpdateStitch = async (roundNumber: number, stitchId: string) => {
     // 獲取原始針法資料
-    const round = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+    const pattern = getProjectPattern(currentProject)
+    const round = pattern.find(r => r.roundNumber === roundNumber)
     const originalStitch = round?.stitches.find(s => s.id === stitchId)
     
     const updatedStitch: StitchInfo = {
@@ -482,7 +594,8 @@ export default function PatternEditorView() {
 
   const handleUpdateGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
     // 獲取原始針法資料
-    const round = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+    const pattern = getProjectPattern(currentProject)
+    const round = pattern.find(r => r.roundNumber === roundNumber)
     const group = round?.stitchGroups.find(g => g.id === groupId)
     const originalStitch = group?.stitches.find(s => s.id === stitchId)
     
@@ -506,7 +619,8 @@ export default function PatternEditorView() {
 
   const handleDeleteGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
     if (confirm('確定要刪除這個針法嗎？')) {
-      const round = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+      const pattern = getProjectPattern(currentProject)
+      const round = pattern.find(r => r.roundNumber === roundNumber)
       const group = round?.stitchGroups.find(g => g.id === groupId)
       
       if (group) {
@@ -547,6 +661,31 @@ export default function PatternEditorView() {
     }
   }
 
+  // 編輯織圖資訊處理函數
+  const handleOpenEditChartModal = () => {
+    if (!currentChart) return
+    setEditChartName(currentChart.name)
+    setEditChartDescription(currentChart.description || '')
+    setEditChartNotes(currentChart.notes || '')
+    setShowEditChartModal(true)
+  }
+
+  const handleUpdateChart = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentChart || !editChartName.trim()) return
+
+    const updatedChart = {
+      ...currentChart,
+      name: editChartName.trim(),
+      description: editChartDescription.trim() || undefined,
+      notes: editChartNotes.trim() || undefined,
+      lastModified: new Date()
+    }
+
+    await updateChart(updatedChart)
+    setShowEditChartModal(false)
+  }
+
   // 範本管理處理函數
   const handleSaveAsTemplate = (group: StitchGroup) => {
     setShowTemplateModal({ mode: 'save', group })
@@ -579,7 +718,29 @@ export default function PatternEditorView() {
       // 如果是在圈數中直接使用範本，直接新增群組
       const newGroup = createStitchGroupFromTemplate(template.id)
       if (newGroup) {
-        await addStitchGroupToRound(showTemplateModal.roundNumber, newGroup)
+        console.log('[TEMPLATE] Adding template group to round:', newGroup)
+        
+        if (currentChart) {
+          // 多織圖模式：更新織圖
+          const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === showTemplateModal.roundNumber)
+          if (targetRound) {
+            const updatedRound = {
+              ...targetRound,
+              stitchGroups: [...targetRound.stitchGroups, newGroup]
+            }
+            const updatedChart = {
+              ...currentChart,
+              rounds: currentChart.rounds.map((r: Round) => 
+                r.roundNumber === showTemplateModal.roundNumber ? updatedRound : r
+              ),
+              lastModified: new Date()
+            }
+            await updateChart(updatedChart)
+          }
+        } else {
+          // 舊格式模式
+          await addStitchGroupToRound(showTemplateModal.roundNumber, newGroup)
+        }
       }
     }
     setShowTemplateModal(null)
@@ -587,7 +748,8 @@ export default function PatternEditorView() {
 
   // 複製圈數處理函數
   const handleCopyRound = (roundNumber: number) => {
-    const sourceRound = currentProject?.pattern.find(r => r.roundNumber === roundNumber)
+    const pattern = getProjectPattern(currentProject)
+    const sourceRound = pattern.find(r => r.roundNumber === roundNumber)
     if (sourceRound) {
       setShowCopyRoundModal({ sourceRound })
     }
@@ -621,7 +783,14 @@ export default function PatternEditorView() {
               >
                 <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
               </Link>
-              <h1 className="text-base sm:text-xl font-semibold text-text-primary">織圖編輯</h1>
+              <div className="flex flex-col">
+                <h1 className="text-base sm:text-xl font-semibold text-text-primary">織圖編輯</h1>
+                {currentChart && (
+                  <span className="text-xs sm:text-sm text-text-secondary">
+                    {currentChart.name}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <button
@@ -638,29 +807,106 @@ export default function PatternEditorView() {
       </div>
 
       <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* 織圖總覽 */}
+        {/* 織圖預覽 */}
         <div className="card">
-          <h2 className="text-lg font-semibold text-text-primary mb-4">織圖總覽</h2>
-          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-3 gap-4 text-sm">
-            <div>
-              <span className="text-text-secondary">總圈數：</span>
-              <span className="font-medium text-text-primary">{currentProject.pattern.length}</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl font-semibold text-text-primary">
+                {currentChart ? currentChart.name : '織圖預覽'}
+              </h2>
+              {currentChart && (currentChart.description || currentChart.notes) && (
+                <div className="mt-2 space-y-1">
+                  {currentChart.description && (
+                    <p className="text-sm text-text-secondary">{currentChart.description}</p>
+                  )}
+                  {currentChart.notes && (
+                    <p className="text-xs text-text-tertiary whitespace-pre-wrap">{currentChart.notes}</p>
+                  )}
+                </div>
+              )}
             </div>
-            <div>
-              <span className="text-text-secondary">總針數：</span>
-              <span className="font-medium text-text-primary">
-                {currentProject.pattern.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)}
-              </span>
-            </div>
-            <div>
-              <span className="text-text-secondary">使用毛線：</span>
-              <span className="font-medium text-text-primary">{currentProject.yarns.length} 種</span>
-            </div>
+            {currentChart && (
+              <button
+                onClick={handleOpenEditChartModal}
+                className="ml-4 text-text-secondary hover:text-text-primary p-2 transition-colors"
+                title="編輯織圖資訊"
+              >
+                <FiEdit3 className="w-5 h-5" />
+              </button>
+            )}
           </div>
+          
+          {chartPattern.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="mb-3 flex justify-center">
+                <FiEdit3 className="w-8 h-8 text-text-tertiary" />
+              </div>
+              <p className="text-text-tertiary mb-3">尚未建立織圖</p>
+              <button
+                onClick={() => setShowAddRoundForm(true)}
+                className="text-primary hover:underline text-sm"
+              >
+                點擊這裡開始編輯織圖
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* 織圖列表 */}
+              <div className="max-h-96 overflow-y-auto space-y-3">
+                {chartPattern.map((round) => {
+                  const roundStitches = getRoundTotalStitches(round)
+                  const roundDescription = currentProject ? describeRound(round, currentProject.yarns) : '載入中...'
+                  
+                  return (
+                    <div key={round.id} className="flex gap-3 p-3 bg-background-secondary rounded-lg">
+                      <div className="text-sm font-semibold flex-shrink-0 leading-relaxed" style={{ color: '#d96699' }}>
+                        R{round.roundNumber}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text-primary font-medium text-sm leading-relaxed m-0">
+                          {roundDescription}
+                        </p>
+                        {round.notes && (
+                          <p className="text-xs text-text-tertiary mt-1">
+                            {round.notes}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-semibold text-text-primary leading-relaxed m-0">
+                          {roundStitches} 針
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* 總計資訊 */}
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <div className="grid grid-cols-3 gap-4 text-sm w-full">
+                  <div>
+                    <span className="text-text-secondary">總圈數: </span>
+                    <span className="font-medium text-text-primary">{chartPattern.length}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-secondary">總針數: </span>
+                    <span className="font-medium text-text-primary">
+                      {chartPattern.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-secondary">使用毛線: </span>
+                    <span className="font-medium text-text-primary">{currentProject?.yarns.length || 0} 種</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 圈數列表 */}
-        {currentProject.pattern.length === 0 ? (
+        {chartPattern.length === 0 ? (
           <div className="card text-center py-12">
             <div className="mb-4 flex justify-center">
               <FiEdit3 className="w-8 h-8 text-text-tertiary" />
@@ -680,7 +926,7 @@ export default function PatternEditorView() {
           </div>
         ) : (
           <div className="space-y-4">
-            {currentProject.pattern
+            {chartPattern
               .sort((a, b) => a.roundNumber - b.roundNumber)
               .map((round) => (
               <div key={round.id} className="card" data-round-card={round.roundNumber}>
@@ -1576,13 +1822,81 @@ export default function PatternEditorView() {
         </div>
       )}
 
+      {/* 編輯織圖資訊模態 */}
+      {showEditChartModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background-primary rounded-lg shadow-lg w-full max-w-md">
+            <form onSubmit={handleUpdateChart} className="p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-text-primary mb-4">編輯織圖資訊</h3>
+              
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  織圖名稱
+                </label>
+                <input
+                  type="text"
+                  value={editChartName}
+                  onChange={(e) => setEditChartName(e.target.value)}
+                  className="input"
+                  placeholder="織圖名稱"
+                  required
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  描述（選填）
+                </label>
+                <input
+                  type="text"
+                  value={editChartDescription}
+                  onChange={(e) => setEditChartDescription(e.target.value)}
+                  className="input"
+                  placeholder="織圖的簡短描述"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  備註（選填）
+                </label>
+                <textarea
+                  value={editChartNotes}
+                  onChange={(e) => setEditChartNotes(e.target.value)}
+                  className="input min-h-[80px] resize-y"
+                  placeholder="織圖的詳細備註"
+                  rows={3}
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditChartModal(false)}
+                  className="btn btn-secondary flex-1"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary flex-1"
+                >
+                  儲存
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* 複製圈數位置選擇模態 */}
       <CopyRoundModal
         isOpen={showCopyRoundModal !== null}
         onClose={() => setShowCopyRoundModal(null)}
         onConfirm={handleCopyRoundConfirm}
         sourceRound={showCopyRoundModal?.sourceRound || null}
-        allRounds={currentProject?.pattern || []}
+        allRounds={getProjectPattern(currentProject)}
       />
     </div>
   )
