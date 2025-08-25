@@ -30,6 +30,7 @@ export default function ProjectDetailView() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editName, setEditName] = useState('')
   const [editSource, setEditSource] = useState('')
+  const [editNotes, setEditNotes] = useState('')
 
   // 織圖管理狀態
   const [showCreateChartModal, setShowCreateChartModal] = useState(false)
@@ -69,6 +70,7 @@ export default function ProjectDetailView() {
     if (!currentProject) return
     setEditName(currentProject.name)
     setEditSource(currentProject.source || '')
+    setEditNotes(currentProject.notes || '')
     setShowEditModal(true)
   }
 
@@ -81,6 +83,7 @@ export default function ProjectDetailView() {
       ...currentProject,
       name: editName.trim(),
       source: editSource.trim() || undefined,
+      notes: editNotes.trim() || undefined,
       lastModified: new Date()
     }
     
@@ -213,6 +216,13 @@ export default function ProjectDetailView() {
                 >
                   {currentProject.source}
                 </a>
+              </div>
+            )}
+            
+            {currentProject.notes && (
+              <div>
+                <div className="text-sm text-text-secondary mb-1">備註</div>
+                <div className="text-sm text-text-primary whitespace-pre-wrap">{currentProject.notes}</div>
               </div>
             )}
             
@@ -428,6 +438,12 @@ export default function ProjectDetailView() {
                               </p>
                             )}
                             
+                            {chart.notes && (
+                              <p className="text-xs text-text-tertiary mb-2 line-clamp-2">
+                                {chart.notes}
+                              </p>
+                            )}
+                            
                             <div className="grid grid-cols-3 gap-4 text-xs text-text-secondary">
                               <div>圈數: {chart.roundCount}</div>
                               <div>針數: {chart.totalStitches}</div>
@@ -525,6 +541,19 @@ export default function ProjectDetailView() {
                   onChange={(e) => setEditSource(e.target.value)}
                   className="input"
                   placeholder="https://..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  備註（選填）
+                </label>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="input min-h-[80px] resize-y"
+                  placeholder="專案的詳細備註或說明..."
+                  rows={3}
                 />
               </div>
               

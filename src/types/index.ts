@@ -156,6 +156,7 @@ export interface Project {
   id: string
   name: string
   source?: string
+  notes?: string
   // 向後兼容：保留舊的 pattern 欄位
   pattern?: Round[]
   currentRound?: number
@@ -242,6 +243,7 @@ export interface ChartSummary {
   id: string
   name: string
   description?: string
+  notes?: string
   roundCount: number
   totalStitches: number
   currentProgress: number // 0-100的百分比

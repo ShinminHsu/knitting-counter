@@ -895,6 +895,7 @@ export function getProjectChartSummaries(project: Project): ChartSummary[] {
     id: chart.id,
     name: chart.name,
     description: chart.description,
+    notes: chart.notes,
     roundCount: chart.rounds ? chart.rounds.length : 0,
     totalStitches: chart.rounds ? chart.rounds.reduce((sum, round) => sum + getRoundTotalStitches(round), 0) : 0,
     currentProgress: getChartProgressPercentage(chart),
