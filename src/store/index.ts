@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Project, WorkSession, Yarn, Round, StitchInfo, StitchGroup } from '../types'
-import { generateId, createSampleProject, getRoundTotalStitches } from '../utils'
+import { generateId, createSampleProject, getRoundTotalStitches, getProjectPattern, getProjectCurrentRound, getProjectCurrentStitch } from '../utils'
 // import { clearUserData as clearStoredUserData } from '../utils/userStorage'
 import { useAuthStore } from './authStore'
 // import { firestoreService, UserProfile } from '../services/firestoreService'
@@ -233,47 +233,47 @@ export const useAppStore = create<AppStore>()(
           return
         }
 
-        const currentRound = currentProject.pattern.find(r => r.roundNumber === currentProject.currentRound)
+        const currentRound = getProjectPattern(currentProject).find(r => r.roundNumber === getProjectCurrentRound(currentProject))
         if (!currentRound) {
-          console.log('[DEBUG] nextStitch: Current round not found', currentProject.currentRound)
+          console.log('[DEBUG] nextStitch: Current round not found', getProjectCurrentRound(currentProject))
           return
         }
 
         const totalStitchesInRound = getRoundTotalStitches(currentRound)
-        let newStitch = currentProject.currentStitch + 1
-        let newRound = currentProject.currentRound
+        let newStitch = getProjectCurrentStitch(currentProject) + 1
+        let newRound = getProjectCurrentRound(currentProject)
         let isCompleted = false
 
         console.log('[DEBUG] nextStitch: Current state', {
-          currentRound: currentProject.currentRound,
-          currentStitch: currentProject.currentStitch,
+          currentRound: getProjectCurrentRound(currentProject),
+          currentStitch: getProjectCurrentStitch(currentProject),
           newStitch,
           totalStitchesInRound,
-          patternRounds: currentProject.pattern.map(r => r.roundNumber)
+          patternRounds: getProjectPattern(currentProject).map(r => r.roundNumber)
         })
 
         // 如果超過當前圈數的針數，檢查是否完成或移到下一圈
         if (newStitch >= totalStitchesInRound) {
           // 檢查是否還有更多圈數
-          const maxRoundNumber = Math.max(...currentProject.pattern.map(r => r.roundNumber))
+          const maxRoundNumber = Math.max(...getProjectPattern(currentProject).map(r => r.roundNumber))
           
           console.log('[DEBUG] nextStitch: Checking completion', {
-            currentRound: currentProject.currentRound,
+            currentRound: getProjectCurrentRound(currentProject),
             maxRoundNumber,
-            shouldComplete: currentProject.currentRound >= maxRoundNumber
+            shouldComplete: getProjectCurrentRound(currentProject) >= maxRoundNumber
           })
           
-          if (currentProject.currentRound >= maxRoundNumber) {
+          if (getProjectCurrentRound(currentProject) >= maxRoundNumber) {
             // 已完成所有圈數
             console.log('[DEBUG] nextStitch: Setting project as completed')
             isCompleted = true
             newStitch = totalStitchesInRound // 保持在最後一針
-            newRound = currentProject.currentRound // 保持在最後一圈
+            newRound = getProjectCurrentRound(currentProject) // 保持在最後一圈
           } else {
             // 移到下一圈
             console.log('[DEBUG] nextStitch: Moving to next round')
             newStitch = 0
-            newRound = currentProject.currentRound + 1
+            newRound = getProjectCurrentRound(currentProject) + 1
           }
         }
 
@@ -298,13 +298,13 @@ export const useAppStore = create<AppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        let newStitch = currentProject.currentStitch - 1
-        let newRound = currentProject.currentRound
+        let newStitch = getProjectCurrentStitch(currentProject) - 1
+        let newRound = getProjectCurrentRound(currentProject)
 
         // 如果小於0，移到上一圈的最後一針
         if (newStitch < 0 && newRound > 1) {
-          newRound = currentProject.currentRound - 1
-          const previousRound = currentProject.pattern.find(r => r.roundNumber === newRound)
+          newRound = getProjectCurrentRound(currentProject) - 1
+          const previousRound = getProjectPattern(currentProject).find(r => r.roundNumber === newRound)
           if (previousRound) {
             newStitch = getRoundTotalStitches(previousRound) - 1
           } else {
@@ -406,7 +406,7 @@ export const useAppStore = create<AppStore>()(
 
         const updatedProject = {
           ...currentProject,
-          pattern: [...currentProject.pattern, round],
+          pattern: [...getProjectPattern(currentProject), round],
           lastModified: new Date()
         }
 
@@ -419,7 +419,7 @@ export const useAppStore = create<AppStore>()(
 
         const updatedProject = {
           ...currentProject,
-          pattern: currentProject.pattern.map(r => 
+          pattern: getProjectPattern(currentProject).map(r => 
             r.id === updatedRound.id ? updatedRound : r
           ),
           lastModified: new Date()
@@ -433,7 +433,7 @@ export const useAppStore = create<AppStore>()(
         if (!currentProject) return
 
         // 刪除指定圈數
-        const filteredPattern = currentProject.pattern.filter(r => r.roundNumber !== roundNumber)
+        const filteredPattern = getProjectPattern(currentProject).filter(r => r.roundNumber !== roundNumber)
         
         // 重新編號後續圈數
         const renumberedPattern = filteredPattern.map(round => {
@@ -447,7 +447,7 @@ export const useAppStore = create<AppStore>()(
         })
 
         // 調整當前圈數
-        let newCurrentRound = currentProject.currentRound
+        let newCurrentRound = getProjectCurrentRound(currentProject)
         if (newCurrentRound > roundNumber) {
           newCurrentRound = Math.max(1, newCurrentRound - 1)
         }
@@ -467,7 +467,7 @@ export const useAppStore = create<AppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = currentProject.pattern.map(round => {
+        const updatedPattern = getProjectPattern(currentProject).map(round => {
           if (round.roundNumber === roundNumber) {
             return {
               ...round,
@@ -490,7 +490,7 @@ export const useAppStore = create<AppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = currentProject.pattern.map(round => {
+        const updatedPattern = getProjectPattern(currentProject).map(round => {
           if (round.roundNumber === roundNumber) {
             return {
               ...round,
@@ -513,7 +513,7 @@ export const useAppStore = create<AppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = currentProject.pattern.map(round => {
+        const updatedPattern = getProjectPattern(currentProject).map(round => {
           if (round.roundNumber === roundNumber) {
             return {
               ...round,
@@ -538,7 +538,7 @@ export const useAppStore = create<AppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = currentProject.pattern.map(round => {
+        const updatedPattern = getProjectPattern(currentProject).map(round => {
           if (round.roundNumber === roundNumber) {
             return {
               ...round,
@@ -561,7 +561,7 @@ export const useAppStore = create<AppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = currentProject.pattern.map(round => {
+        const updatedPattern = getProjectPattern(currentProject).map(round => {
           if (round.roundNumber === roundNumber) {
             const newStitches = [...round.stitches]
             const [removed] = newStitches.splice(fromIndex, 1)
@@ -588,7 +588,7 @@ export const useAppStore = create<AppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = currentProject.pattern.map(round => {
+        const updatedPattern = getProjectPattern(currentProject).map(round => {
           if (round.roundNumber === roundNumber) {
             return {
               ...round,
@@ -613,7 +613,7 @@ export const useAppStore = create<AppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = currentProject.pattern.map(round => {
+        const updatedPattern = getProjectPattern(currentProject).map(round => {
           if (round.roundNumber === roundNumber) {
             return {
               ...round,
@@ -636,7 +636,7 @@ export const useAppStore = create<AppStore>()(
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = currentProject.pattern.map(round => {
+        const updatedPattern = getProjectPattern(currentProject).map(round => {
           if (round.roundNumber === roundNumber) {
             const newGroups = [...round.stitchGroups]
             const [removed] = newGroups.splice(fromIndex, 1)

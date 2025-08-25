@@ -155,8 +155,8 @@ class FirestoreService {
         id: project.id,
         name: project.name,
         source: project.source || '',
-        currentRound: project.currentRound,
-        currentStitch: project.currentStitch,
+        currentRound: project.currentRound || 1,
+        currentStitch: project.currentStitch || 0,
         yarns: project.yarns || [],
         sessions: project.sessions?.map(session => ({
           ...session,
@@ -177,7 +177,7 @@ class FirestoreService {
         }))
       })
       
-      for (const round of project.pattern) {
+      for (const round of project.pattern || []) {
         await this.createRound(userId, project.id, round)
       }
     } catch (error) {
@@ -192,12 +192,12 @@ class FirestoreService {
         currentRound: project.currentRound,
         currentStitch: project.currentStitch,
         isCompleted: project.isCompleted,
-        patternLength: project.pattern.length
+        patternLength: project.pattern?.length || 0
       })
       
       // 先嘗試同步圈數，確保子集合更新成功
       console.log('[FIRESTORE] Syncing rounds first...')
-      await this.syncRounds(userId, project.id, project.pattern)
+      await this.syncRounds(userId, project.id, project.pattern || [])
       console.log('[FIRESTORE] Rounds synced successfully')
       
       // 圈數同步成功後，才更新主專案文檔
@@ -206,8 +206,8 @@ class FirestoreService {
       const firestoreProject: Partial<FirestoreProject> = {
         name: project.name,
         source: project.source || '',
-        currentRound: project.currentRound,
-        currentStitch: project.currentStitch,
+        currentRound: project.currentRound || 1,
+        currentStitch: project.currentStitch || 0,
         yarns: project.yarns || [],
         sessions: project.sessions?.map(session => ({
           ...session,
@@ -232,7 +232,7 @@ class FirestoreService {
       // 驗證同步結果
       const roundsRef = collection(db, 'users', userId, 'projects', project.id, 'rounds')
       const roundsSnap = await getDocs(roundsRef)
-      console.log('[FIRESTORE] Verification - Local pattern length:', project.pattern.length, 'Remote rounds count:', roundsSnap.docs.length)
+      console.log('[FIRESTORE] Verification - Local pattern length:', project.pattern?.length || 0, 'Remote rounds count:', roundsSnap.docs.length)
     } catch (error) {
       console.error('[FIRESTORE] Error updating project:', error)
       

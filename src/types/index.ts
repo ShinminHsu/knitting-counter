@@ -131,6 +131,19 @@ export interface Pattern {
   isCompleted?: boolean
 }
 
+export interface Chart {
+  id: string
+  name: string
+  description?: string
+  rounds: Round[]
+  currentRound: number
+  currentStitch: number
+  createdDate: Date
+  lastModified: Date
+  isCompleted?: boolean
+  notes?: string
+}
+
 export interface WorkSession {
   id: string
   startTime: Date
@@ -143,9 +156,13 @@ export interface Project {
   id: string
   name: string
   source?: string
-  pattern: Round[]
-  currentRound: number
-  currentStitch: number
+  // 向後兼容：保留舊的 pattern 欄位
+  pattern?: Round[]
+  currentRound?: number
+  currentStitch?: number
+  // 新的多織圖結構
+  charts?: Chart[]
+  currentChartId?: string
   yarns: Yarn[]
   sessions: WorkSession[]
   createdDate: Date
@@ -214,8 +231,34 @@ export interface AppState {
   error?: string
 }
 
+// 織圖管理相關類型
+export interface CreateChartRequest {
+  name: string
+  description?: string
+  notes?: string
+}
+
+export interface ChartSummary {
+  id: string
+  name: string
+  description?: string
+  roundCount: number
+  totalStitches: number
+  currentProgress: number // 0-100的百分比
+  isCompleted: boolean
+  lastModified: Date
+}
+
+// 專案遷移相關類型
+export interface ProjectMigrationResult {
+  success: boolean
+  migratedChartsCount: number
+  errors: string[]
+}
+
 // 路由類型
 export type RouteParams = {
   projectId?: string
+  chartId?: string
   roundId?: string
 }

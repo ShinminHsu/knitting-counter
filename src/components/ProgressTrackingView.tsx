@@ -10,7 +10,10 @@ import {
   getProjectCompletedStitches,
   getRoundTotalStitches,
   getStitchDisplayInfo,
-  getSortedPatternItems
+  getSortedPatternItems,
+  getProjectPattern,
+  getProjectCurrentRound,
+  getProjectCurrentStitch
 } from '../utils'
 import { Round, StitchInfo, StitchGroup, PatternItemType } from '../types'
 
@@ -43,15 +46,17 @@ export default function ProgressTrackingView() {
 
 
   // 判斷是否在查看模式
-  const isViewMode = viewingRound !== null && viewingRound !== currentProject?.currentRound
-  const displayRoundNumber = viewingRound ?? currentProject?.currentRound ?? 1
-  const displayRound = currentProject?.pattern.find(r => r.roundNumber === displayRoundNumber)
+  const currentRound = currentProject ? getProjectCurrentRound(currentProject) : 1
+  const isViewMode = viewingRound !== null && viewingRound !== currentRound
+  const displayRoundNumber = viewingRound ?? currentRound
+  const pattern = currentProject ? getProjectPattern(currentProject) : []
+  const displayRound = pattern.find(r => r.roundNumber === displayRoundNumber)
 
   // 針目行數自動滾動邏輯
   useEffect(() => {
     if (!currentProject || isViewMode || !patternContainerRef.current || !displayRound) return
 
-    const currentStitch = currentProject.currentStitch
+    const currentStitch = getProjectCurrentStitch(currentProject)
     const container = patternContainerRef.current
     
     // 等待容器渲染完成
@@ -122,7 +127,7 @@ export default function ProgressTrackingView() {
 
   
   const progressPercentage = getProjectProgressPercentage(currentProject)
-  const currentStitchInRound = isViewMode ? 0 : currentProject.currentStitch // 查看模式下不顯示進度
+  const currentStitchInRound = isViewMode ? 0 : (currentProject ? getProjectCurrentStitch(currentProject) : 0) // 查看模式下不顯示進度
   const totalStitchesInCurrentRound = displayRound ? getRoundTotalStitches(displayRound) : 0
 
 
@@ -135,7 +140,7 @@ export default function ProgressTrackingView() {
   }
 
   const handleJumpToRound = (roundNumber: number) => {
-    if (roundNumber === currentProject.currentRound) {
+    if (roundNumber === currentRound) {
       // 如果跳轉到當前圈，退出查看模式
       setViewingRound(null)
     } else {
@@ -150,7 +155,7 @@ export default function ProgressTrackingView() {
     console.log('[DEBUG] handleCompleteRound: Completing round', displayRoundNumber)
     
     // 檢查是否為最後一圈
-    const maxRoundNumber = Math.max(...currentProject.pattern.map(r => r.roundNumber))
+    const maxRoundNumber = Math.max(...pattern.map(r => r.roundNumber))
     
     if (displayRoundNumber >= maxRoundNumber) {
       // 如果是最後一圈，標記為完成
@@ -519,7 +524,7 @@ export default function ProgressTrackingView() {
             <div>
               <div className="text-text-secondary">圈數進度</div>
               <div className="font-semibold text-text-primary">
-                {Math.max(0, currentProject.currentRound - 1)} / {getProjectTotalRounds(currentProject)} 圈
+                {Math.max(0, currentRound - 1)} / {getProjectTotalRounds(currentProject)} 圈
               </div>
             </div>
             <div>
