@@ -44,7 +44,6 @@ export default function PatternEditorView() {
     deleteStitchGroupFromRound,
     reorderPatternItemsInRound,
     createStitchGroupFromTemplate,
-    copyRound,
     updateChart,
     migrateCurrentProjectToMultiChart
   } = useSyncedAppStore()
@@ -136,6 +135,14 @@ export default function PatternEditorView() {
     const chartId = searchParams.get('chartId')
     let targetChart = null
 
+    console.log('[PATTERN-EDITOR] Chart selection debug:', {
+      chartId,
+      hasCharts: !!currentProject.charts,
+      chartsCount: currentProject.charts?.length || 0,
+      currentChartId: currentProject.currentChartId,
+      allChartIds: currentProject.charts?.map(c => c.id) || []
+    })
+
     if (chartId && currentProject.charts) {
       // 查找指定的織圖
       targetChart = currentProject.charts.find(c => c.id === chartId)
@@ -147,6 +154,12 @@ export default function PatternEditorView() {
       // 使用當前織圖
       targetChart = getCurrentChart(currentProject)
     }
+
+    console.log('[PATTERN-EDITOR] Selected chart:', {
+      chartId: targetChart?.id,
+      chartName: targetChart?.name,
+      roundsCount: targetChart?.rounds?.length || 0
+    })
 
     if (targetChart) {
       setCurrentChart(targetChart)
@@ -748,18 +761,99 @@ export default function PatternEditorView() {
 
   // 複製圈數處理函數
   const handleCopyRound = (roundNumber: number) => {
-    const pattern = getProjectPattern(currentProject)
-    const sourceRound = pattern.find(r => r.roundNumber === roundNumber)
+    // 使用當前顯示的織圖數據（來自 chartPattern 狀態）
+    console.log('[COPY-ROUND] Debug:', {
+      roundNumber,
+      chartPatternLength: chartPattern.length,
+      currentChartId: currentChart?.id,
+      currentChartName: currentChart?.name
+    })
+    
+    if (!currentChart) {
+      console.error('[COPY-ROUND] No current chart found')
+      return
+    }
+    
+    const sourceRound = chartPattern.find(r => r.roundNumber === roundNumber)
     if (sourceRound) {
+      console.log('[COPY-ROUND] Found source round:', sourceRound.roundNumber)
       setShowCopyRoundModal({ sourceRound })
+    } else {
+      console.error('[COPY-ROUND] Source round not found:', roundNumber)
     }
   }
 
   const handleCopyRoundConfirm = async (targetRoundNumber: number, insertPosition: 'before' | 'after') => {
-    if (showCopyRoundModal?.sourceRound) {
-      await copyRound(showCopyRoundModal.sourceRound.roundNumber, targetRoundNumber, insertPosition)
-      setShowCopyRoundModal(null)
+    if (!showCopyRoundModal?.sourceRound || !currentChart) {
+      console.error('[COPY-ROUND-CONFIRM] Missing required data')
+      return
     }
+
+    console.log('[COPY-ROUND-CONFIRM] Copying within chart:', {
+      chartId: currentChart.id,
+      chartName: currentChart.name,
+      sourceRound: showCopyRoundModal.sourceRound.roundNumber,
+      targetRound: targetRoundNumber,
+      insertPosition
+    })
+
+    // 直接在當前織圖中進行複製操作
+    const sourceRound = showCopyRoundModal.sourceRound
+
+    // 計算插入點和需要重新編號的圈數
+    let insertAfterRoundNumber: number
+    
+    if (insertPosition === 'before') {
+      insertAfterRoundNumber = targetRoundNumber - 1
+    } else {
+      insertAfterRoundNumber = targetRoundNumber
+    }
+
+    // 重新編號：將插入點之後的所有圈數編號+1
+    const updatedRounds = currentChart.rounds.map((round: Round) => {
+      if (round.roundNumber > insertAfterRoundNumber) {
+        return {
+          ...round,
+          roundNumber: round.roundNumber + 1
+        }
+      }
+      return round
+    })
+
+    // 決定新圈數的編號
+    const newRoundNumber = insertAfterRoundNumber + 1
+
+    // 創建新圈數，深拷貝所有數據並生成新ID
+    const newRound: Round = {
+      id: generateId(),
+      roundNumber: newRoundNumber,
+      stitches: sourceRound.stitches.map(stitch => ({
+        ...stitch,
+        id: generateId()
+      })),
+      stitchGroups: sourceRound.stitchGroups.map(group => ({
+        ...group,
+        id: generateId(),
+        stitches: group.stitches.map(stitch => ({
+          ...stitch,
+          id: generateId()
+        }))
+      })),
+      notes: sourceRound.notes
+    }
+
+    // 添加到織圖中並排序
+    const finalRounds = [...updatedRounds, newRound].sort((a, b) => a.roundNumber - b.roundNumber)
+    const updatedChart = {
+      ...currentChart,
+      rounds: finalRounds,
+      lastModified: new Date()
+    }
+
+    await updateChart(updatedChart)
+    setShowCopyRoundModal(null)
+    
+    console.log('[COPY-ROUND-CONFIRM] Copy completed successfully')
   }
 
   return (
@@ -1896,7 +1990,7 @@ export default function PatternEditorView() {
         onClose={() => setShowCopyRoundModal(null)}
         onConfirm={handleCopyRoundConfirm}
         sourceRound={showCopyRoundModal?.sourceRound || null}
-        allRounds={getProjectPattern(currentProject)}
+        allRounds={chartPattern}
       />
     </div>
   )
