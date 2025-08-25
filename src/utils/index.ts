@@ -854,14 +854,14 @@ export function createChart(name: string, description?: string, notes?: string):
   return {
     id: generateId(),
     name: name.trim() || '新織圖',
-    description: description?.trim(),
+    description: description?.trim() || '',
     rounds: [],
     currentRound: 1,
     currentStitch: 0,
     createdDate: new Date(),
     lastModified: new Date(),
     isCompleted: false,
-    notes: notes?.trim()
+    notes: notes?.trim() || ''
   }
 }
 
