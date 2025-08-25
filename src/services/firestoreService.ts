@@ -151,13 +151,26 @@ class FirestoreService {
     try {
       const projectRef = doc(db, 'users', userId, 'projects', project.id)
       
+      // Clean yarns data to ensure no undefined values
+      const cleanedYarns = (project.yarns || [])
+        .filter(yarn => yarn && yarn.id && yarn.name && yarn.color) // Filter out invalid yarns
+        .map(yarn => ({
+          id: yarn.id,
+          name: yarn.name,
+          color: {
+            name: yarn.color.name || '',
+            hex: yarn.color.hex || '#000000'
+          },
+          ...(yarn.brand && { brand: yarn.brand })
+        }))
+
       const firestoreProject: FirestoreProject = {
         id: project.id,
-        name: project.name,
+        name: project.name || '',
         source: project.source || '',
         currentRound: project.currentRound || 1,
         currentStitch: project.currentStitch || 0,
-        yarns: project.yarns || [],
+        yarns: cleanedYarns,
         sessions: project.sessions?.map(session => ({
           ...session,
           startTime: session.startTime
@@ -167,14 +180,28 @@ class FirestoreService {
         isCompleted: project.isCompleted ?? false
       }
       
-      await setDoc(projectRef, {
-        ...firestoreProject,
-        createdDate: Timestamp.fromDate(firestoreProject.createdDate),
-        lastModified: Timestamp.fromDate(firestoreProject.lastModified),
-        sessions: firestoreProject.sessions.map(session => ({
-          ...session,
+      // Clean sessions data to ensure no undefined values
+      const cleanedSessions = firestoreProject.sessions
+        .filter(session => session && session.startTime) // Filter out sessions with undefined/null startTime
+        .map(session => ({
+          id: session.id || '',
+          duration: session.duration || 0,
+          roundsCompleted: session.roundsCompleted || 0,
+          stitchesCompleted: session.stitchesCompleted || 0,
           startTime: Timestamp.fromDate(session.startTime)
         }))
+
+      await setDoc(projectRef, {
+        id: firestoreProject.id,
+        name: firestoreProject.name,
+        source: firestoreProject.source,
+        currentRound: firestoreProject.currentRound,
+        currentStitch: firestoreProject.currentStitch,
+        yarns: firestoreProject.yarns,
+        sessions: cleanedSessions,
+        createdDate: Timestamp.fromDate(firestoreProject.createdDate),
+        lastModified: Timestamp.fromDate(firestoreProject.lastModified),
+        isCompleted: firestoreProject.isCompleted
       })
       
       for (const round of project.pattern || []) {
@@ -203,12 +230,25 @@ class FirestoreService {
       // 圈數同步成功後，才更新主專案文檔
       const projectRef = doc(db, 'users', userId, 'projects', project.id)
       
+      // Clean yarns data to ensure no undefined values
+      const cleanedYarns = (project.yarns || [])
+        .filter(yarn => yarn && yarn.id && yarn.name && yarn.color) // Filter out invalid yarns
+        .map(yarn => ({
+          id: yarn.id,
+          name: yarn.name,
+          color: {
+            name: yarn.color.name || '',
+            hex: yarn.color.hex || '#000000'
+          },
+          ...(yarn.brand && { brand: yarn.brand })
+        }))
+
       const firestoreProject: Partial<FirestoreProject> = {
-        name: project.name,
+        name: project.name || '',
         source: project.source || '',
         currentRound: project.currentRound || 1,
         currentStitch: project.currentStitch || 0,
-        yarns: project.yarns || [],
+        yarns: cleanedYarns,
         sessions: project.sessions?.map(session => ({
           ...session,
           startTime: session.startTime
@@ -217,14 +257,27 @@ class FirestoreService {
         isCompleted: project.isCompleted ?? false
       }
       
-      console.log('[FIRESTORE] Updating project document...')
-      await updateDoc(projectRef, {
-        ...firestoreProject,
-        lastModified: Timestamp.fromDate(firestoreProject.lastModified!),
-        sessions: firestoreProject.sessions!.map(session => ({
-          ...session,
+      // Clean sessions data to ensure no undefined values
+      const cleanedSessions = firestoreProject.sessions!
+        .filter(session => session && session.startTime) // Filter out sessions with undefined/null startTime
+        .map(session => ({
+          id: session.id || '',
+          duration: session.duration || 0,
+          roundsCompleted: session.roundsCompleted || 0,
+          stitchesCompleted: session.stitchesCompleted || 0,
           startTime: Timestamp.fromDate(session.startTime)
         }))
+      
+      console.log('[FIRESTORE] Updating project document...')
+      await updateDoc(projectRef, {
+        name: firestoreProject.name,
+        source: firestoreProject.source,
+        currentRound: firestoreProject.currentRound,
+        currentStitch: firestoreProject.currentStitch,
+        yarns: firestoreProject.yarns,
+        sessions: cleanedSessions,
+        lastModified: Timestamp.fromDate(firestoreProject.lastModified!),
+        isCompleted: firestoreProject.isCompleted
       })
       
       console.log('[FIRESTORE] Project sync completed successfully')
