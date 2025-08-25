@@ -130,12 +130,12 @@ class FirestoreService {
           currentRound: projectData.currentRound,
           currentStitch: projectData.currentStitch,
           yarns: projectData.yarns,
-          sessions: projectData.sessions.map(session => ({
+          sessions: projectData.sessions ? projectData.sessions.map(session => ({
             ...session,
-            startTime: session.startTime instanceof Date ? session.startTime : (session.startTime as any).toDate()
-          })),
-          createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate as any).toDate(),
-          lastModified: projectData.lastModified instanceof Date ? projectData.lastModified : (projectData.lastModified as any).toDate(),
+            startTime: session.startTime instanceof Date ? session.startTime : (session.startTime && (session.startTime as any).toDate ? (session.startTime as any).toDate() : new Date())
+          })) : [],
+          createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate && (projectData.createdDate as any).toDate ? (projectData.createdDate as any).toDate() : new Date()),
+          lastModified: projectData.lastModified instanceof Date ? projectData.lastModified : (projectData.lastModified && (projectData.lastModified as any).toDate ? (projectData.lastModified as any).toDate() : new Date()),
           isCompleted: projectData.isCompleted
         })
       }
@@ -520,12 +520,12 @@ class FirestoreService {
             currentRound: projectData.currentRound,
             currentStitch: projectData.currentStitch,
             yarns: projectData.yarns,
-            sessions: projectData.sessions.map(session => ({
+            sessions: projectData.sessions ? projectData.sessions.map(session => ({
               ...session,
-              startTime: session.startTime instanceof Date ? session.startTime : (session.startTime as any).toDate()
-            })),
-            createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate as any).toDate(),
-            lastModified: projectData.lastModified instanceof Date ? projectData.lastModified : (projectData.lastModified as any).toDate(),
+              startTime: session.startTime instanceof Date ? session.startTime : (session.startTime && (session.startTime as any).toDate ? (session.startTime as any).toDate() : new Date())
+            })) : [],
+            createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate && (projectData.createdDate as any).toDate ? (projectData.createdDate as any).toDate() : new Date()),
+            lastModified: projectData.lastModified instanceof Date ? projectData.lastModified : (projectData.lastModified && (projectData.lastModified as any).toDate ? (projectData.lastModified as any).toDate() : new Date()),
             isCompleted: projectData.isCompleted
           })
         }

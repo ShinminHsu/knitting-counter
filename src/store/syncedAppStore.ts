@@ -11,6 +11,8 @@ import {
   updateStitchInPatternItems,
   deleteStitchFromPatternItems,
   updateGroupInPatternItems,
+  updateStitchInGroupPatternItems,
+  updateGroupCompletedRepeatsInPatternItems,
   deleteGroupFromPatternItems,
   // 新增多織圖相關工具函數
   migrateProjectToMultiChart,
@@ -1225,7 +1227,16 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return
         }
 
-        const updatedPattern = getProjectPattern(currentProject).map(round => {
+        // 確保專案已遷移到新格式
+        migrateProjectToMultiChart(currentProject)
+
+        const currentChart = getCurrentChart(currentProject)
+        if (!currentChart) {
+          console.log('[UPDATE-STITCH] No current chart found')
+          return
+        }
+
+        const updatedRounds = currentChart.rounds.map(round => {
           if (round.roundNumber === roundNumber) {
             console.log('[UPDATE-STITCH] Updating stitch in round:', {
               roundNumber,
@@ -1237,13 +1248,13 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return round
         })
 
-        const updatedProject = {
-          ...currentProject,
-          pattern: updatedPattern,
+        const updatedChart = {
+          ...currentChart,
+          rounds: updatedRounds,
           lastModified: new Date()
         }
 
-        await get().updateProjectLocally(updatedProject)
+        await get().updateChart(updatedChart)
       },
 
       deleteStitchFromRound: async (roundNumber, stitchId) => {
@@ -1259,7 +1270,16 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return
         }
 
-        const updatedPattern = getProjectPattern(currentProject).map(round => {
+        // 確保專案已遷移到新格式
+        migrateProjectToMultiChart(currentProject)
+
+        const currentChart = getCurrentChart(currentProject)
+        if (!currentChart) {
+          console.log('[DELETE-STITCH] No current chart found')
+          return
+        }
+
+        const updatedRounds = currentChart.rounds.map(round => {
           if (round.roundNumber === roundNumber) {
             console.log('[DELETE-STITCH] Deleting stitch from round:', {
               roundNumber,
@@ -1270,13 +1290,13 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return round
         })
 
-        const updatedProject = {
-          ...currentProject,
-          pattern: updatedPattern,
+        const updatedChart = {
+          ...currentChart,
+          rounds: updatedRounds,
           lastModified: new Date()
         }
 
-        await get().updateProjectLocally(updatedProject)
+        await get().updateChart(updatedChart)
       },
 
       reorderStitchesInRound: async (roundNumber, fromIndex, toIndex) => {
@@ -1320,7 +1340,16 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return
         }
 
-        const updatedPattern = getProjectPattern(currentProject).map(round => {
+        // 確保專案已遷移到新格式
+        migrateProjectToMultiChart(currentProject)
+
+        const currentChart = getCurrentChart(currentProject)
+        if (!currentChart) {
+          console.log('[UPDATE-GROUP] No current chart found')
+          return
+        }
+
+        const updatedRounds = currentChart.rounds.map(round => {
           if (round.roundNumber === roundNumber) {
             console.log('[UPDATE-GROUP] Updating group in round:', {
               roundNumber,
@@ -1332,119 +1361,71 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return round
         })
 
-        const updatedProject = {
-          ...currentProject,
-          pattern: updatedPattern,
+        const updatedChart = {
+          ...currentChart,
+          rounds: updatedRounds,
           lastModified: new Date()
         }
 
-        await get().updateProjectLocally(updatedProject)
+        await get().updateChart(updatedChart)
       },
 
       updateStitchInGroup: async (roundNumber, groupId, stitchId, updatedStitch) => {
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = getProjectPattern(currentProject).map(round => {
+        // 確保專案已遷移到新格式
+        migrateProjectToMultiChart(currentProject)
+
+        const currentChart = getCurrentChart(currentProject)
+        if (!currentChart) {
+          console.log('[UPDATE-STITCH-IN-GROUP] No current chart found')
+          return
+        }
+
+        const updatedRounds = currentChart.rounds.map(round => {
           if (round.roundNumber === roundNumber) {
-            // 更新舊格式 stitchGroups
-            const updatedRound = {
-              ...round,
-              stitchGroups: round.stitchGroups.map(group => {
-                if (group.id === groupId) {
-                  return {
-                    ...group,
-                    stitches: group.stitches.map(stitch =>
-                      stitch.id === stitchId ? updatedStitch : stitch
-                    )
-                  }
-                }
-                return group
-              })
-            }
-            
-            // 如果存在 patternItems，也需要同步更新
-            if (updatedRound.patternItems) {
-              updatedRound.patternItems = updatedRound.patternItems.map(item => {
-                if (item.type === 'group' && (item.data as StitchGroup).id === groupId) {
-                  const group = item.data as StitchGroup
-                  return {
-                    ...item,
-                    data: {
-                      ...group,
-                      stitches: group.stitches.map(stitch =>
-                        stitch.id === stitchId ? updatedStitch : stitch
-                      )
-                    }
-                  }
-                }
-                return item
-              })
-            }
-            
-            return updatedRound
+            return updateStitchInGroupPatternItems(round, groupId, stitchId, updatedStitch)
           }
           return round
         })
 
-        const updatedProject = {
-          ...currentProject,
-          pattern: updatedPattern,
+        const updatedChart = {
+          ...currentChart,
+          rounds: updatedRounds,
           lastModified: new Date()
         }
 
-        await get().updateProjectLocally(updatedProject)
+        await get().updateChart(updatedChart)
       },
 
       updateGroupCompletedRepeats: async (roundNumber, groupId, completedRepeats) => {
         const { currentProject } = get()
         if (!currentProject) return
 
-        const updatedPattern = getProjectPattern(currentProject).map(round => {
-          if (round.roundNumber === roundNumber) {
-            // 更新舊格式 stitchGroups
-            const updatedRound = {
-              ...round,
-              stitchGroups: round.stitchGroups.map(group => {
-                if (group.id === groupId) {
-                  return {
-                    ...group,
-                    completedRepeats: Math.max(0, Math.min(completedRepeats, group.repeatCount))
-                  }
-                }
-                return group
-              })
-            }
+        // 確保專案已遷移到新格式
+        migrateProjectToMultiChart(currentProject)
 
-            // 更新新格式 patternItems
-            if (round.patternItems) {
-              updatedRound.patternItems = round.patternItems.map(item => {
-                if (item.type === 'group' && (item.data as StitchGroup).id === groupId) {
-                  const group = item.data as StitchGroup
-                  return {
-                    ...item,
-                    data: {
-                      ...group,
-                      completedRepeats: Math.max(0, Math.min(completedRepeats, group.repeatCount))
-                    }
-                  }
-                }
-                return item
-              })
-            }
-            
-            return updatedRound
+        const currentChart = getCurrentChart(currentProject)
+        if (!currentChart) {
+          console.log('[UPDATE-GROUP-REPEATS] No current chart found')
+          return
+        }
+
+        const updatedRounds = currentChart.rounds.map(round => {
+          if (round.roundNumber === roundNumber) {
+            return updateGroupCompletedRepeatsInPatternItems(round, groupId, completedRepeats)
           }
           return round
         })
 
-        const updatedProject = {
-          ...currentProject,
-          pattern: updatedPattern,
+        const updatedChart = {
+          ...currentChart,
+          rounds: updatedRounds,
           lastModified: new Date()
         }
 
-        await get().updateProjectLocally(updatedProject)
+        await get().updateChart(updatedChart)
       },
 
       deleteStitchGroupFromRound: async (roundNumber, groupId) => {

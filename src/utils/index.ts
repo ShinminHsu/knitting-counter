@@ -638,6 +638,62 @@ export function updateGroupInPatternItems(round: Round, groupId: string, updated
   return syncPatternItemsToLegacyFormat(updatedRound)
 }
 
+// 更新群組中的針目
+export function updateStitchInGroupPatternItems(round: Round, groupId: string, stitchId: string, updatedStitch: StitchInfo): Round {
+  const migratedRound = migrateRoundToPatternItems(round)
+  const patternItems = migratedRound.patternItems || []
+  
+  const updatedPatternItems = patternItems.map(item => {
+    if (item.type === PatternItemType.GROUP && (item.data as StitchGroup).id === groupId) {
+      const group = item.data as StitchGroup
+      return {
+        ...item,
+        data: {
+          ...group,
+          stitches: group.stitches.map(stitch => 
+            stitch.id === stitchId ? updatedStitch : stitch
+          )
+        }
+      }
+    }
+    return item
+  })
+
+  const updatedRound = {
+    ...migratedRound,
+    patternItems: updatedPatternItems
+  }
+
+  return syncPatternItemsToLegacyFormat(updatedRound)
+}
+
+// 更新群組完成重複次數
+export function updateGroupCompletedRepeatsInPatternItems(round: Round, groupId: string, completedRepeats: number): Round {
+  const migratedRound = migrateRoundToPatternItems(round)
+  const patternItems = migratedRound.patternItems || []
+  
+  const updatedPatternItems = patternItems.map(item => {
+    if (item.type === PatternItemType.GROUP && (item.data as StitchGroup).id === groupId) {
+      const group = item.data as StitchGroup
+      return {
+        ...item,
+        data: {
+          ...group,
+          completedRepeats: Math.max(0, Math.min(completedRepeats, group.repeatCount))
+        }
+      }
+    }
+    return item
+  })
+
+  const updatedRound = {
+    ...migratedRound,
+    patternItems: updatedPatternItems
+  }
+
+  return syncPatternItemsToLegacyFormat(updatedRound)
+}
+
 // 刪除 PatternItem 中的群組
 export function deleteGroupFromPatternItems(round: Round, groupId: string): Round {
   const migratedRound = migrateRoundToPatternItems(round)
@@ -718,12 +774,12 @@ export function getProjectCurrentStitch(project: Project): number {
 
 // 檢查專案是否為舊格式（只有 pattern 沒有 charts）
 export function isLegacyProject(project: Project): boolean {
-  return !project.charts && !!project.pattern && project.pattern.length > 0
+  return !project.charts && !!project.pattern && Array.isArray(project.pattern) && project.pattern.length > 0
 }
 
 // 檢查專案是否為新格式（有 charts）
 export function isMultiChartProject(project: Project): boolean {
-  return !!project.charts && project.charts.length > 0
+  return !!project.charts && Array.isArray(project.charts) && project.charts.length > 0
 }
 
 // 將舊格式專案遷移為新格式（向後兼容）
@@ -774,7 +830,9 @@ export function migrateProjectToMultiChart(project: Project): ProjectMigrationRe
     }
 
     // 如果沒有任何織圖資料，創建空的 charts 陣列
-    project.charts = []
+    if (!project.charts) {
+      project.charts = []
+    }
     return {
       success: true,
       migratedChartsCount: 0,
@@ -837,8 +895,8 @@ export function getProjectChartSummaries(project: Project): ChartSummary[] {
     id: chart.id,
     name: chart.name,
     description: chart.description,
-    roundCount: chart.rounds.length,
-    totalStitches: chart.rounds.reduce((sum, round) => sum + getRoundTotalStitches(round), 0),
+    roundCount: chart.rounds ? chart.rounds.length : 0,
+    totalStitches: chart.rounds ? chart.rounds.reduce((sum, round) => sum + getRoundTotalStitches(round), 0) : 0,
     currentProgress: getChartProgressPercentage(chart),
     isCompleted: chart.isCompleted || false,
     lastModified: chart.lastModified
@@ -989,6 +1047,7 @@ export function updateChartInProject(project: Project, updatedChart: Chart): boo
   if (index === -1) return false
   
   project.charts[index] = {
+    ...project.charts[index],
     ...updatedChart,
     lastModified: new Date()
   }
