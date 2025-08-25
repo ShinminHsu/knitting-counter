@@ -103,6 +103,12 @@ export default function PatternEditorView() {
   const [editGroupStitchType, setEditGroupStitchType] = useState<StitchType>(StitchType.SINGLE)
   const [editGroupStitchCount, setEditGroupStitchCount] = useState<number | string>(1)
 
+  // 編輯織圖資訊狀態
+  const [showEditChartModal, setShowEditChartModal] = useState(false)
+  const [editChartName, setEditChartName] = useState('')
+  const [editChartDescription, setEditChartDescription] = useState('')
+  const [editChartNotes, setEditChartNotes] = useState('')
+
   // 拖拽狀態
   const [draggedItem, setDraggedItem] = useState<{ index: number, roundNumber: number } | null>(null)
 
@@ -655,6 +661,31 @@ export default function PatternEditorView() {
     }
   }
 
+  // 編輯織圖資訊處理函數
+  const handleOpenEditChartModal = () => {
+    if (!currentChart) return
+    setEditChartName(currentChart.name)
+    setEditChartDescription(currentChart.description || '')
+    setEditChartNotes(currentChart.notes || '')
+    setShowEditChartModal(true)
+  }
+
+  const handleUpdateChart = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentChart || !editChartName.trim()) return
+
+    const updatedChart = {
+      ...currentChart,
+      name: editChartName.trim(),
+      description: editChartDescription.trim() || undefined,
+      notes: editChartNotes.trim() || undefined,
+      lastModified: new Date()
+    }
+
+    await updateChart(updatedChart)
+    setShowEditChartModal(false)
+  }
+
   // 範本管理處理函數
   const handleSaveAsTemplate = (group: StitchGroup) => {
     setShowTemplateModal({ mode: 'save', group })
@@ -779,12 +810,30 @@ export default function PatternEditorView() {
         {/* 織圖預覽 */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-text-primary">
-              {currentChart ? currentChart.name : '織圖預覽'}
-            </h2>
-            <div className="text-sm text-text-secondary">
-              編輯模式
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl font-semibold text-text-primary">
+                {currentChart ? currentChart.name : '織圖預覽'}
+              </h2>
+              {currentChart && (currentChart.description || currentChart.notes) && (
+                <div className="mt-2 space-y-1">
+                  {currentChart.description && (
+                    <p className="text-sm text-text-secondary">{currentChart.description}</p>
+                  )}
+                  {currentChart.notes && (
+                    <p className="text-xs text-text-tertiary whitespace-pre-wrap">{currentChart.notes}</p>
+                  )}
+                </div>
+              )}
             </div>
+            {currentChart && (
+              <button
+                onClick={handleOpenEditChartModal}
+                className="ml-4 text-text-secondary hover:text-text-primary p-2 transition-colors"
+                title="編輯織圖資訊"
+              >
+                <FiEdit3 className="w-5 h-5" />
+              </button>
+            )}
           </div>
           
           {chartPattern.length === 0 ? (
@@ -1769,6 +1818,74 @@ export default function PatternEditorView() {
                 新增群組
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 編輯織圖資訊模態 */}
+      {showEditChartModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background-primary rounded-lg shadow-lg w-full max-w-md">
+            <form onSubmit={handleUpdateChart} className="p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-text-primary mb-4">編輯織圖資訊</h3>
+              
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  織圖名稱
+                </label>
+                <input
+                  type="text"
+                  value={editChartName}
+                  onChange={(e) => setEditChartName(e.target.value)}
+                  className="input"
+                  placeholder="織圖名稱"
+                  required
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  描述（選填）
+                </label>
+                <input
+                  type="text"
+                  value={editChartDescription}
+                  onChange={(e) => setEditChartDescription(e.target.value)}
+                  className="input"
+                  placeholder="織圖的簡短描述"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  備註（選填）
+                </label>
+                <textarea
+                  value={editChartNotes}
+                  onChange={(e) => setEditChartNotes(e.target.value)}
+                  className="input min-h-[80px] resize-y"
+                  placeholder="織圖的詳細備註"
+                  rows={3}
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditChartModal(false)}
+                  className="btn btn-secondary flex-1"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary flex-1"
+                >
+                  儲存
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

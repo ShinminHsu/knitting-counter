@@ -1667,7 +1667,16 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           return
         }
 
-        const sourceRound = getProjectPattern(currentProject).find(r => r.roundNumber === roundNumber)
+        // 確保專案已遷移到新格式
+        migrateProjectToMultiChart(currentProject)
+
+        const currentChart = getCurrentChart(currentProject)
+        if (!currentChart) {
+          console.error('[COPY-ROUND] No current chart found')
+          return
+        }
+
+        const sourceRound = currentChart.rounds.find(r => r.roundNumber === roundNumber)
         if (!sourceRound) {
           console.error('[COPY-ROUND] Source round not found:', roundNumber)
           return
@@ -1691,7 +1700,7 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
         }
 
         // 重新編號：將插入點之後的所有圈數編號+1
-        const updatedPattern = getProjectPattern(currentProject).map(round => {
+        const updatedRounds = currentChart.rounds.map(round => {
           if (round.roundNumber > insertAfterRoundNumber) {
             return {
               ...round,
@@ -1738,15 +1747,15 @@ export const useSyncedAppStore = create<SyncedAppStore>()(
           notes: sourceRound.notes
         }
 
-        // 添加到專案中
-        const finalPattern = [...updatedPattern, newRound].sort((a, b) => a.roundNumber - b.roundNumber)
-        const updatedProject = {
-          ...currentProject,
-          pattern: finalPattern,
+        // 添加到織圖中
+        const finalRounds = [...updatedRounds, newRound].sort((a, b) => a.roundNumber - b.roundNumber)
+        const updatedChart = {
+          ...currentChart,
+          rounds: finalRounds,
           lastModified: new Date()
         }
 
-        await get().updateProjectLocally(updatedProject)
+        await get().updateChart(updatedChart)
         console.log('[COPY-ROUND] Copied round:', roundNumber, 'to position', newRoundNumber, insertPosition, 'target', targetRoundNumber)
       },
 
