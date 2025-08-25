@@ -44,7 +44,6 @@ export default function PatternEditorView() {
 
   const [showAddRoundForm, setShowAddRoundForm] = useState(false)
   const [showStitchModal, setShowStitchModal] = useState<{ roundNumber: number, mode: 'add' | 'edit', stitchId?: string } | null>(null)
-  const [showAddGroupForm, setShowAddGroupForm] = useState<number | null>(null)
   const [editingRound, setEditingRound] = useState<Round | null>(null)
   const [editingStitch, setEditingStitch] = useState<{ roundNumber: number, stitchId: string } | null>(null)
   const [editingGroup, setEditingGroup] = useState<{ roundNumber: number, groupId: string } | null>(null)

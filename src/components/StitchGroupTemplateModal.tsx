@@ -29,7 +29,6 @@ export default function StitchGroupTemplateModal({
   
   // 選擇範本的狀態
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
-  const [repeatCount, setRepeatCount] = useState<number>(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
 
@@ -45,7 +44,6 @@ export default function StitchGroupTemplateModal({
         setTemplateDescription('')
         setTemplateCategory('')
         setSelectedTemplateId('')
-        setRepeatCount(1)
         setSearchQuery('')
         setSelectedCategory('')
       }
