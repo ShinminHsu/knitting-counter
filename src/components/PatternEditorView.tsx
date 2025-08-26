@@ -607,7 +607,21 @@ export default function PatternEditorView() {
 
   const handleUpdateRoundNotes = async (round: Round, notes: string) => {
     const updatedRound = { ...round, notes: notes.trim() || undefined }
-    await updateRound(updatedRound)
+    
+    if (currentChart) {
+      // 多織圖模式：更新織圖
+      const updatedChart = {
+        ...currentChart,
+        rounds: currentChart.rounds.map((r: Round) =>
+          r.id === round.id ? updatedRound : r
+        ),
+        lastModified: new Date()
+      }
+      await updateChart(updatedChart)
+    } else {
+      // 舊格式模式
+      await updateRound(updatedRound)
+    }
     setEditingRound(null)
   }
 
