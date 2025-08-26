@@ -87,20 +87,20 @@ export default function PatternEditorView() {
 
   // 新增群組表單狀態
   const [newGroupName, setNewGroupName] = useState('')
-  const [newGroupRepeatCount, setNewGroupRepeatCount] = useState<number | string>(1)
+  const [newGroupRepeatCount, setNewGroupRepeatCount] = useState<string>('1')
   const [newGroupStitches, setNewGroupStitches] = useState<StitchInfo[]>([])
 
   // 編輯針法狀態
   const [editStitchType, setEditStitchType] = useState<StitchType>(StitchType.SINGLE)
-  const [editStitchCount, setEditStitchCount] = useState<number | string>(1)
+  const [editStitchCount, setEditStitchCount] = useState<string>('1')
 
   // 編輯群組狀態
   const [editGroupName, setEditGroupName] = useState('')
-  const [editGroupRepeatCount, setEditGroupRepeatCount] = useState<number | string>(1)
+  const [editGroupRepeatCount, setEditGroupRepeatCount] = useState<string>('1')
   
   // 編輯群組內針法狀態
   const [editGroupStitchType, setEditGroupStitchType] = useState<StitchType>(StitchType.SINGLE)
-  const [editGroupStitchCount, setEditGroupStitchCount] = useState<number | string>(1)
+  const [editGroupStitchCount, setEditGroupStitchCount] = useState<string>('1')
 
   // 編輯織圖資訊狀態
   const [showEditChartModal, setShowEditChartModal] = useState(false)
@@ -181,13 +181,13 @@ export default function PatternEditorView() {
     fieldKey?: string
   ) => ({
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-      const next = e.target.value;
-      // 允許所有輸入，讓用戶可以自由輸入而不會跳出焦點
-      setValue(next);
+      const value = e.target.value;
+      // 直接設置為字串，保持游標位置
+      setValue(value);
       
       // 更新驗證狀態以提供視覺反饋
       if (fieldKey) {
-        const isValid = next === '' || /^\d+$/.test(next);
+        const isValid = value === '' || /^\d+$/.test(value);
         setInputValidation(prev => ({
           ...prev,
           [fieldKey]: isValid
@@ -206,7 +206,7 @@ export default function PatternEditorView() {
         });
       }
 
-      // 如果是空值或0，設為最小值
+      // 如果是空值或0，設為最小值的字串
       if (raw === '' || raw === '0') {
         setValue(String(minValue));
         return;
@@ -227,9 +227,8 @@ export default function PatternEditorView() {
   })
 
   // 確保數字值的輔助函數
-  const ensureNumber = (value: number | string, defaultValue: number = 1): number => {
-    if (typeof value === 'number') return value
-    const parsed = parseInt(value)
+  const ensureNumber = (value: string, defaultValue: number = 1): number => {
+    const parsed = parseInt(value, 10)
     return isNaN(parsed) ? defaultValue : Math.max(defaultValue, parsed)
   }
 
@@ -494,7 +493,7 @@ export default function PatternEditorView() {
 
       // 成功後才重置表單狀態
       setNewGroupName('')
-      setNewGroupRepeatCount(1)
+      setNewGroupRepeatCount('1')
       setNewGroupStitches([])
       setShowAddGroupModal(null)
       
@@ -615,7 +614,7 @@ export default function PatternEditorView() {
   const handleEditStitch = (roundNumber: number, stitch: StitchInfo) => {
     setEditingStitch({ roundNumber, stitchId: stitch.id })
     setEditStitchType(stitch.type)
-    setEditStitchCount(stitch.count)
+    setEditStitchCount(String(stitch.count))
   }
 
   const handleUpdateStitch = async (roundNumber: number, stitchId: string) => {
@@ -696,7 +695,7 @@ export default function PatternEditorView() {
   const handleEditGroup = (roundNumber: number, group: StitchGroup) => {
     setEditingGroup({ roundNumber, groupId: group.id })
     setEditGroupName(group.name)
-    setEditGroupRepeatCount(group.repeatCount)
+    setEditGroupRepeatCount(String(group.repeatCount))
   }
 
   const handleUpdateGroup = async (roundNumber: number, groupId: string, originalGroup: StitchGroup) => {
@@ -757,7 +756,7 @@ export default function PatternEditorView() {
   const handleEditGroupStitch = (roundNumber: number, groupId: string, stitch: StitchInfo) => {
     setEditingGroupStitch({ roundNumber, groupId, stitchId: stitch.id })
     setEditGroupStitchType(stitch.type)
-    setEditGroupStitchCount(stitch.count)
+    setEditGroupStitchCount(String(stitch.count))
   }
 
   const handleUpdateGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
@@ -937,7 +936,7 @@ export default function PatternEditorView() {
         }
         
         // 重複次數固定設為1，讓用戶自己調整
-        setNewGroupRepeatCount(1)
+        setNewGroupRepeatCount('1')
         
         // 將範本的針法加到現有針法列表後面（append），而不是取代
         setNewGroupStitches(prevStitches => [...prevStitches, ...templateGroup.stitches])
@@ -1377,9 +1376,11 @@ export default function PatternEditorView() {
                               {editingStitch?.stitchId === (patternItem.data as StitchInfo).id ? (
                                 <div className="flex items-center gap-2">
                                   <select
+                                    key={`edit-stitch-type-${(patternItem.data as StitchInfo).id}`}
                                     value={editStitchType}
                                     onChange={(e) => setEditStitchType(e.target.value as StitchType)}
                                     className="input text-sm flex-1"
+                                    autoFocus
                                   >
                                     {Object.entries(StitchTypeInfo).map(([key, info]) => (
                                       <option key={key} value={key}>
@@ -1388,11 +1389,13 @@ export default function PatternEditorView() {
                                     ))}
                                   </select>
                                   <input
+                                    key={`edit-stitch-count-${(patternItem.data as StitchInfo).id}`}
                                     type="text"
                                     value={editStitchCount}
-                                    {...handleNumberInputChange(setEditStitchCount, 1, 'editStitchCount')}
-                                    className={`input text-sm w-16 ${inputValidation['editStitchCount'] === false ? 'border-red-500 bg-red-50' : ''}`}
+                                    onChange={(e) => setEditStitchCount(e.target.value)}
+                                    className="input text-sm w-16"
                                     placeholder="數量"
+                                    autoFocus
                                   />
                                 </div>
                               ) : (
@@ -1458,18 +1461,22 @@ export default function PatternEditorView() {
                                 <div className="w-full">
                                   <div className="flex items-center gap-2 flex-1 mb-3">
                                     <input
+                                      key={`edit-group-name-${(patternItem.data as StitchGroup).id}`}
                                       type="text"
                                       value={editGroupName}
                                       onChange={(e) => setEditGroupName(e.target.value)}
                                       className="input text-sm flex-1"
                                       placeholder="群組名稱"
+                                      autoFocus
                                     />
                                     <input
+                                      key={`edit-group-repeat-${(patternItem.data as StitchGroup).id}`}
                                       type="text"
                                       value={editGroupRepeatCount}
                                       {...handleNumberInputChange(setEditGroupRepeatCount, 1, 'editGroupRepeatCount')}
                                       className={`input text-sm w-20 ${inputValidation['editGroupRepeatCount'] === false ? 'border-red-500 bg-red-50' : ''}`}
                                       placeholder="次數"
+                                      autoFocus
                                     />
                                     <span className="text-sm text-text-secondary">次</span>
                                     <button
@@ -1530,9 +1537,11 @@ export default function PatternEditorView() {
                                     {editingGroupStitch?.stitchId === stitch.id && editingGroupStitch?.groupId === (patternItem.data as StitchGroup).id ? (
                                       <div className="flex items-center gap-2">
                                         <select
+                                          key={`edit-group-stitch-type-${stitch.id}`}
                                           value={editGroupStitchType}
                                           onChange={(e) => setEditGroupStitchType(e.target.value as StitchType)}
                                           className="input text-sm flex-1"
+                                          autoFocus
                                         >
                                           {Object.entries(StitchTypeInfo).map(([key, info]) => (
                                             <option key={key} value={key}>
@@ -1541,11 +1550,13 @@ export default function PatternEditorView() {
                                           ))}
                                         </select>
                                         <input
+                                          key={`edit-group-stitch-count-${stitch.id}`}
                                           type="text"
                                           value={editGroupStitchCount}
                                           {...handleNumberInputChange(setEditGroupStitchCount, 1, 'editGroupStitchCount')}
                                           className={`input text-sm w-16 ${inputValidation['editGroupStitchCount'] === false ? 'border-red-500 bg-red-50' : ''}`}
                                           placeholder="數量"
+                                          autoFocus
                                         />
                                       </div>
                                     ) : (
@@ -2094,7 +2105,7 @@ export default function PatternEditorView() {
                         id: 'temp',
                         name: newGroupName || '針目群組',
                         stitches: newGroupStitches,
-                        repeatCount: typeof newGroupRepeatCount === 'number' ? newGroupRepeatCount : parseInt(newGroupRepeatCount) || 1
+                        repeatCount: parseInt(newGroupRepeatCount) || 1
                       }
                       setShowTemplateModal({ mode: 'save', group: tempGroup })
                     }
@@ -2113,7 +2124,7 @@ export default function PatternEditorView() {
                   setShowAddGroupModal(null)
                   setNewGroupStitches([])
                   setNewGroupName('')
-                  setNewGroupRepeatCount(1)
+                  setNewGroupRepeatCount('1')
                 }}
                 className="btn btn-secondary flex-1"
               >
