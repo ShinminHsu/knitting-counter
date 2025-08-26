@@ -111,6 +111,9 @@ export default function PatternEditorView() {
   // 拖拽狀態
   const [draggedItem, setDraggedItem] = useState<{ index: number, roundNumber: number } | null>(null)
 
+  // 輸入驗證狀態
+  const [inputValidation, setInputValidation] = useState<{ [key: string]: boolean }>({})
+
   useEffect(() => {
     if (projectId) {
       const project = projects.find(p => p.id === projectId)
@@ -171,21 +174,55 @@ export default function PatternEditorView() {
     }
   }, [currentProject, searchParams])
 
-  // 處理數字輸入的輔助函數
-  const handleNumberInputChange = (setValue: (value: number | string) => void, minValue: number = 1) => ({
+  // 數字輸入處理 - 允許所有輸入但在blur時校正，並提供視覺反饋
+  const handleNumberInputChange = (
+    setValue: (value: string) => void,
+    minValue = 1,
+    fieldKey?: string
+  ) => ({
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value
-      if (value === '') {
-        setValue('')
-      } else {
-        const numValue = parseInt(value)
-        setValue(isNaN(numValue) ? minValue : Math.max(minValue, numValue))
+      const next = e.target.value;
+      // 允許所有輸入，讓用戶可以自由輸入而不會跳出焦點
+      setValue(next);
+      
+      // 更新驗證狀態以提供視覺反饋
+      if (fieldKey) {
+        const isValid = next === '' || /^\d+$/.test(next);
+        setInputValidation(prev => ({
+          ...prev,
+          [fieldKey]: isValid
+        }));
       }
     },
     onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
-      if (e.target.value === '') {
-        setValue(minValue)
+      const raw = e.target.value.trim();
+
+      // 清除此欄位的驗證狀態
+      if (fieldKey) {
+        setInputValidation(prev => {
+          const newState = { ...prev };
+          delete newState[fieldKey];
+          return newState;
+        });
       }
+
+      // 如果是空值或0，設為最小值
+      if (raw === '' || raw === '0') {
+        setValue(String(minValue));
+        return;
+      }
+
+      // 檢查是否為有效數字
+      if (!/^\d+$/.test(raw)) {
+        // 如果包含非數字字符，顯示警告並重置為最小值
+        alert(`請輸入有效的數字（${minValue} 以上的整數）`);
+        setValue(String(minValue));
+        return;
+      }
+
+      const num = parseInt(raw, 10);
+      const clamped = Number.isNaN(num) || num <= 0 ? minValue : Math.max(minValue, num);
+      setValue(String(clamped));
     }
   })
 
@@ -294,9 +331,18 @@ export default function PatternEditorView() {
   const handleDeleteRound = async (roundNumber: number) => {
     if (confirm(`確定要刪除第 ${roundNumber} 圈嗎？`)) {
       if (currentChart) {
+        // 刪除指定圈數並重新編號後續圈數
+        const updatedRounds = currentChart.rounds
+          .filter((r: Round) => r.roundNumber !== roundNumber)
+          .map((r: Round) => ({
+            ...r,
+            roundNumber: r.roundNumber > roundNumber ? r.roundNumber - 1 : r.roundNumber
+          }))
+          .sort((a: Round, b: Round) => a.roundNumber - b.roundNumber)
+        
         const updatedChart = {
           ...currentChart,
-          rounds: currentChart.rounds.filter((r: Round) => r.roundNumber !== roundNumber),
+          rounds: updatedRounds,
           lastModified: new Date()
         }
         await updateChart(updatedChart)
@@ -504,30 +550,56 @@ export default function PatternEditorView() {
     if (!showEditGroupStitchModal) return
 
     const { roundNumber, groupId } = showEditGroupStitchModal
-    const pattern = getProjectPattern(currentProject)
-    const round = pattern.find(r => r.roundNumber === roundNumber)
-    const group = round?.stitchGroups.find(g => g.id === groupId)
     
-    if (group) {
-      const newStitch: StitchInfo = {
-        id: generateId(),
-        type: stitchType,
-        yarnId: yarnId || currentProject?.yarns[0]?.id || '',
-        count: count,
-        ...(stitchType === StitchType.CUSTOM && {
-          customName,
-          customSymbol
-        })
-      }
-
-      const updatedGroup = {
-        ...group,
-        stitches: [...group.stitches, newStitch]
-      }
-      
-      await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
-      setShowEditGroupStitchModal(null) // 關閉 modal
+    const newStitch: StitchInfo = {
+      id: generateId(),
+      type: stitchType,
+      yarnId: yarnId || currentProject?.yarns[0]?.id || '',
+      count: count,
+      ...(stitchType === StitchType.CUSTOM && {
+        customName,
+        customSymbol
+      })
     }
+
+    if (currentChart) {
+      const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+      if (targetRound) {
+        const updatedRound = {
+          ...targetRound,
+          stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) => 
+            g.id === groupId 
+              ? {
+                  ...g,
+                  stitches: [...g.stitches, newStitch]
+                }
+              : g
+          )
+        }
+        const updatedChart = {
+          ...currentChart,
+          rounds: currentChart.rounds.map((r: Round) => 
+            r.roundNumber === roundNumber ? updatedRound : r
+          ),
+          lastModified: new Date()
+        }
+        await updateChart(updatedChart)
+      }
+    } else {
+      const pattern = getProjectPattern(currentProject)
+      const round = pattern.find(r => r.roundNumber === roundNumber)
+      const group = round?.stitchGroups.find(g => g.id === groupId)
+      
+      if (group) {
+        const updatedGroup = {
+          ...group,
+          stitches: [...group.stitches, newStitch]
+        }
+        
+        await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+      }
+    }
+    setShowEditGroupStitchModal(null) // 關閉 modal
   }
 
   const handleRemoveStitchFromGroup = (stitchId: string) => {
@@ -548,9 +620,16 @@ export default function PatternEditorView() {
 
   const handleUpdateStitch = async (roundNumber: number, stitchId: string) => {
     // 獲取原始針法資料
-    const pattern = getProjectPattern(currentProject)
-    const round = pattern.find(r => r.roundNumber === roundNumber)
-    const originalStitch = round?.stitches.find(s => s.id === stitchId)
+    let originalStitch: StitchInfo | undefined
+    
+    if (currentChart) {
+      const round = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+      originalStitch = round?.stitches.find((s: StitchInfo) => s.id === stitchId)
+    } else {
+      const pattern = getProjectPattern(currentProject)
+      const round = pattern.find(r => r.roundNumber === roundNumber)
+      originalStitch = round?.stitches.find((s: StitchInfo) => s.id === stitchId)
+    }
     
     const updatedStitch: StitchInfo = {
       id: stitchId,
@@ -566,13 +645,51 @@ export default function PatternEditorView() {
         : {})
     }
 
-    await updateStitchInRound(roundNumber, stitchId, updatedStitch)
+    if (currentChart) {
+      const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+      if (targetRound) {
+        const updatedRound = {
+          ...targetRound,
+          stitches: targetRound.stitches.map((s: StitchInfo) => 
+            s.id === stitchId ? updatedStitch : s
+          )
+        }
+        const updatedChart = {
+          ...currentChart,
+          rounds: currentChart.rounds.map((r: Round) => 
+            r.roundNumber === roundNumber ? updatedRound : r
+          ),
+          lastModified: new Date()
+        }
+        await updateChart(updatedChart)
+      }
+    } else {
+      await updateStitchInRound(roundNumber, stitchId, updatedStitch)
+    }
     setEditingStitch(null)
   }
 
   const handleDeleteStitch = async (roundNumber: number, stitchId: string) => {
     if (confirm('確定要刪除這個針法嗎？')) {
-      await deleteStitchFromRound(roundNumber, stitchId)
+      if (currentChart) {
+        const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+        if (targetRound) {
+          const updatedRound = {
+            ...targetRound,
+            stitches: targetRound.stitches.filter((s: StitchInfo) => s.id !== stitchId)
+          }
+          const updatedChart = {
+            ...currentChart,
+            rounds: currentChart.rounds.map((r: Round) => 
+              r.roundNumber === roundNumber ? updatedRound : r
+            ),
+            lastModified: new Date()
+          }
+          await updateChart(updatedChart)
+        }
+      } else {
+        await deleteStitchFromRound(roundNumber, stitchId)
+      }
     }
   }
 
@@ -589,13 +706,51 @@ export default function PatternEditorView() {
       repeatCount: ensureNumber(editGroupRepeatCount)
     }
 
-    await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+    if (currentChart) {
+      const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+      if (targetRound) {
+        const updatedRound = {
+          ...targetRound,
+          stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) => 
+            g.id === groupId ? updatedGroup : g
+          )
+        }
+        const updatedChart = {
+          ...currentChart,
+          rounds: currentChart.rounds.map((r: Round) => 
+            r.roundNumber === roundNumber ? updatedRound : r
+          ),
+          lastModified: new Date()
+        }
+        await updateChart(updatedChart)
+      }
+    } else {
+      await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+    }
     setEditingGroup(null)
   }
 
   const handleDeleteGroup = async (roundNumber: number, groupId: string) => {
     if (confirm('確定要刪除這個針目群組嗎？')) {
-      await deleteStitchGroupFromRound(roundNumber, groupId)
+      if (currentChart) {
+        const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+        if (targetRound) {
+          const updatedRound = {
+            ...targetRound,
+            stitchGroups: targetRound.stitchGroups.filter((g: StitchGroup) => g.id !== groupId)
+          }
+          const updatedChart = {
+            ...currentChart,
+            rounds: currentChart.rounds.map((r: Round) => 
+              r.roundNumber === roundNumber ? updatedRound : r
+            ),
+            lastModified: new Date()
+          }
+          await updateChart(updatedChart)
+        }
+      } else {
+        await deleteStitchGroupFromRound(roundNumber, groupId)
+      }
     }
   }
 
@@ -607,10 +762,18 @@ export default function PatternEditorView() {
 
   const handleUpdateGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
     // 獲取原始針法資料
-    const pattern = getProjectPattern(currentProject)
-    const round = pattern.find(r => r.roundNumber === roundNumber)
-    const group = round?.stitchGroups.find(g => g.id === groupId)
-    const originalStitch = group?.stitches.find(s => s.id === stitchId)
+    let originalStitch: StitchInfo | undefined
+    
+    if (currentChart) {
+      const round = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+      const group = round?.stitchGroups.find((g: StitchGroup) => g.id === groupId)
+      originalStitch = group?.stitches.find((s: StitchInfo) => s.id === stitchId)
+    } else {
+      const pattern = getProjectPattern(currentProject)
+      const round = pattern.find(r => r.roundNumber === roundNumber)
+      const group = round?.stitchGroups.find((g: StitchGroup) => g.id === groupId)
+      originalStitch = group?.stitches.find((s: StitchInfo) => s.id === stitchId)
+    }
     
     const updatedStitch: StitchInfo = {
       id: stitchId,
@@ -626,22 +789,74 @@ export default function PatternEditorView() {
         : {})
     }
 
-    await updateStitchInGroup(roundNumber, groupId, stitchId, updatedStitch)
+    if (currentChart) {
+      const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+      if (targetRound) {
+        const updatedRound = {
+          ...targetRound,
+          stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) => 
+            g.id === groupId 
+              ? {
+                  ...g,
+                  stitches: g.stitches.map((s: StitchInfo) => 
+                    s.id === stitchId ? updatedStitch : s
+                  )
+                }
+              : g
+          )
+        }
+        const updatedChart = {
+          ...currentChart,
+          rounds: currentChart.rounds.map((r: Round) => 
+            r.roundNumber === roundNumber ? updatedRound : r
+          ),
+          lastModified: new Date()
+        }
+        await updateChart(updatedChart)
+      }
+    } else {
+      await updateStitchInGroup(roundNumber, groupId, stitchId, updatedStitch)
+    }
     setEditingGroupStitch(null)
   }
 
   const handleDeleteGroupStitch = async (roundNumber: number, groupId: string, stitchId: string) => {
     if (confirm('確定要刪除這個針法嗎？')) {
-      const pattern = getProjectPattern(currentProject)
-      const round = pattern.find(r => r.roundNumber === roundNumber)
-      const group = round?.stitchGroups.find(g => g.id === groupId)
-      
-      if (group) {
-        const updatedGroup = {
-          ...group,
-          stitches: group.stitches.filter(s => s.id !== stitchId)
+      if (currentChart) {
+        const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+        if (targetRound) {
+          const updatedRound = {
+            ...targetRound,
+            stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) => 
+              g.id === groupId 
+                ? {
+                    ...g,
+                    stitches: g.stitches.filter((s: StitchInfo) => s.id !== stitchId)
+                  }
+                : g
+            )
+          }
+          const updatedChart = {
+            ...currentChart,
+            rounds: currentChart.rounds.map((r: Round) => 
+              r.roundNumber === roundNumber ? updatedRound : r
+            ),
+            lastModified: new Date()
+          }
+          await updateChart(updatedChart)
         }
-        await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+      } else {
+        const pattern = getProjectPattern(currentProject)
+        const round = pattern.find(r => r.roundNumber === roundNumber)
+        const group = round?.stitchGroups.find(g => g.id === groupId)
+        
+        if (group) {
+          const updatedGroup = {
+            ...group,
+            stitches: group.stitches.filter(s => s.id !== stitchId)
+          }
+          await updateStitchGroupInRound(roundNumber, groupId, updatedGroup)
+        }
       }
     }
   }
@@ -1021,7 +1236,7 @@ export default function PatternEditorView() {
         ) : (
           <div className="space-y-4">
             {chartPattern
-              .sort((a, b) => a.roundNumber - b.roundNumber)
+              .sort((a: Round, b: Round) => a.roundNumber - b.roundNumber)
               .map((round) => (
               <div key={round.id} className="card" data-round-card={round.roundNumber}>
                 <div className="mb-4">
@@ -1173,11 +1388,11 @@ export default function PatternEditorView() {
                                     ))}
                                   </select>
                                   <input
-                                    type="number"
-                                    min="1"
+                                    type="text"
                                     value={editStitchCount}
-                                    {...handleNumberInputChange(setEditStitchCount)}
-                                    className="input text-sm w-16"
+                                    {...handleNumberInputChange(setEditStitchCount, 1, 'editStitchCount')}
+                                    className={`input text-sm w-16 ${inputValidation['editStitchCount'] === false ? 'border-red-500 bg-red-50' : ''}`}
+                                    placeholder="數量"
                                   />
                                 </div>
                               ) : (
@@ -1250,11 +1465,11 @@ export default function PatternEditorView() {
                                       placeholder="群組名稱"
                                     />
                                     <input
-                                      type="number"
-                                      min="1"
+                                      type="text"
                                       value={editGroupRepeatCount}
-                                      {...handleNumberInputChange(setEditGroupRepeatCount)}
-                                      className="input text-sm w-20"
+                                      {...handleNumberInputChange(setEditGroupRepeatCount, 1, 'editGroupRepeatCount')}
+                                      className={`input text-sm w-20 ${inputValidation['editGroupRepeatCount'] === false ? 'border-red-500 bg-red-50' : ''}`}
+                                      placeholder="次數"
                                     />
                                     <span className="text-sm text-text-secondary">次</span>
                                     <button
@@ -1326,11 +1541,11 @@ export default function PatternEditorView() {
                                           ))}
                                         </select>
                                         <input
-                                          type="number"
-                                          min="1"
+                                          type="text"
                                           value={editGroupStitchCount}
-                                          {...handleNumberInputChange(setEditGroupStitchCount)}
-                                          className="input text-sm w-16"
+                                          {...handleNumberInputChange(setEditGroupStitchCount, 1, 'editGroupStitchCount')}
+                                          className={`input text-sm w-16 ${inputValidation['editGroupStitchCount'] === false ? 'border-red-500 bg-red-50' : ''}`}
+                                          placeholder="數量"
                                         />
                                       </div>
                                     ) : (
@@ -1444,11 +1659,11 @@ export default function PatternEditorView() {
                                   ))}
                                 </select>
                                 <input
-                                  type="number"
-                                  min="1"
+                                  type="text"
                                   value={editStitchCount}
-                                  {...handleNumberInputChange(setEditStitchCount)}
-                                  className="input text-sm w-16"
+                                  {...handleNumberInputChange(setEditStitchCount, 1, 'editStitchCount2')}
+                                  className={`input text-sm w-16 ${inputValidation['editStitchCount2'] === false ? 'border-red-500 bg-red-50' : ''}`}
+                                  placeholder="數量"
                                 />
                               </div>
                             ) : (
@@ -1529,11 +1744,11 @@ export default function PatternEditorView() {
                                     placeholder="群組名稱"
                                   />
                                   <input
-                                    type="number"
-                                    min="1"
+                                    type="text"
                                     value={editGroupRepeatCount}
-                                    {...handleNumberInputChange(setEditGroupRepeatCount)}
-                                    className="input text-sm w-20"
+                                    {...handleNumberInputChange(setEditGroupRepeatCount, 1, 'editGroupRepeatCount2')}
+                                    className={`input text-sm w-20 ${inputValidation['editGroupRepeatCount2'] === false ? 'border-red-500 bg-red-50' : ''}`}
+                                    placeholder="次數"
                                   />
                                   <span className="text-sm text-text-secondary">次</span>
                                   <button
@@ -1605,11 +1820,11 @@ export default function PatternEditorView() {
                                         ))}
                                       </select>
                                       <input
-                                        type="number"
-                                        min="1"
+                                        type="text"
                                         value={editGroupStitchCount}
-                                        {...handleNumberInputChange(setEditGroupStitchCount)}
-                                        className="input text-sm w-16"
+                                        {...handleNumberInputChange(setEditGroupStitchCount, 1, 'editGroupStitchCount2')}
+                                        className={`input text-sm w-16 ${inputValidation['editGroupStitchCount2'] === false ? 'border-red-500 bg-red-50' : ''}`}
+                                        placeholder="數量"
                                       />
                                     </div>
                                   ) : (
@@ -1803,11 +2018,11 @@ export default function PatternEditorView() {
                   重複次數
                 </label>
                 <input
-                  type="number"
-                  min="1"
+                  type="text"
                   value={newGroupRepeatCount}
-                  {...handleNumberInputChange(setNewGroupRepeatCount)}
-                  className="input"
+                  {...handleNumberInputChange(setNewGroupRepeatCount, 1, 'newGroupRepeatCount')}
+                  className={`input ${inputValidation['newGroupRepeatCount'] === false ? 'border-red-500 bg-red-50' : ''}`}
+                  placeholder="1"
                 />
               </div>
             </div>
