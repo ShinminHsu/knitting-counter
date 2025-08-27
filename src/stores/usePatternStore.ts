@@ -37,7 +37,7 @@ interface PatternStoreActions {
 
 interface PatternStore extends PatternStoreState, PatternStoreActions {}
 
-export const usePatternStore = create<PatternStore>((set, get) => ({
+export const usePatternStore = create<PatternStore>(() => ({
   // Round management
   addRound: async (roundData = {}) => {
     const { currentProject, updateProjectLocally } = useProjectStore.getState()

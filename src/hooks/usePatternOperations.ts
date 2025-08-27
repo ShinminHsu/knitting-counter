@@ -9,8 +9,6 @@ export function usePatternOperations() {
     updateRound,
     deleteRound,
     addStitchToRound,
-    deleteStitchFromRound,
-    deleteStitchGroupFromRound,
     updateChart
   } = useSyncedAppStore()
 

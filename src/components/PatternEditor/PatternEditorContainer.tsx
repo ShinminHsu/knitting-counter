@@ -11,8 +11,7 @@ import {
   generateId,
   getCurrentChart,
   getProjectPattern,
-  isLegacyProject,
-  getStitchDisplayInfo
+  isLegacyProject
 } from '../../utils'
 
 // Components

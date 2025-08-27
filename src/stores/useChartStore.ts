@@ -34,7 +34,7 @@ interface ChartStoreActions {
 
 interface ChartStore extends ChartStoreState, ChartStoreActions {}
 
-export const useChartStore = create<ChartStore>((set, get) => ({
+export const useChartStore = create<ChartStore>(() => ({
   // Chart management
   createChart: async (chartData) => {
     const { currentProject, updateProjectLocally } = useProjectStore.getState()

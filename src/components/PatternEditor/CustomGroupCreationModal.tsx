@@ -1,4 +1,4 @@
-import { StitchInfo, StitchType } from '../../types'
+import { StitchInfo } from '../../types'
 import { getStitchDisplayInfo } from '../../utils'
 import { VscEdit } from 'react-icons/vsc'
 import { BsTrash } from 'react-icons/bs'

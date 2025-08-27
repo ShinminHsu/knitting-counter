@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { BsHouse } from 'react-icons/bs'
 import { useSyncedAppStore } from '../store/syncedAppStore'
-import { useChartProgressOperations } from '../hooks/useChartProgressOperations'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import ChartSelectorHeader from './ChartSelectorHeader'
 import StitchProgressRenderer from './StitchProgressRenderer'
@@ -30,8 +29,6 @@ export default function ProgressTrackingView() {
     getChartSummaries,
     setCurrentChart,
     getCurrentChart,
-    setCurrentRound,
-    setCurrentStitch,
     updateChart
   } = useSyncedAppStore()
   

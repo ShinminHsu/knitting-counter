@@ -11,7 +11,6 @@ import {
   getRoundTotalStitches,
   getSortedPatternItems,
   getStitchDisplayInfo,
-  getCurrentChart
 } from '../utils'
 
 interface UseProgressCalculationsProps {

@@ -1,8 +1,7 @@
 import { useCallback } from 'react'
 import { useChartStore } from '../stores/useChartStore'
-import { useProgressStore } from '../stores/useProgressStore'
 import { useProjectStore } from '../stores/useProjectStore'
-import { getCurrentChart, getProjectPattern, getProjectCurrentRound, getProjectCurrentStitch, getRoundTotalStitches } from '../utils'
+import { getRoundTotalStitches } from '../utils'
 
 /**
  * Chart-aware progress operations hook
@@ -10,7 +9,7 @@ import { getCurrentChart, getProjectPattern, getProjectCurrentRound, getProjectC
  */
 export const useChartProgressOperations = () => {
   const { getCurrentChart: getStoreCurrentChart, updateChart } = useChartStore()
-  const { currentProject, updateProjectLocally } = useProjectStore()
+  const { currentProject } = useProjectStore()
 
   // Get current chart
   const currentChart = getStoreCurrentChart()

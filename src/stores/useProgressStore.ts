@@ -3,7 +3,6 @@ import { create } from 'zustand'
 import { WorkSession } from '../types'
 import { generateId, getProjectPattern, getProjectCurrentRound, getProjectCurrentStitch, getRoundTotalStitches } from '../utils'
 import { useProjectStore } from './useProjectStore'
-import { handleAsyncError } from './useBaseStore'
 
 interface ProgressStoreState {
   // No persistent state needed - progress is managed in projects
@@ -29,7 +28,7 @@ interface ProgressStoreActions {
 
 interface ProgressStore extends ProgressStoreState, ProgressStoreActions {}
 
-export const useProgressStore = create<ProgressStore>((set, get) => ({
+export const useProgressStore = create<ProgressStore>(() => ({
   // Navigation actions
   nextStitch: async () => {
     const { currentProject, updateProjectLocally } = useProjectStore.getState()

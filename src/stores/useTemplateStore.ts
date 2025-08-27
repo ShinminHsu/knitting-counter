@@ -257,7 +257,7 @@ export const useTemplateStore = create<TemplateStore>()(
 
       // Template organization
       getCategories: () => {
-        const categories = new Set(get().templates.map(template => template.category).filter(Boolean))
+        const categories = new Set(get().templates.map(template => template.category).filter((category): category is string => Boolean(category)))
         return Array.from(categories).sort()
       },
 

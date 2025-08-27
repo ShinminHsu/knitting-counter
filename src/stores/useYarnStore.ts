@@ -36,7 +36,7 @@ interface YarnStoreActions {
 
 interface YarnStore extends YarnStoreState, YarnStoreActions {}
 
-export const useYarnStore = create<YarnStore>((set, get) => ({
+export const useYarnStore = create<YarnStore>((_set, get) => ({
   // Yarn management
   addYarn: async (yarnData) => {
     const { currentProject, updateProjectLocally } = useProjectStore.getState()

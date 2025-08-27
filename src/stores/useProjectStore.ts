@@ -6,7 +6,7 @@ import { generateId, createSampleProject } from '../utils'
 import { useAuthStore } from '../store/authStore'
 import { firestoreService } from '../services/firestoreService'
 import { useSyncStore } from './useSyncStore'
-import { useBaseStore, withLocalUpdate, handleAsyncError } from './useBaseStore'
+import { useBaseStore, handleAsyncError } from './useBaseStore'
 
 interface ProjectStoreState {
   projects: Project[]

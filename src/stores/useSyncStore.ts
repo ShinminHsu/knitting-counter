@@ -4,7 +4,7 @@ import { Project } from '../types'
 import { useAuthStore } from '../store/authStore'
 import { firestoreService, UserProfile } from '../services/firestoreService'
 import { networkStatus } from '../utils/networkStatus'
-import { useBaseStore, withLoading, handleAsyncError } from './useBaseStore'
+import { useBaseStore, handleAsyncError } from './useBaseStore'
 
 interface SyncStoreState {
   isSyncing: boolean
