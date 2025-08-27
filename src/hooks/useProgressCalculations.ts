@@ -69,16 +69,22 @@ export function useProgressCalculations({
       }
     }
     
+    // Use chart data if available for current progress, but project data for overall stats
+    const currentRound = currentChart ? currentChart.currentRound : getProjectCurrentRound(currentProject)
+    const currentStitch = currentChart ? currentChart.currentStitch : getProjectCurrentStitch(currentProject)
+    const isCompleted = currentChart ? (currentChart.isCompleted || false) : (currentProject.isCompleted || false)
+    
+    
     return {
       progressPercentage: getProjectProgressPercentage(currentProject),
       totalRounds: getProjectTotalRounds(currentProject),
       totalStitches: getProjectTotalStitches(currentProject),
       completedStitches: getProjectCompletedStitches(currentProject),
-      currentRound: getProjectCurrentRound(currentProject),
-      currentStitch: getProjectCurrentStitch(currentProject),
-      isCompleted: currentProject.isCompleted || false
+      currentRound,
+      currentStitch,
+      isCompleted
     }
-  }, [currentProject])
+  }, [currentProject, currentChart])
   
   // Memoized current round data
   const roundData = useMemo(() => {
@@ -92,15 +98,20 @@ export function useProgressCalculations({
       }
     }
     
-    const currentRound = getProjectCurrentRound(currentProject)
+    // Use chart data if available, fallback to project data
+    const currentRound = currentChart ? currentChart.currentRound : getProjectCurrentRound(currentProject)
+    const currentStitch = currentChart ? currentChart.currentStitch : getProjectCurrentStitch(currentProject)
+    
     const isViewMode = viewingRound !== null && viewingRound !== currentRound
     const displayRoundNumber = viewingRound ?? currentRound
     
-    const pattern = getProjectPattern(currentProject)
-    const displayRound = pattern.find(r => r.roundNumber === displayRoundNumber)
+    // Get pattern from chart if available, fallback to project pattern
+    const pattern = currentChart ? currentChart.rounds : getProjectPattern(currentProject)
+    const displayRound = pattern.find((r: any) => r.roundNumber === displayRoundNumber)
     
-    const currentStitchInRound = isViewMode ? 0 : getProjectCurrentStitch(currentProject)
+    const currentStitchInRound = isViewMode ? 0 : currentStitch
     const totalStitchesInCurrentRound = displayRound ? getRoundTotalStitches(displayRound) : 0
+    
     
     return {
       displayRoundNumber,
@@ -109,7 +120,7 @@ export function useProgressCalculations({
       totalStitchesInCurrentRound,
       isViewMode
     }
-  }, [currentProject, viewingRound])
+  }, [currentProject, currentChart, viewingRound])
   
   // Memoized round description
   const roundDescription = useMemo(() => {

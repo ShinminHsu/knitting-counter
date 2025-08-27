@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { BsHouse } from 'react-icons/bs'
 import { useSyncedAppStore } from '../store/syncedAppStore'
+import { useChartProgressOperations } from '../hooks/useChartProgressOperations'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import ChartSelectorHeader from './ChartSelectorHeader'
 import StitchProgressRenderer from './StitchProgressRenderer'
@@ -19,39 +20,42 @@ import { useRef } from 'react'
 export default function ProgressTrackingView() {
   const { projectId } = useParams()
   const navigate = useNavigate()
+  
+  
+  // Use the same store as ProjectDetailView
   const {
+    projects,
     currentProject,
     setCurrentProject,
-    projects,
-    nextStitch,
-    previousStitch,
-    setCurrentRound,
-    getCurrentChart,
     getChartSummaries,
     setCurrentChart,
-    migrateCurrentProjectToMultiChart
+    getCurrentChart,
+    setCurrentRound,
+    setCurrentStitch,
+    updateChart
   } = useSyncedAppStore()
+  
+  // Get current chart
+  const currentChart = getCurrentChart()
 
   const [viewingRound, setViewingRound] = useState<number | null>(null)
   const patternContainerRef = useRef<HTMLDivElement>(null)
   
-  // Get current chart
-  const currentChart = getCurrentChart()
+  // Get chart data
   const chartSummaries = getChartSummaries()
 
   // Initialize project
   useEffect(() => {
     if (projectId) {
-      const project = projects.find(p => p.id === projectId)
+      const project = projects.find((p: any) => p.id === projectId)
+      
       if (project) {
-        // Migrate project to multi-chart format if needed
-        migrateCurrentProjectToMultiChart()
         setCurrentProject(projectId)
       } else {
         navigate('/404')
       }
     }
-  }, [projectId, setCurrentProject, projects, navigate, migrateCurrentProjectToMultiChart])
+  }, [projectId, setCurrentProject, projects, navigate])
 
   // Get progress calculations
   const {
@@ -84,26 +88,151 @@ export default function ProgressTrackingView() {
 
   // Handle jump to round
   const handleJumpToRound = useCallback((roundNumber: number) => {
-    if (roundNumber === currentRound) {
+    if (currentChart && roundNumber === currentChart.currentRound) {
       // If jumping to current round, exit view mode
       setViewingRound(null)
     } else {
       // Enter view mode
       setViewingRound(roundNumber)
     }
-  }, [currentRound])
+  }, [currentChart])
 
-  // Handle complete round
-  const handleCompleteRound = useCallback(async () => {
-    // For now, just move to next round by setting current round + 1
-    if (currentChart && currentChart.rounds) {
-      const maxRound = Math.max(...currentChart.rounds.map(r => r.roundNumber))
-      if (displayRoundNumber < maxRound) {
-        await setCurrentRound(displayRoundNumber + 1)
+  // Handle next stitch using direct store operations
+  const handleNextStitch = useCallback(async () => {
+    console.log('[DEBUG] handleNextStitch called - using direct store operations')
+    if (!currentProject || !currentChart) {
+      console.log('[DEBUG] No current project or chart available')
+      return
+    }
+    
+    const pattern = currentChart.rounds || []
+    if (pattern.length === 0) {
+      console.log('[DEBUG] No pattern available in current chart')
+      return
+    }
+
+    const currentRound = pattern.find(r => r.roundNumber === currentChart.currentRound)
+    if (!currentRound) {
+      console.log('[DEBUG] Current round not found', currentChart.currentRound)
+      return
+    }
+
+    const totalStitchesInRound = currentRound.stitches.reduce((sum, stitch) => sum + stitch.count, 0) +
+                                currentRound.stitchGroups.reduce((sum, group) => {
+                                  const groupStitches = group.stitches.reduce((gSum, stitch) => gSum + stitch.count, 0)
+                                  return sum + (groupStitches * group.repeatCount)
+                                }, 0)
+    
+    let newStitch = currentChart.currentStitch + 1
+    let newRound = currentChart.currentRound
+    let isCompleted = false
+
+    if (newStitch >= totalStitchesInRound) {
+      const maxRoundNumber = Math.max(...pattern.map(r => r.roundNumber))
+      
+      if (currentChart.currentRound >= maxRoundNumber) {
+        isCompleted = true
+        newStitch = totalStitchesInRound
+      } else {
+        // Move to next round
+        newStitch = 0
+        newRound = currentChart.currentRound + 1
       }
     }
+
+    await updateChart({
+      ...currentChart,
+      currentRound: newRound,
+      currentStitch: newStitch,
+      isCompleted,
+      lastModified: new Date()
+    })
+  }, [currentProject, currentChart, updateChart])
+
+  // Handle previous stitch using direct store operations
+  const handlePreviousStitch = useCallback(async () => {
+    console.log('[DEBUG] handlePreviousStitch called - using direct store operations')
+    if (!currentProject || !currentChart) {
+      console.log('[DEBUG] No current project or chart available')
+      return
+    }
+
+    const pattern = currentChart.rounds || []
+    if (pattern.length === 0) {
+      console.log('[DEBUG] No pattern available in current chart')
+      return
+    }
+
+    let newStitch = currentChart.currentStitch - 1
+    let newRound = currentChart.currentRound
+
+    if (newStitch < 0 && newRound > 1) {
+      // Move to previous round
+      const previousRound = pattern.find(r => r.roundNumber === newRound - 1)
+      if (previousRound) {
+        const totalStitchesInPrevRound = previousRound.stitches.reduce((sum, stitch) => sum + stitch.count, 0) +
+                                       previousRound.stitchGroups.reduce((sum, group) => {
+                                         const groupStitches = group.stitches.reduce((gSum, stitch) => gSum + stitch.count, 0)
+                                         return sum + (groupStitches * group.repeatCount)
+                                       }, 0)
+        newRound = newRound - 1
+        newStitch = totalStitchesInPrevRound - 1
+      } else {
+        newStitch = 0
+      }
+    } else if (newStitch < 0) {
+      newStitch = 0
+    }
+
+    await updateChart({
+      ...currentChart,
+      currentRound: newRound,
+      currentStitch: newStitch,
+      isCompleted: false,
+      lastModified: new Date()
+    })
+  }, [currentProject, currentChart, updateChart])
+
+  // Handle complete round using direct store operations
+  const handleCompleteRound = useCallback(async () => {
+    console.log('[DEBUG] handleCompleteRound called - using direct store operations')
+    if (!currentProject || !currentChart) {
+      console.log('[DEBUG] No current project or chart available')
+      return
+    }
+    
+    const pattern = currentChart.rounds || []
+    const maxRoundNumber = Math.max(...pattern.map(r => r.roundNumber))
+    
+    if (currentChart.currentRound >= maxRoundNumber) {
+      // Mark chart as completed
+      const lastRound = pattern.find(r => r.roundNumber === maxRoundNumber)
+      const totalStitches = lastRound ?
+        lastRound.stitches.reduce((sum, stitch) => sum + stitch.count, 0) +
+        lastRound.stitchGroups.reduce((sum, group) => {
+          const groupStitches = group.stitches.reduce((gSum, stitch) => gSum + stitch.count, 0)
+          return sum + (groupStitches * group.repeatCount)
+        }, 0) : 0
+      
+      await updateChart({
+        ...currentChart,
+        currentStitch: totalStitches,
+        isCompleted: true,
+        lastModified: new Date()
+      })
+    } else {
+      // Move to next round
+      await updateChart({
+        ...currentChart,
+        currentRound: currentChart.currentRound + 1,
+        currentStitch: 0,
+        isCompleted: false,
+        lastModified: new Date()
+      })
+    }
+    
     setViewingRound(null) // Exit view mode
-  }, [currentChart, displayRoundNumber, setCurrentRound])
+  }, [currentProject, currentChart, updateChart])
 
   // Handle exit view mode
   const handleExitViewMode = useCallback(() => {
@@ -112,13 +241,23 @@ export default function ProgressTrackingView() {
 
   // Handle reset project
   const handleResetProject = useCallback(async () => {
-    if (currentChart) {
-      // Reset to first round
-      await setCurrentRound(1)
-    } else {
-      console.warn('No current chart found for reset')
+    console.log('[DEBUG] handleResetProject called - using direct store operations')
+    if (!currentProject || !currentChart) {
+      console.log('[DEBUG] No current project or chart available for reset')
+      return
     }
-  }, [currentChart, setCurrentRound])
+    
+    // Reset chart progress to beginning
+    await updateChart({
+      ...currentChart,
+      currentRound: 1,
+      currentStitch: 0,
+      isCompleted: false,
+      lastModified: new Date()
+    })
+    
+    console.log('[DEBUG] Chart progress reset to beginning')
+  }, [currentProject, currentChart, updateChart])
 
   // Handle share success
   const handleShareSuccess = useCallback(() => {
@@ -245,7 +384,7 @@ export default function ProgressTrackingView() {
                   className="input w-auto min-w-0 flex-shrink-0"
                 >
                   {Array.from(
-                    { length: Math.max(...(currentChart.rounds?.map(r => r.roundNumber) || [1])) }, 
+                    { length: Math.max(...(currentChart.rounds?.map((r: any) => r.roundNumber) || [1])) },
                     (_, i) => i + 1
                   ).map(roundNumber => (
                     <option key={roundNumber} value={roundNumber}>
@@ -296,7 +435,7 @@ export default function ProgressTrackingView() {
                   currentStitchInRound={currentStitchInRound}
                   totalStitchesInCurrentRound={totalStitchesInCurrentRound}
                   getYarnColor={(yarnId: string) => {
-                    const yarn = currentProject?.yarns.find(y => y.id === yarnId)
+                    const yarn = currentProject?.yarns.find((y: any) => y.id === yarnId)
                     return yarn?.color.hex || '#000000'
                   }}
                   isLightColor={(hex: string) => {
@@ -319,8 +458,8 @@ export default function ProgressTrackingView() {
                 currentStitchInRound={currentStitchInRound}
                 totalStitchesInCurrentRound={totalStitchesInCurrentRound}
                 displayRoundNumber={displayRoundNumber}
-                onNextStitch={nextStitch}
-                onPreviousStitch={previousStitch}
+                onNextStitch={handleNextStitch}
+                onPreviousStitch={handlePreviousStitch}
                 onCompleteRound={handleCompleteRound}
                 onExitViewMode={handleExitViewMode}
                 onResetProject={handleResetProject}

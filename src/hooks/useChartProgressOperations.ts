@@ -10,11 +10,11 @@ import { getCurrentChart, getProjectPattern, getProjectCurrentRound, getProjectC
  */
 export const useChartProgressOperations = () => {
   const { getCurrentChart: getStoreCurrentChart, updateChart } = useChartStore()
-  const { setCurrentRound: setProgressRound } = useProgressStore()
   const { currentProject, updateProjectLocally } = useProjectStore()
 
   // Get current chart
   const currentChart = getStoreCurrentChart()
+  
 
   // Chart-aware next stitch operation
   const nextStitch = useCallback(async () => {
