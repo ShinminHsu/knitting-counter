@@ -383,6 +383,48 @@ export function getProjectProgressPercentage(project: Project): number {
   return Math.min(Math.max(0, progressRatio), 1)
 }
 
+// ==================== 多織圖聚合計算函數 ====================
+
+// 計算專案總圈數（所有織圖）
+export function getProjectTotalRoundsAllCharts(project: Project): number {
+  const chartSummaries = getProjectChartSummaries(project)
+  return chartSummaries.reduce((sum, chart) => sum + chart.roundCount, 0)
+}
+
+// 計算專案總針數（所有織圖）
+export function getProjectTotalStitchesAllCharts(project: Project): number {
+  const chartSummaries = getProjectChartSummaries(project)
+  return chartSummaries.reduce((sum, chart) => sum + chart.totalStitches, 0)
+}
+
+// 計算專案已完成針數（所有織圖）
+export function getProjectCompletedStitchesAllCharts(project: Project): number {
+  // 確保專案已遷移到新格式
+  migrateProjectToMultiChart(project)
+  
+  // 處理多織圖項目
+  if (isMultiChartProject(project)) {
+    return project.charts!.reduce((sum, chart) => {
+      return sum + getChartCompletedStitches(chart)
+    }, 0)
+  }
+  
+  // 向後兼容：處理單織圖項目
+  return getProjectCompletedStitches(project)
+}
+
+// 計算專案進度百分比（所有織圖）
+export function getProjectProgressPercentageAllCharts(project: Project): number {
+  const totalStitches = getProjectTotalStitchesAllCharts(project)
+  if (totalStitches === 0) return 0
+  
+  const completedStitches = getProjectCompletedStitchesAllCharts(project)
+  const progressRatio = completedStitches / totalStitches
+  
+  // 確保進度百分比在0-1之間
+  return Math.min(Math.max(0, progressRatio), 1)
+}
+
 // 檢查專案是否完成
 export function isProjectCompleted(project: Project): boolean {
   const pattern = getProjectPattern(project)

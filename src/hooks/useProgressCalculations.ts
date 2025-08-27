@@ -2,15 +2,17 @@ import { useMemo } from 'react'
 import { Project, Round, Chart, PatternItemType, StitchInfo, StitchGroup } from '../types'
 import {
   getProjectProgressPercentage,
-  getProjectTotalRounds,
-  getProjectTotalStitches,
-  getProjectCompletedStitches,
+  getProjectTotalRoundsAllCharts,
+  getProjectTotalStitchesAllCharts,
+  getProjectCompletedStitchesAllCharts,
   getProjectCurrentRound,
   getProjectCurrentStitch,
   getProjectPattern,
   getRoundTotalStitches,
   getSortedPatternItems,
   getStitchDisplayInfo,
+  getChartProgressPercentage,
+  getChartCompletedStitches,
 } from '../utils'
 
 interface UseProgressCalculationsProps {
@@ -74,11 +76,28 @@ export function useProgressCalculations({
     const isCompleted = currentChart ? (currentChart.isCompleted || false) : (currentProject.isCompleted || false)
     
     
+    // Use current chart data if available, otherwise fall back to project data
+    let progressPercentage, totalRounds, totalStitches, completedStitches
+    
+    if (currentChart) {
+      // Calculate progress based on current chart only
+      progressPercentage = getChartProgressPercentage(currentChart) / 100
+      totalRounds = currentChart.rounds?.length || 0
+      totalStitches = currentChart.rounds?.reduce((sum, round) => sum + getRoundTotalStitches(round), 0) || 0
+      completedStitches = getChartCompletedStitches(currentChart)
+    } else {
+      // Fall back to project-wide calculations
+      progressPercentage = getProjectProgressPercentage(currentProject)
+      totalRounds = getProjectTotalRoundsAllCharts(currentProject)
+      totalStitches = getProjectTotalStitchesAllCharts(currentProject)
+      completedStitches = getProjectCompletedStitchesAllCharts(currentProject)
+    }
+    
     return {
-      progressPercentage: getProjectProgressPercentage(currentProject),
-      totalRounds: getProjectTotalRounds(currentProject),
-      totalStitches: getProjectTotalStitches(currentProject),
-      completedStitches: getProjectCompletedStitches(currentProject),
+      progressPercentage,
+      totalRounds,
+      totalStitches,
+      completedStitches,
       currentRound,
       currentStitch,
       isCompleted

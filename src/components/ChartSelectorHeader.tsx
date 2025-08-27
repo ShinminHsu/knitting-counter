@@ -73,7 +73,7 @@ export const ChartSelectorHeader = memo<ChartSelectorHeaderProps>(({
           </select>
         </div>
         <div className="text-sm text-text-secondary">
-          第 {displayRoundNumber} 圈
+          {/* 第 {displayRoundNumber} 圈 */}
           {isViewMode && (
             <span className="ml-2 text-primary">（查看中）</span>
           )}
@@ -81,7 +81,7 @@ export const ChartSelectorHeader = memo<ChartSelectorHeaderProps>(({
       </div>
 
       {/* Chart Info */}
-      {currentChart && (
+      {/* {currentChart && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
           <div>
             <span className="text-text-secondary">總圈數：</span>
@@ -110,23 +110,23 @@ export const ChartSelectorHeader = memo<ChartSelectorHeaderProps>(({
             </span>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Chart Description */}
-      {currentChart?.description && (
+      {/* {currentChart?.description && (
         <div className="text-xs text-text-tertiary mt-2 border-t border-border-light pt-2">
           <span className="text-text-secondary">說明：</span>
           {currentChart.description}
         </div>
-      )}
+      )} */}
 
       {/* Chart Notes */}
-      {currentChart?.notes && (
+      {/* {currentChart?.notes && (
         <div className="text-xs text-text-tertiary mt-1">
           <span className="text-text-secondary">備註：</span>
           {currentChart.notes}
         </div>
-      )}
+      )} */}
 
       {/* Disabled state message */}
       {isViewMode && hasMultipleCharts && (

@@ -8,7 +8,7 @@ import { FiUploadCloud } from 'react-icons/fi'
 import { BsHouse } from 'react-icons/bs'
 import { useSyncedAppStore } from '../store/syncedAppStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
-import { formatDate, getProjectTotalStitches, getCurrentChart, isLegacyProject } from '../utils'
+import { formatDate, getProjectTotalStitchesAllCharts, getCurrentChart, isLegacyProject } from '../utils'
 
 export default function ProjectDetailView() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -258,7 +258,7 @@ export default function ProjectDetailView() {
               <div className="text-center">
                 <div className="text-sm text-text-secondary">總針數</div>
                 <div className="text-lg font-semibold text-text-primary">
-                  {getProjectTotalStitches(currentProject)}
+                  {getProjectTotalStitchesAllCharts(currentProject)}
                 </div>
               </div>
             </div>

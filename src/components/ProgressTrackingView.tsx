@@ -10,9 +10,12 @@ import { useAutoScroll } from '../hooks/useAutoScroll'
 import { useProgressCalculations } from '../hooks/useProgressCalculations'
 import {
   getProjectProgressPercentage,
-  getProjectTotalRounds,
-  getProjectTotalStitches,
-  getProjectCompletedStitches
+  getProjectTotalRoundsAllCharts,
+  getProjectTotalStitchesAllCharts,
+  getProjectCompletedStitchesAllCharts,
+  getChartProgressPercentage,
+  getChartCompletedStitches,
+  getRoundTotalStitches
 } from '../utils'
 import { useRef } from 'react'
 
@@ -286,8 +289,9 @@ export default function ProgressTrackingView() {
     )
   }
 
-  // Calculate overall project progress (across all charts if multi-chart)
-  const progressPercentage = getProjectProgressPercentage(currentProject)
+  // Calculate current chart progress (not overall project progress)
+  const progressPercentage = currentChart ?
+    (getChartProgressPercentage(currentChart) / 100) : 0
   const hasMultipleCharts = chartSummaries.length > 1
 
   return (
@@ -339,7 +343,7 @@ export default function ProgressTrackingView() {
         <div className="card">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xl font-semibold text-text-primary">
-              {hasMultipleCharts ? '總體進度' : '專案進度'}
+              {hasMultipleCharts ? `${currentChart?.name || '當前織圖'} 進度` : '專案進度'}
             </h2>
             <span className="text-sm text-text-secondary font-medium">
               {Math.round(progressPercentage * 100)}%
@@ -355,13 +359,19 @@ export default function ProgressTrackingView() {
             <div>
               <div className="text-text-secondary">圈數進度</div>
               <div className="font-semibold text-text-primary">
-                {Math.max(0, currentRound - 1)} / {getProjectTotalRounds(currentProject)} 圈
+                {currentChart ?
+                  `${Math.max(0, currentChart.currentRound - 1)} / ${currentChart.rounds?.length || 0} 圈` :
+                  `${Math.max(0, currentRound - 1)} / ${getProjectTotalRoundsAllCharts(currentProject)} 圈`
+                }
               </div>
             </div>
             <div>
               <div className="text-text-secondary">針數進度</div>
               <div className="font-semibold text-text-primary">
-                {getProjectCompletedStitches(currentProject)} / {getProjectTotalStitches(currentProject)} 針
+                {currentChart ?
+                  `${getChartCompletedStitches(currentChart)} / ${currentChart.rounds?.reduce((sum, round) => sum + getRoundTotalStitches(round), 0) || 0} 針` :
+                  `${getProjectCompletedStitchesAllCharts(currentProject)} / ${getProjectTotalStitchesAllCharts(currentProject)} 針`
+                }
               </div>
             </div>
           </div>

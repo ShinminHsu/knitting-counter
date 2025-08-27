@@ -132,32 +132,6 @@ export const ProgressActionButtons = memo<ProgressActionButtonsProps>(({
           完成第 {displayRoundNumber} 圈
         </button>
       )}
-
-      {/* Chart Progress Info */}
-      {currentChart && (
-        <div className="text-xs text-text-tertiary text-center border-t border-border pt-3">
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <span className="text-text-secondary">當前圈：</span>
-              <span className="font-medium text-text-primary ml-1">
-                {currentChart.currentRound}
-              </span>
-            </div>
-            <div>
-              <span className="text-text-secondary">當前針：</span>
-              <span className="font-medium text-text-primary ml-1">
-                {currentChart.currentStitch}
-              </span>
-            </div>
-            <div>
-              <span className="text-text-secondary">織圖：</span>
-              <span className="font-medium text-text-primary ml-1">
-                {currentChart.name}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 })

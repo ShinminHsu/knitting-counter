@@ -6,6 +6,7 @@ import { useModalStates } from '../../hooks/useModalStates'
 import { usePatternEditorState } from '../../hooks/usePatternEditorState'
 import { usePatternOperations } from '../../hooks/usePatternOperations'
 import { useDragAndDrop } from '../../hooks/useDragAndDrop'
+import ChartSelectorHeader from '../ChartSelectorHeader'
 import { Round, StitchType, StitchInfo, StitchGroup } from '../../types'
 import {
   generateId,
@@ -29,13 +30,15 @@ export default function PatternEditorContainer() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
-  const { 
-    currentProject, 
-    setCurrentProject, 
-    projects, 
+  const {
+    currentProject,
+    setCurrentProject,
+    projects,
     updateChart,
     migrateCurrentProjectToMultiChart,
-    updateRound
+    updateRound,
+    getChartSummaries,
+    setCurrentChart
   } = useSyncedAppStore()
 
   // Use extracted hooks
@@ -44,8 +47,12 @@ export default function PatternEditorContainer() {
   const patternEditorState = usePatternEditorState()
   const patternOperations = usePatternOperations()
 
-  const [currentChart, setCurrentChart] = useState<any>(null)
+  const [currentChart, setCurrentChartLocal] = useState<any>(null)
   const [chartPattern, setChartPattern] = useState<Round[]>([])
+  
+  // Get chart summaries for selector
+  const chartSummaries = getChartSummaries()
+  const hasMultipleCharts = chartSummaries.length > 1
 
   useEffect(() => {
     if (projectId) {
@@ -79,10 +86,10 @@ export default function PatternEditorContainer() {
     }
 
     if (targetChart) {
-      setCurrentChart(targetChart)
+      setCurrentChartLocal(targetChart)
       setChartPattern(targetChart.rounds || [])
     } else {
-      setCurrentChart(null)
+      setCurrentChartLocal(null)
       setChartPattern(getProjectPattern(currentProject))
     }
   }, [currentProject, searchParams])
@@ -362,6 +369,23 @@ export default function PatternEditorContainer() {
       />
 
       <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {/* Chart Selector for Pattern Editor */}
+        {hasMultipleCharts && (
+          <ChartSelectorHeader
+            currentChartId={currentChart?.id}
+            chartSummaries={chartSummaries}
+            hasMultipleCharts={hasMultipleCharts}
+            onChartChange={async (chartId: string) => {
+              await setCurrentChart(chartId)
+              // Update URL to reflect chart selection
+              const searchParams = new URLSearchParams(window.location.search)
+              searchParams.set('chartId', chartId)
+              window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`)
+            }}
+            isViewMode={false}
+            displayRoundNumber={currentChart?.currentRound || 1}
+          />
+        )}
         {/* Pattern Preview - using extracted component */}
         <PatternPreview 
           currentChart={currentChart}
