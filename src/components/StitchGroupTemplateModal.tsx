@@ -91,7 +91,7 @@ export default function StitchGroupTemplateModal({
   const modalTitle = title || (mode === 'save' ? '存為範本' : '選擇範本')
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[80]">
       <div className="bg-background-secondary rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold text-text-primary mb-6">
           {modalTitle}
