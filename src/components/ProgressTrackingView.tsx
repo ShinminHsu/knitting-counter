@@ -9,7 +9,6 @@ import ProgressActionButtons from './ProgressActionButtons'
 import { useAutoScroll } from '../hooks/useAutoScroll'
 import { useProgressCalculations } from '../hooks/useProgressCalculations'
 import {
-  getProjectProgressPercentage,
   getProjectTotalRoundsAllCharts,
   getProjectTotalStitchesAllCharts,
   getProjectCompletedStitchesAllCharts,
