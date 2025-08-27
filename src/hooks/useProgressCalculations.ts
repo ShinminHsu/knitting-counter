@@ -1,0 +1,198 @@
+import { useMemo } from 'react'
+import { Project, Round, Chart, PatternItemType, StitchInfo, StitchGroup } from '../types'
+import {
+  getProjectProgressPercentage,
+  getProjectTotalRounds,
+  getProjectTotalStitches,
+  getProjectCompletedStitches,
+  getProjectCurrentRound,
+  getProjectCurrentStitch,
+  getProjectPattern,
+  getRoundTotalStitches,
+  getSortedPatternItems,
+  getStitchDisplayInfo,
+  getCurrentChart
+} from '../utils'
+
+interface UseProgressCalculationsProps {
+  currentProject: Project | null
+  currentChart: Chart | null
+  viewingRound?: number | null
+}
+
+interface UseProgressCalculationsReturn {
+  // Overall progress
+  progressPercentage: number
+  totalRounds: number
+  totalStitches: number
+  completedStitches: number
+  currentRound: number
+  currentStitch: number
+  isCompleted: boolean
+  
+  // Current round info
+  displayRoundNumber: number
+  displayRound: Round | undefined
+  currentStitchInRound: number
+  totalStitchesInCurrentRound: number
+  isViewMode: boolean
+  
+  // Round description
+  roundDescription: string
+  
+  // Chart info
+  chartName: string
+  hasMultipleCharts: boolean
+}
+
+/**
+ * Custom hook that calculates all progress-related data and round descriptions
+ * Optimized with memoization to prevent unnecessary recalculations
+ */
+export function useProgressCalculations({
+  currentProject,
+  currentChart,
+  viewingRound
+}: UseProgressCalculationsProps): UseProgressCalculationsReturn {
+  
+  // Memoized overall progress calculations
+  const progressData = useMemo(() => {
+    if (!currentProject) {
+      return {
+        progressPercentage: 0,
+        totalRounds: 0,
+        totalStitches: 0,
+        completedStitches: 0,
+        currentRound: 1,
+        currentStitch: 0,
+        isCompleted: false
+      }
+    }
+    
+    return {
+      progressPercentage: getProjectProgressPercentage(currentProject),
+      totalRounds: getProjectTotalRounds(currentProject),
+      totalStitches: getProjectTotalStitches(currentProject),
+      completedStitches: getProjectCompletedStitches(currentProject),
+      currentRound: getProjectCurrentRound(currentProject),
+      currentStitch: getProjectCurrentStitch(currentProject),
+      isCompleted: currentProject.isCompleted || false
+    }
+  }, [currentProject])
+  
+  // Memoized current round data
+  const roundData = useMemo(() => {
+    if (!currentProject) {
+      return {
+        displayRoundNumber: 1,
+        displayRound: undefined,
+        currentStitchInRound: 0,
+        totalStitchesInCurrentRound: 0,
+        isViewMode: false
+      }
+    }
+    
+    const currentRound = getProjectCurrentRound(currentProject)
+    const isViewMode = viewingRound !== null && viewingRound !== currentRound
+    const displayRoundNumber = viewingRound ?? currentRound
+    
+    const pattern = getProjectPattern(currentProject)
+    const displayRound = pattern.find(r => r.roundNumber === displayRoundNumber)
+    
+    const currentStitchInRound = isViewMode ? 0 : getProjectCurrentStitch(currentProject)
+    const totalStitchesInCurrentRound = displayRound ? getRoundTotalStitches(displayRound) : 0
+    
+    return {
+      displayRoundNumber,
+      displayRound,
+      currentStitchInRound,
+      totalStitchesInCurrentRound,
+      isViewMode
+    }
+  }, [currentProject, viewingRound])
+  
+  // Memoized round description
+  const roundDescription = useMemo(() => {
+    if (!roundData.displayRound || !currentProject) {
+      return ''
+    }
+    
+    return generateRoundDescription(roundData.displayRound)
+  }, [roundData.displayRound, currentProject])
+  
+  // Memoized chart information
+  const chartData = useMemo(() => {
+    if (!currentProject) {
+      return {
+        chartName: '',
+        hasMultipleCharts: false
+      }
+    }
+    
+    const hasMultipleCharts = !!(currentProject.charts && currentProject.charts.length > 1)
+    const chartName = currentChart?.name || '主織圖'
+    
+    return {
+      chartName,
+      hasMultipleCharts
+    }
+  }, [currentProject, currentChart])
+  
+  return {
+    ...progressData,
+    ...roundData,
+    roundDescription,
+    ...chartData
+  }
+}
+
+/**
+ * Generate a description of the round's pattern
+ * Optimized version of the original generateRoundDescription function
+ */
+function generateRoundDescription(round: Round): string {
+  const descriptions: string[] = []
+  
+  // Use getSortedPatternItems for correct order
+  const sortedPatternItems = getSortedPatternItems(round)
+  
+  if (sortedPatternItems.length > 0) {
+    // Use new sorted format
+    sortedPatternItems.forEach((item) => {
+      if (item.type === PatternItemType.STITCH) {
+        const stitch = item.data as StitchInfo
+        const displayInfo = getStitchDisplayInfo(stitch)
+        descriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+      } else if (item.type === PatternItemType.GROUP) {
+        const group = item.data as StitchGroup
+        const groupDescriptions: string[] = []
+        group.stitches.forEach((stitch: StitchInfo) => {
+          const displayInfo = getStitchDisplayInfo(stitch)
+          groupDescriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+        })
+        if (groupDescriptions.length > 0) {
+          descriptions.push(`[${groupDescriptions.join(', ')}] * ${group.repeatCount}`)
+        }
+      }
+    })
+  } else {
+    // Fallback to legacy format
+    round.stitches.forEach((stitch: StitchInfo) => {
+      const displayInfo = getStitchDisplayInfo(stitch)
+      descriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+    })
+    
+    round.stitchGroups.forEach((group: StitchGroup) => {
+      const groupDescriptions: string[] = []
+      group.stitches.forEach((stitch: StitchInfo) => {
+        const displayInfo = getStitchDisplayInfo(stitch)
+        groupDescriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+      })
+      if (groupDescriptions.length > 0) {
+        descriptions.push(`[${groupDescriptions.join(', ')}] * ${group.repeatCount}`)
+      }
+    })
+  }
+  
+  return descriptions.join(', ')
+}

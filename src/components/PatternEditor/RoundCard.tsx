@@ -23,13 +23,13 @@ interface RoundCardProps {
   onCopyRound: (roundNumber: number) => void
   onDeleteRound: (roundNumber: number) => void
   onEditStitch: (roundNumber: number, stitch: StitchInfo) => void
-  onUpdateStitch: (roundNumber: number, stitchId: string) => void
+  onUpdateStitch: () => void
   onDeleteStitch: (roundNumber: number, stitchId: string) => void
   onEditGroup: (roundNumber: number, group: StitchGroup) => void
   onUpdateGroup: (roundNumber: number, groupId: string) => void
   onDeleteGroup: (roundNumber: number, groupId: string) => void
   onEditGroupStitch: (roundNumber: number, groupId: string, stitch: StitchInfo) => void
-  onUpdateGroupStitch: (roundNumber: number, groupId: string, stitchId: string) => void
+  onUpdateGroupStitch: () => void
   onDeleteGroupStitch: (roundNumber: number, groupId: string, stitchId: string) => void
   onAddStitchToGroup: (roundNumber: number, groupId: string) => void
   onStitchTypeChange: (newType: any) => void

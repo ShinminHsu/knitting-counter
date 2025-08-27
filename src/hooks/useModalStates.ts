@@ -11,10 +11,6 @@ interface EditNewGroupStitchModalState {
   stitchId: string
 }
 
-interface GroupStitchModalState {
-  show: boolean
-}
-
 interface EditGroupStitchModalState {
   roundNumber: number
   groupId: string

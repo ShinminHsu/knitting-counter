@@ -19,13 +19,13 @@ interface PatternItemDisplayProps {
   editGroupName: string
   editGroupRepeatCount: string
   onEditStitch: (roundNumber: number, stitch: StitchInfo) => void
-  onUpdateStitch: (roundNumber: number, stitchId: string) => void
+  onUpdateStitch: () => void
   onDeleteStitch: (roundNumber: number, stitchId: string) => void
   onEditGroup: (roundNumber: number, group: StitchGroup) => void
   onUpdateGroup: (roundNumber: number, groupId: string) => void
   onDeleteGroup: (roundNumber: number, groupId: string) => void
   onEditGroupStitch: (roundNumber: number, groupId: string, stitch: StitchInfo) => void
-  onUpdateGroupStitch: (roundNumber: number, groupId: string, stitchId: string) => void
+  onUpdateGroupStitch: () => void
   onDeleteGroupStitch: (roundNumber: number, groupId: string, stitchId: string) => void
   onAddStitchToGroup: (roundNumber: number, groupId: string) => void
   onSaveAsTemplate: (group: StitchGroup) => void
@@ -102,7 +102,7 @@ export default function PatternItemDisplay({
               stitchCount={editStitchCount}
               onTypeChange={onStitchTypeChange}
               onCountChange={onStitchCountChange}
-              onConfirm={() => onUpdateStitch(roundNumber, stitch.id)}
+              onConfirm={() => onUpdateStitch()}
               onCancel={onCancelEdit}
               fieldKey={`editStitch_${stitch.id}`}
             />
@@ -215,7 +215,7 @@ export default function PatternItemDisplay({
                       stitchCount={editGroupStitchCount}
                       onTypeChange={onGroupStitchTypeChange}
                       onCountChange={onGroupStitchCountChange}
-                      onConfirm={() => onUpdateGroupStitch(roundNumber, group.id, stitch.id)}
+                      onConfirm={() => onUpdateGroupStitch()}
                       onCancel={onCancelEdit}
                       fieldKey={`editGroupStitch_${stitch.id}`}
                     />
