@@ -7,8 +7,6 @@ import { firestoreConnectionManager } from './FirestoreConnectionManager'
 
 // Re-export interfaces for backward compatibility
 export type { UserProfile } from './FirestoreUserService'
-export type { FirestoreProject } from './FirestoreProjectService'
-export type { FirestoreRound } from './FirestoreRoundService'
 
 /**
  * Main FirestoreService class that composes all specialized services
@@ -170,7 +168,10 @@ class FirestoreService {
   /**
    * Get service statistics for debugging
    */
-  getServiceStats(): any {
+  getServiceStats(): {
+    connectionStats: unknown
+    timestamp: string
+  } {
     return {
       connectionStats: this.connectionManager.getConnectionStats(),
       timestamp: new Date().toISOString()

@@ -1,9 +1,10 @@
 import { FiEdit3 } from "react-icons/fi"
 import { formatDate, getProjectTotalStitchesAllCharts } from '../../utils'
 import { useChartStore } from '../../stores/useChartStore'
+import { Project } from '../../types'
 
 export interface ProjectInfoProps {
-  project: any
+  project: Project
   onEditClick: () => void
 }
 

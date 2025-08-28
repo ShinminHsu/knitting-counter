@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import { LiaVolleyballBallSolid } from 'react-icons/lia'
+import { Project, Yarn } from '../../types'
 
 export interface YarnDisplayProps {
-  project: any
+  project: Project
 }
 
 export default function YarnDisplay({ project }: YarnDisplayProps) {
@@ -25,7 +26,7 @@ export default function YarnDisplay({ project }: YarnDisplayProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {project.yarns.map((yarn: any) => (
+          {project.yarns.map((yarn: Yarn) => (
             <div key={yarn.id} className="flex items-center gap-3 p-3 bg-background-secondary rounded-lg">
               <div
                 className="w-8 h-8 rounded-full shadow-sm flex-shrink-0 border border-gray-400"

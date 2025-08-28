@@ -1,5 +1,14 @@
-import { Round, StitchGroup, StitchInfo, PatternItemType, StitchType, StitchTypeInfo, Yarn } from '../../types'
+import { Round, StitchGroup, StitchInfo, PatternItemType, StitchType, StitchTypeInfo, Yarn, PatternItem } from '../../types'
 import { getSortedPatternItems } from './rendering'
+
+// Interface for expanded stitch items
+interface ExpandedStitch {
+  id: string
+  type: StitchType
+  yarnId: string
+  originalStitchId: string
+  groupId?: string
+}
 
 // 計算群組總針數
 export function getStitchGroupTotalStitches(group: StitchGroup): number {
@@ -11,7 +20,7 @@ export function getRoundTotalStitches(round: Round): number {
   // 優先使用新的 PatternItems 結構計算
   const sortedPatternItems = getSortedPatternItems(round)
   if (sortedPatternItems.length > 0) {
-    return sortedPatternItems.reduce((sum, item) => {
+    return sortedPatternItems.reduce((sum: number, item: PatternItem) => {
       if (item.type === PatternItemType.STITCH) {
         const stitch = item.data as StitchInfo
         return sum + stitch.count
@@ -30,8 +39,8 @@ export function getRoundTotalStitches(round: Round): number {
 }
 
 // 展開圈數中的所有針目（包括群組）
-export function getExpandedStitches(round: Round): any[] {
-  const expanded: any[] = []
+export function getExpandedStitches(round: Round): ExpandedStitch[] {
+  const expanded: ExpandedStitch[] = []
   
   // 展開個別針法
   round.stitches.forEach(stitch => {
@@ -74,7 +83,7 @@ export function describeRound(round: Round, yarns: Yarn[]): string {
   
   if (sortedPatternItems.length > 0) {
     // 如果有新的排序格式，使用它
-    sortedPatternItems.forEach((item) => {
+    sortedPatternItems.forEach((item: PatternItem) => {
       if (item.type === PatternItemType.STITCH) {
         const stitchInfo = item.data as StitchInfo
         const yarn = yarns.find(y => y.id === stitchInfo.yarnId)

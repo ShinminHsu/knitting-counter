@@ -154,8 +154,9 @@ export class FirestoreConnectionManager {
    * @param error - The error that occurred
    * @param context - Context information about the operation
    */
-  async handleNetworkError(error: any, context: string): Promise<void> {
-    console.log(`[FIRESTORE-CONNECTION] Handling network error in ${context}:`, error?.message)
+  async handleNetworkError(error: unknown, context: string): Promise<void> {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.log(`[FIRESTORE-CONNECTION] Handling network error in ${context}:`, errorMessage)
     
     if (!this.isNetworkRelatedError(error)) {
       console.log('[FIRESTORE-CONNECTION] Error is not network-related, no recovery needed')
@@ -181,11 +182,15 @@ export class FirestoreConnectionManager {
    * Determine if an error is network-related
    * @private
    */
-  private isNetworkRelatedError(error: any): boolean {
+  private isNetworkRelatedError(error: unknown): boolean {
     if (!error) return false
 
-    const errorMessage = error.message?.toLowerCase() || ''
-    const errorCode = error.code?.toLowerCase() || ''
+    const errorMessage = error && typeof error === 'object' && 'message' in error
+      ? String((error as { message: unknown }).message).toLowerCase()
+      : ''
+    const errorCode = error && typeof error === 'object' && 'code' in error
+      ? String((error as { code: unknown }).code).toLowerCase()
+      : ''
 
     const networkKeywords = [
       'offline',
@@ -206,15 +211,18 @@ export class FirestoreConnectionManager {
       'aborted'
     ]
 
+    const hasName = error && typeof error === 'object' && 'name' in error
+    const errorName = hasName ? (error as { name: unknown }).name : ''
+    
     return networkKeywords.some(keyword => errorMessage.includes(keyword)) ||
            networkCodes.some(code => errorCode.includes(code)) ||
-           error.name === 'AbortError'
+           errorName === 'AbortError'
   }
 
   /**
    * Get optimized Firestore settings for the current device
    */
-  getOptimizedSettings(): any {
+  getOptimizedSettings(): Record<string, unknown> {
     const baseSettings = {
       ignoreUndefinedProperties: true,
       cacheSizeBytes: 40 * 1024 * 1024, // 40MB cache
@@ -251,7 +259,7 @@ export class FirestoreConnectionManager {
   /**
    * Get connection statistics for debugging
    */
-  getConnectionStats(): any {
+  getConnectionStats(): Record<string, unknown> {
     return {
       isNetworkEnabled: this.isNetworkEnabled,
       isMobile: this.isMobileDevice(),
@@ -264,8 +272,9 @@ export class FirestoreConnectionManager {
    * Create a standardized connection error
    * @private
    */
-  private createConnectionError(message: string, originalError: any): Error {
-    const error = new Error(`[FirestoreConnectionManager] ${message}: ${originalError?.message || originalError}`)
+  private createConnectionError(message: string, originalError: unknown): Error {
+    const errorMessage = originalError instanceof Error ? originalError.message : String(originalError)
+    const error = new Error(`[FirestoreConnectionManager] ${message}: ${errorMessage}`)
     return error
   }
 }

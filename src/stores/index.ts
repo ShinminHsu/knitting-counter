@@ -8,6 +8,7 @@ import { useYarnStore } from './useYarnStore'
 import { useTemplateStore } from './useTemplateStore'
 import { useProgressStore } from './useProgressStore'
 import { useAuthStore } from './useAuthStore'
+import { StitchInfo } from '../types'
 
 // Re-export all individual stores
 export {
@@ -193,7 +194,7 @@ export const useAppActions = () => {
     },
 
     // Add stitch to current round
-    addStitchToCurrentRound: async (stitchData: any) => {
+    addStitchToCurrentRound: async (stitchData: Partial<StitchInfo>) => {
       try {
         const { currentProject } = useProjectStore.getState()
         const { addStitch } = usePatternStore.getState()

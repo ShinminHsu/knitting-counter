@@ -1,20 +1,20 @@
 import { VscEdit } from 'react-icons/vsc'
 import { BsTrash } from 'react-icons/bs'
-import { StitchInfo, StitchGroup, PatternItemType } from '../../types'
+import { StitchInfo, StitchGroup, PatternItemType, PatternItem, StitchType } from '../../types'
 import { getStitchDisplayInfo, getStitchGroupTotalStitches } from '../../utils'
 import StitchEditor from './StitchEditor'
 import GroupEditor from './GroupEditor'
 
 interface PatternItemDisplayProps {
-  patternItem: any // PatternItem type
+  patternItem: PatternItem
   roundNumber: number
   index: number
   editingStitch: { roundNumber: number, stitchId: string } | null
   editingGroup: { roundNumber: number, groupId: string } | null
   editingGroupStitch: { roundNumber: number, groupId: string, stitchId: string } | null
-  editStitchType: any
+  editStitchType: StitchType
   editStitchCount: string
-  editGroupStitchType: any
+  editGroupStitchType: StitchType
   editGroupStitchCount: string
   editGroupName: string
   editGroupRepeatCount: string
@@ -30,9 +30,9 @@ interface PatternItemDisplayProps {
   onAddStitchToGroup: (roundNumber: number, groupId: string) => void
   onSaveAsTemplate: (group: StitchGroup) => void
   onCancelEdit: () => void
-  onStitchTypeChange: (newType: any) => void
+  onStitchTypeChange: (newType: StitchType) => void
   onStitchCountChange: (newCount: string) => void
-  onGroupStitchTypeChange: (newType: any) => void
+  onGroupStitchTypeChange: (newType: StitchType) => void
   onGroupStitchCountChange: (newCount: string) => void
   onGroupNameChange: (newName: string) => void
   onGroupRepeatCountChange: (newCount: string) => void

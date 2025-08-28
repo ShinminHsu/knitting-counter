@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/useAuthStore'
 import { useProjectStore } from '../stores/useProjectStore'
 import { useBaseStore } from '../stores/useBaseStore'
 import { useSyncStore } from '../stores/useSyncStore'
-import { syncManager } from './syncManager'
+import { syncManager, ProjectConflict } from './syncManager'
 
 class AuthListener {
   private unsubscribeFirestore: (() => void) | null = null
@@ -162,7 +162,7 @@ class AuthListener {
     }
   }
   
-  async resolveConflicts(conflicts: any[], resolutions: { [projectId: string]: 'local' | 'remote' }) {
+  async resolveConflicts(conflicts: ProjectConflict[], resolutions: { [projectId: string]: 'local' | 'remote' }) {
     const { user } = useAuthStore.getState()
     if (!user) return false
     

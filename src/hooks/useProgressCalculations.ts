@@ -125,7 +125,7 @@ export function useProgressCalculations({
     
     // Get pattern from chart if available, fallback to project pattern
     const pattern = currentChart ? currentChart.rounds : getProjectPattern(currentProject)
-    const displayRound = pattern.find((r: any) => r.roundNumber === displayRoundNumber)
+    const displayRound = pattern.find((r: Round) => r.roundNumber === displayRoundNumber)
     
     const currentStitchInRound = isViewMode ? 0 : currentStitch
     const totalStitchesInCurrentRound = displayRound ? getRoundTotalStitches(displayRound) : 0

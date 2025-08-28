@@ -366,7 +366,24 @@ export const useTemplateStore = create<TemplateStore>()(
           ...parsed,
           state: {
             ...parsed.state,
-            templates: parsed.state.templates.map((template: any) => ({
+            templates: parsed.state.templates.map((template: {
+              id: string
+              name: string
+              description: string
+              stitches: Array<{
+                id: string
+                type: string
+                yarnId: string
+                count: number
+                customName?: string
+                customSymbol?: string
+              }>
+              repeatCount: number
+              category: string
+              createdDate: string
+              lastUsed?: string
+              useCount: number
+            }) => ({
               ...template,
               createdDate: new Date(template.createdDate),
               lastUsed: template.lastUsed ? new Date(template.lastUsed) : undefined

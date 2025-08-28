@@ -1,4 +1,4 @@
-import { StitchType, StitchInfo, StitchGroup, Round } from '../types'
+import { StitchType, StitchInfo, StitchGroup, Round, Chart } from '../types'
 import { generateId } from '../utils'
 import { useProjectStore } from '../stores/useProjectStore'
 import { useChartStore } from '../stores/useChartStore'
@@ -10,7 +10,7 @@ export function usePatternOperations() {
   const { addRound, updateRound, deleteRound, addStitch } = usePatternStore()
 
   const handleAddRound = async (
-    currentChart: any,
+    currentChart: Chart | null,
     chartPattern: Round[],
     newRoundNotes: string,
     isLoading: boolean,
@@ -51,7 +51,7 @@ export function usePatternOperations() {
     }
   }
 
-  const handleDeleteRound = async (currentChart: any, roundNumber: number) => {
+  const handleDeleteRound = async (currentChart: Chart | null, roundNumber: number) => {
     if (confirm(`確定要刪除第 ${roundNumber} 圈嗎？`)) {
       if (currentChart) {
         const updatedRounds = currentChart.rounds
@@ -80,7 +80,7 @@ export function usePatternOperations() {
     yarnId: string,
     customName: string | undefined,
     customSymbol: string | undefined,
-    currentChart: any,
+    currentChart: Chart | null,
     roundNumber: number,
     isLoading: boolean,
     setIsLoading: (loading: boolean) => void
@@ -133,7 +133,7 @@ export function usePatternOperations() {
     yarnId: string,
     customName: string | undefined,
     customSymbol: string | undefined,
-    currentChart: any,
+    currentChart: Chart | null,
     chartPattern: Round[],
     roundNumber: number,
     groupId: string,
@@ -205,7 +205,7 @@ export function usePatternOperations() {
     newGroupName: string,
     newGroupRepeatCount: number | string,
     newGroupStitches: StitchInfo[],
-    currentChart: any,
+    currentChart: Chart | null,
     chartPattern: Round[]
   ) => {
     const trimmedName = newGroupName.trim() || '針目群組'

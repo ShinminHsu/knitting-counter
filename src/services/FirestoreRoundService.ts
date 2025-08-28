@@ -8,16 +8,8 @@ import {
   orderBy 
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { Round } from '../types'
+import { Round, FirestoreRound } from '../types'
 import { firestoreDataCleaner } from './FirestoreDataCleaner'
-
-export interface FirestoreRound {
-  id: string
-  roundNumber: number
-  stitches: any[]
-  stitchGroups: any[]
-  notes?: string
-}
 
 /**
  * FirestoreRoundService handles all round-related operations
@@ -323,8 +315,9 @@ export class FirestoreRoundService {
    * Create a standardized round service error
    * @private
    */
-  private createRoundServiceError(message: string, originalError: any): Error {
-    const error = new Error(`[FirestoreRoundService] ${message}: ${originalError?.message || originalError}`)
+  private createRoundServiceError(message: string, originalError: unknown): Error {
+    const errorMessage = originalError instanceof Error ? originalError.message : String(originalError)
+    const error = new Error(`[FirestoreRoundService] ${message}: ${errorMessage}`)
     return error
   }
 }

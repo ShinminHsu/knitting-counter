@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
+import { Project } from '../../../types'
 
 export interface EditProjectModalProps {
   isOpen: boolean
-  project: any
+  project: Project | null
   onClose: () => void
   onSave: (name: string, source: string, notes: string) => void
 }

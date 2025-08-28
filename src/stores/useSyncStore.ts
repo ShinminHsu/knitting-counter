@@ -5,6 +5,7 @@ import { useAuthStore } from './useAuthStore'
 import { firestoreService, UserProfile } from '../services/firestoreService'
 import { networkStatus } from '../utils/networkStatus'
 import { useBaseStore, handleAsyncError } from './useBaseStore'
+import { User } from 'firebase/auth'
 
 interface SyncStoreState {
   isSyncing: boolean
@@ -21,7 +22,7 @@ interface SyncStoreActions {
   cleanupNetworkListener: () => void
   
   // User profile management
-  initializeUserProfile: (user: any) => Promise<void>
+  initializeUserProfile: (user: User) => Promise<void>
   
   // Firestore synchronization
   syncWithFirestore: () => Promise<Project[]>

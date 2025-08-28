@@ -1,5 +1,10 @@
 import { Timestamp } from 'firebase/firestore'
-import { Project, Round, StitchInfo, StitchGroup, Yarn, WorkSession, Chart } from '../types'
+import {
+  Project, Round, StitchInfo, StitchGroup, Yarn, WorkSession, Chart,
+  FirestoreYarn, FirestoreWorkSession, FirestoreStitchInfo, FirestoreStitchGroup,
+  FirestoreRound, FirestoreChart, FirestoreProject, FirestoreProjectCreate,
+  FirestoreProjectUpdate, TimestampConvertible
+} from '../types'
 
 /**
  * FirestoreDataCleaner provides data cleaning and validation utilities
@@ -16,7 +21,7 @@ export class FirestoreDataCleaner {
    * @param yarns - Array of yarns to clean
    * @returns Cleaned yarn array
    */
-  cleanYarns(yarns: Yarn[]): any[] {
+  cleanYarns(yarns: Yarn[]): FirestoreYarn[] {
     return (yarns || [])
       .filter(yarn => yarn && yarn.id && yarn.name && yarn.color)
       .map(yarn => ({
@@ -35,7 +40,7 @@ export class FirestoreDataCleaner {
    * @param sessions - Array of work sessions to clean
    * @returns Cleaned sessions array with Firestore timestamps
    */
-  cleanSessions(sessions: WorkSession[]): any[] {
+  cleanSessions(sessions: WorkSession[]): FirestoreWorkSession[] {
     return (sessions || [])
       .filter(session => session && session.startTime)
       .map(session => ({
@@ -52,7 +57,7 @@ export class FirestoreDataCleaner {
    * @param stitches - Array of stitches to clean
    * @returns Cleaned stitches array
    */
-  cleanStitches(stitches: StitchInfo[]): any[] {
+  cleanStitches(stitches: StitchInfo[]): FirestoreStitchInfo[] {
     return (stitches || [])
       .filter(stitch => stitch !== undefined && stitch !== null)
       .map(stitch => ({
@@ -70,7 +75,7 @@ export class FirestoreDataCleaner {
    * @param stitchGroups - Array of stitch groups to clean
    * @returns Cleaned stitch groups array
    */
-  cleanStitchGroups(stitchGroups: StitchGroup[]): any[] {
+  cleanStitchGroups(stitchGroups: StitchGroup[]): FirestoreStitchGroup[] {
     return (stitchGroups || [])
       .filter(group => group !== undefined && group !== null)
       .map(group => ({
@@ -87,8 +92,8 @@ export class FirestoreDataCleaner {
    * @param round - Round data to clean
    * @returns Cleaned round data
    */
-  cleanRound(round: Round): any {
-    const cleanedRound: any = {
+  cleanRound(round: Round): FirestoreRound {
+    const cleanedRound: Partial<FirestoreRound> = {
       id: round.id,
       roundNumber: round.roundNumber,
       stitches: this.cleanStitches(round.stitches || []),
@@ -100,7 +105,7 @@ export class FirestoreDataCleaner {
       cleanedRound.notes = round.notes
     }
 
-    return cleanedRound
+    return cleanedRound as FirestoreRound
   }
 
   /**
@@ -108,7 +113,7 @@ export class FirestoreDataCleaner {
    * @param rounds - Array of rounds to clean
    * @returns Cleaned rounds array
    */
-  cleanRounds(rounds: Round[]): any[] {
+  cleanRounds(rounds: Round[]): FirestoreRound[] {
     return (rounds || []).map(round => this.cleanRound(round))
   }
 
@@ -117,7 +122,7 @@ export class FirestoreDataCleaner {
    * @param chart - Chart data to clean
    * @returns Cleaned chart data
    */
-  cleanChart(chart: Chart): any {
+  cleanChart(chart: Chart): FirestoreChart {
     return {
       id: chart.id,
       name: chart.name,
@@ -137,7 +142,7 @@ export class FirestoreDataCleaner {
    * @param charts - Array of charts to clean
    * @returns Cleaned charts array
    */
-  cleanCharts(charts: Chart[]): any[] {
+  cleanCharts(charts: Chart[]): FirestoreChart[] {
     return (charts || [])
       .filter(chart => chart && chart.id && chart.name)
       .map(chart => this.cleanChart(chart))
@@ -148,7 +153,7 @@ export class FirestoreDataCleaner {
    * @param project - Project data to clean
    * @returns Cleaned project data ready for Firestore
    */
-  cleanProjectForCreate(project: Project): any {
+  cleanProjectForCreate(project: Project): FirestoreProjectCreate {
     const cleanedYarns = this.cleanYarns(project.yarns || [])
     const cleanedSessions = this.cleanSessions(project.sessions || [])
     const cleanedCharts = this.cleanCharts(project.charts || [])
@@ -175,7 +180,7 @@ export class FirestoreDataCleaner {
    * @param project - Project data to clean
    * @returns Cleaned project data ready for Firestore update
    */
-  cleanProjectForUpdate(project: Project): any {
+  cleanProjectForUpdate(project: Project): FirestoreProjectUpdate {
     const cleanedYarns = this.cleanYarns(project.yarns || [])
     const cleanedSessions = this.cleanSessions(project.sessions || [])
     const cleanedCharts = this.cleanCharts(project.charts || [])
@@ -262,7 +267,7 @@ export class FirestoreDataCleaner {
    * @param data - Data object containing Firestore timestamps
    * @returns Data with Date objects
    */
-  convertTimestampsToDate(data: any): any {
+  convertTimestampsToDate<T extends TimestampConvertible>(data: T): T {
     if (!data) return data
 
     const converted = { ...data }
@@ -282,12 +287,21 @@ export class FirestoreDataCleaner {
 
     // Convert session timestamps
     if (converted.sessions && Array.isArray(converted.sessions)) {
-      converted.sessions = converted.sessions.map((session: any) => ({
-        ...session,
-        startTime: session.startTime && typeof session.startTime.toDate === 'function'
-          ? session.startTime.toDate()
-          : session.startTime
-      }))
+      converted.sessions = converted.sessions.map((session: unknown) => {
+        if (session && typeof session === 'object' && session !== null) {
+          const typedSession = session as Record<string, unknown>
+          return {
+            ...typedSession,
+            startTime: typedSession.startTime &&
+              typeof typedSession.startTime === 'object' &&
+              typedSession.startTime !== null &&
+              typeof (typedSession.startTime as any).toDate === 'function'
+                ? (typedSession.startTime as any).toDate()
+                : typedSession.startTime
+          }
+        }
+        return session
+      }) as Array<{ [key: string]: any; startTime?: any }>
     }
 
     return converted
@@ -299,7 +313,7 @@ export class FirestoreDataCleaner {
    * @param path - Current path for debugging
    * @returns Array of paths with undefined values
    */
-  findUndefinedValues(obj: any, path: string = ''): string[] {
+  findUndefinedValues(obj: unknown, path: string = ''): string[] {
     const undefinedPaths: string[] = []
 
     if (obj === undefined) {
@@ -315,10 +329,10 @@ export class FirestoreDataCleaner {
       obj.forEach((item, index) => {
         undefinedPaths.push(...this.findUndefinedValues(item, `${path}[${index}]`))
       })
-    } else {
-      Object.keys(obj).forEach(key => {
+    } else if (typeof obj === 'object' && obj !== null) {
+      Object.keys(obj as Record<string, unknown>).forEach(key => {
         const newPath = path ? `${path}.${key}` : key
-        undefinedPaths.push(...this.findUndefinedValues(obj[key], newPath))
+        undefinedPaths.push(...this.findUndefinedValues((obj as Record<string, unknown>)[key], newPath))
       })
     }
 
@@ -331,7 +345,7 @@ export class FirestoreDataCleaner {
    * @param cleanedData - Data after cleaning
    * @param operation - Operation being performed
    */
-  logCleaningSummary(originalData: any, cleanedData: any, operation: string): void {
+  logCleaningSummary(originalData: unknown, cleanedData: unknown, operation: string): void {
     console.log(`[FIRESTORE-CLEANER] ${operation} cleaning summary:`, {
       originalUndefinedPaths: this.findUndefinedValues(originalData),
       cleanedUndefinedPaths: this.findUndefinedValues(cleanedData),

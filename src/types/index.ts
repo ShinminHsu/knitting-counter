@@ -264,3 +264,119 @@ export type RouteParams = {
   chartId?: string
   roundId?: string
 }
+
+// Firestore-specific types for data cleaning and conversion
+export interface FirestoreYarn {
+  id: string
+  name: string
+  brand?: string
+  color: {
+    name: string
+    hex: string
+  }
+}
+
+export interface FirestoreWorkSession {
+  id: string
+  startTime: any // Firestore Timestamp - handled by conversion utilities
+  duration: number
+  roundsCompleted: number
+  stitchesCompleted: number
+}
+
+export interface FirestoreStitchInfo {
+  id: string
+  type: StitchType
+  yarnId: string
+  count: number
+  customName?: string
+  customSymbol?: string
+}
+
+export interface FirestoreStitchGroup {
+  id: string
+  name: string
+  stitches: FirestoreStitchInfo[]
+  repeatCount: number
+  completedRepeats?: number
+}
+
+export interface FirestoreRound {
+  id: string
+  roundNumber: number
+  stitches: FirestoreStitchInfo[]
+  stitchGroups: FirestoreStitchGroup[]
+  notes?: string
+}
+
+export interface FirestoreChart {
+  id: string
+  name: string
+  description?: string
+  rounds: FirestoreRound[]
+  currentRound: number
+  currentStitch: number
+  createdDate: any // Firestore Timestamp - handled by conversion utilities
+  lastModified: any // Firestore Timestamp - handled by conversion utilities
+  isCompleted?: boolean
+  notes?: string
+}
+
+export interface FirestoreProject {
+  id: string
+  name: string
+  source?: string
+  notes?: string
+  currentRound?: number
+  currentStitch?: number
+  charts?: FirestoreChart[]
+  currentChartId?: string
+  yarns: FirestoreYarn[]
+  sessions: FirestoreWorkSession[]
+  createdDate: any // Firestore Timestamp - handled by conversion utilities
+  lastModified: any // Firestore Timestamp - handled by conversion utilities
+  isCompleted?: boolean
+}
+
+export interface FirestoreProjectCreate extends Omit<FirestoreProject, 'id'> {
+  id: string
+}
+
+export interface FirestoreProjectUpdate extends Omit<FirestoreProject, 'id' | 'createdDate'> {}
+
+// Generic Firestore document data type
+export interface FirestoreDocumentData {
+  [key: string]: any
+}
+
+// Date serialization types
+export interface SerializedDate {
+  __type: 'Date'
+  value: string
+}
+
+export type SerializableValue =
+  | string
+  | number
+  | boolean
+  | null
+  | SerializedDate
+  | SerializableValue[]
+  | { [key: string]: SerializableValue }
+
+export interface DateSerializationHelpers {
+  serializeWithDates: <T>(obj: T) => string
+  deserializeWithDates: <T>(str: string) => T
+}
+
+// Timestamp conversion utilities type
+export interface TimestampConvertible {
+  createdDate?: any
+  lastModified?: any
+  lastLogin?: any
+  sessions?: Array<{
+    startTime?: any
+    [key: string]: any
+  }>
+  [key: string]: any
+}

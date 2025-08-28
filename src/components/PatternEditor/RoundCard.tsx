@@ -1,5 +1,5 @@
 import { BsTrash } from 'react-icons/bs'
-import { Round, Project, StitchInfo, StitchGroup } from '../../types'
+import { Round, Project, StitchInfo, StitchGroup, StitchType } from '../../types'
 import { getSortedPatternItems, getRoundTotalStitches } from '../../utils'
 import PatternItemDisplay from './PatternItemDisplay'
 
@@ -10,9 +10,9 @@ interface RoundCardProps {
   editingStitch: { roundNumber: number, stitchId: string } | null
   editingGroup: { roundNumber: number, groupId: string } | null
   editingGroupStitch: { roundNumber: number, groupId: string, stitchId: string } | null
-  editStitchType: any
+  editStitchType: StitchType
   editStitchCount: string
-  editGroupStitchType: any
+  editGroupStitchType: StitchType
   editGroupStitchCount: string
   editGroupName: string
   editGroupRepeatCount: string
@@ -32,9 +32,9 @@ interface RoundCardProps {
   onUpdateGroupStitch: () => void
   onDeleteGroupStitch: (roundNumber: number, groupId: string, stitchId: string) => void
   onAddStitchToGroup: (roundNumber: number, groupId: string) => void
-  onStitchTypeChange: (newType: any) => void
+  onStitchTypeChange: (newType: StitchType) => void
   onStitchCountChange: (newCount: string) => void
-  onGroupStitchTypeChange: (newType: any) => void
+  onGroupStitchTypeChange: (newType: StitchType) => void
   onGroupStitchCountChange: (newCount: string) => void
   onGroupNameChange: (newName: string) => void
   onGroupRepeatCountChange: (newCount: string) => void

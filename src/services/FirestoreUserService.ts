@@ -119,7 +119,7 @@ export class FirestoreUserService {
       console.log('[FIRESTORE-USER] Updating user profile:', userId, updates)
       
       const userRef = doc(db, this.COLLECTION_NAME, userId, this.PROFILE_SUBCOLLECTION, this.PROFILE_DOCUMENT)
-      const updateData: any = {}
+      const updateData: Record<string, unknown> = {}
       
       if (updates.displayName !== undefined) {
         updateData.displayName = updates.displayName
@@ -181,8 +181,9 @@ export class FirestoreUserService {
    * Create a standardized error for user service operations
    * @private
    */
-  private createUserServiceError(message: string, originalError: any): Error {
-    const error = new Error(`[FirestoreUserService] ${message}: ${originalError?.message || originalError}`)
+  private createUserServiceError(message: string, originalError: unknown): Error {
+    const errorMessage = originalError instanceof Error ? originalError.message : String(originalError)
+    const error = new Error(`[FirestoreUserService] ${message}: ${errorMessage}`)
     return error
   }
 }

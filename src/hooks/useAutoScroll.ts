@@ -1,9 +1,9 @@
 import { useEffect, useCallback, useRef } from 'react'
-import { Round } from '../types'
+import { Round, Project } from '../types'
 import { getRoundTotalStitches } from '../utils'
 
 interface UseAutoScrollProps {
-  currentProject: any
+  currentProject: Project | null
   displayRound: Round | undefined
   isViewMode: boolean
   patternContainerRef: React.RefObject<HTMLDivElement>
@@ -80,7 +80,7 @@ export function useAutoScroll({
   
   // Optimized scroll function with debouncing
   const performScroll = useCallback((targetScrollTop: number, container: HTMLElement) => {
-    // Clear any pending scroll
+    // Clear any existing pending scroll
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current)
     }

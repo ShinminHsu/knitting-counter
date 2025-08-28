@@ -11,5 +11,5 @@ export function isIOS(): boolean {
 // 檢查是否在 PWA 模式下運行
 export function isPWA(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches ||
-         (window.navigator as any).standalone === true
+         (window.navigator as { standalone?: boolean }).standalone === true
 }

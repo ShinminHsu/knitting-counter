@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
 import { FiEdit3 } from "react-icons/fi"
 import { useChartStore } from '../../stores/useChartStore'
+import { Project, Chart, ChartSummary } from '../../types'
 
 export interface ChartManagementProps {
-  project: any
-  currentChart: any
+  project: Project
+  currentChart: Chart | null
   onCreateChart: () => void
-  onEditChart: (chart: any) => void
+  onEditChart: (chart: ChartSummary) => void
   onSetCurrentChart: (chartId: string) => void
   onDeleteChart: (chartId: string, chartName: string) => void
 }

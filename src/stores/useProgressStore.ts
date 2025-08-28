@@ -1,6 +1,6 @@
 
 import { create } from 'zustand'
-import { WorkSession } from '../types'
+import { WorkSession, Project } from '../types'
 import { generateId, getProjectPattern, getProjectCurrentRound, getProjectCurrentStitch, getRoundTotalStitches } from '../utils'
 import { useProjectStore } from './useProjectStore'
 
@@ -336,7 +336,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
 }))
 
 // Utility functions for progress calculations
-export const getProgressPercentage = (currentProject: any): number => {
+export const getProgressPercentage = (currentProject: Project | null): number => {
   if (!currentProject) return 0
   
   const pattern = getProjectPattern(currentProject)
@@ -369,7 +369,7 @@ export const getProgressPercentage = (currentProject: any): number => {
   return Math.min(Math.max(0, progressRatio * 100), 100)
 }
 
-export const getCompletedStitches = (currentProject: any): number => {
+export const getCompletedStitches = (currentProject: Project | null): number => {
   if (!currentProject) return 0
   
   const pattern = getProjectPattern(currentProject)
@@ -398,7 +398,7 @@ export const getCompletedStitches = (currentProject: any): number => {
   return completed
 }
 
-export const getTotalStitches = (currentProject: any): number => {
+export const getTotalStitches = (currentProject: Project | null): number => {
   if (!currentProject) return 0
   
   const pattern = getProjectPattern(currentProject)
@@ -407,7 +407,7 @@ export const getTotalStitches = (currentProject: any): number => {
   return pattern.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)
 }
 
-export const isProjectCompleted = (currentProject: any): boolean => {
+export const isProjectCompleted = (currentProject: Project | null): boolean => {
   if (!currentProject) return false
   
   const pattern = getProjectPattern(currentProject)

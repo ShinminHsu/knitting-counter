@@ -8,31 +8,16 @@ import {
   deleteDoc,
   query,
   orderBy,
-  onSnapshot
+  onSnapshot,
+  DocumentSnapshot,
+  QueryDocumentSnapshot
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { Project, Chart } from '../types'
+import { Project, Chart, FirestoreProject } from '../types'
 import { firestoreDataCleaner } from './FirestoreDataCleaner'
 import { firestoreRoundService } from './FirestoreRoundService'
 import { firestoreConnectionManager } from './FirestoreConnectionManager'
-
-export interface FirestoreProject {
-  id: string
-  name: string
-  source?: string
-  notes?: string
-  // 向後兼容：保留舊的欄位
-  currentRound: number
-  currentStitch: number
-  // 新的多織圖結構
-  charts?: Chart[]
-  currentChartId?: string
-  yarns: any[]
-  sessions: any[]
-  createdDate: Date
-  lastModified: Date
-  isCompleted?: boolean
-}
+import { safeParseProjects, assertIsProject } from '../utils/validation'
 
 /**
  * FirestoreProjectService handles all project-related operations
@@ -59,15 +44,22 @@ export class FirestoreProjectService {
       const projectsQuery = query(projectsRef, orderBy('lastModified', 'desc'))
       const projectsSnap = await getDocs(projectsQuery)
       
-      const projects: Project[] = []
+      const rawProjects: Project[] = []
       
       for (const projectDoc of projectsSnap.docs) {
         const project = await this.processProjectDocument(userId, projectDoc)
-        projects.push(project)
+        rawProjects.push(project)
       }
       
-      console.log('[FIRESTORE-PROJECT] Retrieved projects:', projects.length)
-      return projects
+      // Apply runtime validation to ensure data integrity
+      const validatedProjects = safeParseProjects(rawProjects)
+      
+      console.log('[FIRESTORE-PROJECT] Retrieved projects:', validatedProjects.length)
+      if (rawProjects.length !== validatedProjects.length) {
+        console.warn('[FIRESTORE-PROJECT] Some projects failed validation:', rawProjects.length - validatedProjects.length, 'invalid')
+      }
+      
+      return validatedProjects
     } catch (error) {
       console.error('[FIRESTORE-PROJECT] Error getting user projects:', error)
       throw this.createProjectServiceError('Failed to get user projects', error)
@@ -110,8 +102,9 @@ export class FirestoreProjectService {
     try {
       console.log('[FIRESTORE-PROJECT] Creating project:', project.name)
 
-      // Validate project data
+      // Validate project data with both existing and new runtime validation
       firestoreDataCleaner.validateProject(project)
+      assertIsProject(project, 'createProject')
 
       const projectRef = doc(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, project.id)
       const cleanedProjectData = firestoreDataCleaner.cleanProjectForCreate(project)
@@ -144,8 +137,9 @@ export class FirestoreProjectService {
         patternLength: project.pattern?.length || 0
       })
       
-      // Validate project data
+      // Validate project data with both existing and new runtime validation
       firestoreDataCleaner.validateProject(project)
+      assertIsProject(project, 'updateProject')
 
       // First sync rounds to ensure sub-collection updates succeed
       console.log('[FIRESTORE-PROJECT] Syncing rounds first...')
@@ -213,14 +207,21 @@ export class FirestoreProjectService {
       try {
         console.log('[FIRESTORE-PROJECT-SUBSCRIPTION] Received project updates:', snapshot.docs.length)
 
-        const projects: Project[] = []
+        const rawProjects: Project[] = []
         
         for (const projectDoc of snapshot.docs) {
           const project = await this.processProjectDocument(userId, projectDoc)
-          projects.push(project)
+          rawProjects.push(project)
         }
         
-        callback(projects)
+        // Apply runtime validation to real-time updates
+        const validatedProjects = safeParseProjects(rawProjects)
+        
+        if (rawProjects.length !== validatedProjects.length) {
+          console.warn('[FIRESTORE-PROJECT-SUBSCRIPTION] Some projects failed validation:', rawProjects.length - validatedProjects.length, 'invalid')
+        }
+        
+        callback(validatedProjects)
       } catch (error) {
         console.error('[FIRESTORE-PROJECT-SUBSCRIPTION] Error in projects subscription:', error)
       }
@@ -304,7 +305,7 @@ export class FirestoreProjectService {
    * Process a project document from Firestore, handling legacy data migration
    * @private
    */
-  private async processProjectDocument(userId: string, projectDoc: any): Promise<Project> {
+  private async processProjectDocument(userId: string, projectDoc: DocumentSnapshot | QueryDocumentSnapshot): Promise<Project> {
     const projectData = projectDoc.data() as FirestoreProject
     
     // Get rounds from sub-collection
@@ -327,7 +328,7 @@ export class FirestoreProjectService {
         currentStitch: projectData.currentStitch || 0,
         createdDate: firestoreDataCleaner.convertTimestampsToDate(projectData).createdDate,
         lastModified: new Date(),
-        isCompleted: projectData.isCompleted || false,
+        isCompleted: projectData.isCompleted ?? false,
         notes: ''
       }
       
@@ -366,8 +367,9 @@ export class FirestoreProjectService {
    * Create a standardized project service error
    * @private
    */
-  private createProjectServiceError(message: string, originalError: any): Error {
-    const error = new Error(`[FirestoreProjectService] ${message}: ${originalError?.message || originalError}`)
+  private createProjectServiceError(message: string, originalError: unknown): Error {
+    const errorMessage = originalError instanceof Error ? originalError.message : String(originalError)
+    const error = new Error(`[FirestoreProjectService] ${message}: ${errorMessage}`)
     return error
   }
 }

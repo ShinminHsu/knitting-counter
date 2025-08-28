@@ -37,11 +37,12 @@ export const useAuthStore = create<AuthStore>()(
           set({ isLoading: true, error: null })
           const result = await signInWithPopup(auth, googleProvider)
           set({ user: result.user, isLoading: false })
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('Google 登入失敗:', error)
-          set({ 
-            error: error.message || '登入失敗', 
-            isLoading: false 
+          const errorMessage = error instanceof Error ? error.message : '登入失敗'
+          set({
+            error: errorMessage,
+            isLoading: false
           })
         }
       },
@@ -52,11 +53,12 @@ export const useAuthStore = create<AuthStore>()(
           set({ isLoading: true, error: null })
           await firebaseSignOut(auth)
           set({ user: null, isLoading: false })
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('登出失敗:', error)
-          set({ 
-            error: error.message || '登出失敗', 
-            isLoading: false 
+          const errorMessage = error instanceof Error ? error.message : '登出失敗'
+          set({
+            error: errorMessage,
+            isLoading: false
           })
         }
       },

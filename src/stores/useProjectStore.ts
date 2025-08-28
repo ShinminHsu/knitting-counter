@@ -247,18 +247,18 @@ export const useProjectStore = create<ProjectStore>()(
             console.log('Loaded projects from Firestore:', firestoreProjects.length)
             
             // Ensure backward compatibility with migrated data
-            const migratedProjects = firestoreProjects.map((project: any) => ({
+            const migratedProjects = firestoreProjects.map((project: Project) => ({
               ...project,
-              pattern: project.pattern?.map((round: any) => ({
+              pattern: project.pattern?.map((round) => ({
                 ...round,
-                stitches: round.stitches?.map((stitch: any) => ({
+                stitches: round.stitches?.map((stitch) => ({
                   ...stitch,
                   customName: stitch.customName || undefined,
                   customSymbol: stitch.customSymbol || undefined
                 })) || [],
-                stitchGroups: round.stitchGroups?.map((group: any) => ({
+                stitchGroups: round.stitchGroups?.map((group) => ({
                   ...group,
-                  stitches: group.stitches?.map((stitch: any) => ({
+                  stitches: group.stitches?.map((stitch) => ({
                     ...stitch,
                     customName: stitch.customName || undefined,
                     customSymbol: stitch.customSymbol || undefined
@@ -286,24 +286,75 @@ export const useProjectStore = create<ProjectStore>()(
               
               if (state.projects && state.projects.length > 0) {
                 // Convert date formats and ensure backward compatibility
-                const localProjects = state.projects.map((project: any) => ({
+                interface LegacyProject {
+                  id: string
+                  name: string
+                  source?: string
+                  createdDate: string | Date
+                  lastModified: string | Date
+                  isCompleted?: boolean
+                  currentRound?: number
+                  currentStitch?: number
+                  yarns?: Array<{
+                    id: string
+                    brand: string
+                    name: string
+                    color: string
+                    weight?: string
+                    [key: string]: unknown
+                  }>
+                  sessions?: Array<{
+                    id: string
+                    startTime: string | Date
+                    duration?: number
+                    roundsCompleted?: number
+                  }>
+                  pattern?: Array<{
+                    id: string
+                    roundNumber: number
+                    notes?: string
+                    stitches?: Array<{
+                      id: string
+                      type: string
+                      yarnId: string
+                      count: number
+                      customName?: string
+                      customSymbol?: string
+                    }>
+                    stitchGroups?: Array<{
+                      id: string
+                      name: string
+                      repeatCount: number
+                      stitches: Array<{
+                        id: string
+                        type: string
+                        yarnId: string
+                        count: number
+                        customName?: string
+                        customSymbol?: string
+                      }>
+                    }>
+                  }>
+                }
+                
+                const localProjects = state.projects.map((project: LegacyProject) => ({
                   ...project,
                   createdDate: new Date(project.createdDate),
                   lastModified: new Date(project.lastModified),
-                  sessions: project.sessions?.map((session: any) => ({
+                  sessions: project.sessions?.map((session) => ({
                     ...session,
                     startTime: new Date(session.startTime)
                   })) || [],
-                  pattern: project.pattern?.map((round: any) => ({
+                  pattern: project.pattern?.map((round) => ({
                     ...round,
-                    stitches: round.stitches?.map((stitch: any) => ({
+                    stitches: round.stitches?.map((stitch) => ({
                       ...stitch,
                       customName: stitch.customName || undefined,
                       customSymbol: stitch.customSymbol || undefined
                     })) || [],
-                    stitchGroups: round.stitchGroups?.map((group: any) => ({
+                    stitchGroups: round.stitchGroups?.map((group) => ({
                       ...group,
-                      stitches: group.stitches?.map((stitch: any) => ({
+                      stitches: group.stitches?.map((stitch) => ({
                         ...stitch,
                         customName: stitch.customName || undefined,
                         customSymbol: stitch.customSymbol || undefined
@@ -368,11 +419,27 @@ export const useProjectStore = create<ProjectStore>()(
               const state = parsed.state || parsed
               
               if (state.projects) {
-                const projects = state.projects.map((project: any) => ({
+                interface FallbackProject {
+                  id: string
+                  name: string
+                  source?: string
+                  createdDate: string | Date
+                  lastModified: string | Date
+                  isCompleted?: boolean
+                  sessions?: Array<{
+                    id: string
+                    startTime: string | Date
+                    duration?: number
+                    roundsCompleted?: number
+                  }>
+                  [key: string]: unknown
+                }
+                
+                const projects = state.projects.map((project: FallbackProject) => ({
                   ...project,
                   createdDate: new Date(project.createdDate),
                   lastModified: new Date(project.lastModified),
-                  sessions: project.sessions?.map((session: any) => ({
+                  sessions: project.sessions?.map((session) => ({
                     ...session,
                     startTime: new Date(session.startTime)
                   })) || []

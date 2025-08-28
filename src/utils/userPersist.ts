@@ -1,5 +1,6 @@
 import { StateCreator, StoreMutatorIdentifier } from 'zustand'
 import { getUserData, setUserData, removeUserData } from './userStorage'
+import { SerializedDate, SerializableValue } from '../types'
 
 // 擴展用戶專屬持久化中間件的類型
 type UserPersist<T, Mps extends [StoreMutatorIdentifier, unknown][] = [], Mcs extends [StoreMutatorIdentifier, unknown][] = []> = (
@@ -14,25 +15,34 @@ type UserPersist<T, Mps extends [StoreMutatorIdentifier, unknown][] = [], Mcs ex
 ) => StateCreator<T, Mps, Mcs>
 
 // 日期序列化處理
-const serializeWithDates = (obj: any): string => {
-  return JSON.stringify(obj, (_key, value) => {
+const serializeWithDates = <T>(obj: T): string => {
+  return JSON.stringify(obj, (_key, value: unknown): SerializableValue => {
     if (value instanceof Date) {
-      return { __type: 'Date', value: value.toISOString() }
+      return { __type: 'Date', value: value.toISOString() } as SerializedDate
     }
-    return value
+    return value as SerializableValue
   })
 }
 
-const deserializeWithDates = (str: string): any => {
-  return JSON.parse(str, (_key, value) => {
-    if (value && typeof value === 'object' && value.__type === 'Date') {
-      return new Date(value.value)
+const deserializeWithDates = <T>(str: string): T => {
+  return JSON.parse(str, (_key, value: unknown): unknown => {
+    if (value && typeof value === 'object' && value !== null) {
+      const typedValue = value as Record<string, unknown>
+      if (typedValue.__type === 'Date' && typeof typedValue.value === 'string') {
+        return new Date(typedValue.value)
+      }
     }
     return value
-  })
+  }) as T
 }
 
-export const userPersist: UserPersist<any> = (config, options) => (set, get, api) => {
+export const userPersist = <T>(config: StateCreator<T, [], []>, options: {
+  name: string
+  getUserId: () => string | null
+  partialize?: (state: T) => Partial<T>
+  serialize?: <S>(state: S) => string
+  deserialize?: <S>(str: string) => S
+}): StateCreator<T, [], []> => (set, get, api) => {
   const {
     name,
     getUserId,
@@ -47,7 +57,7 @@ export const userPersist: UserPersist<any> = (config, options) => (set, get, api
       const data = getUserData(userId, name)
       if (data) {
         const deserializedData = typeof data === 'string' ? deserialize(data) : data
-        api.setState(deserializedData, true)
+        api.setState(deserializedData as Partial<T>, true)
       }
     } catch (error) {
       console.error(`Failed to load user data for ${userId}:`, error)
@@ -81,7 +91,10 @@ export const userPersist: UserPersist<any> = (config, options) => (set, get, api
   }
 
   // 包裝 setState 來自動保存
-  const wrappedSet = (partial: any, replace?: boolean) => {
+  const wrappedSet = (
+    partial: T | Partial<T> | ((state: T) => T | Partial<T>),
+    replace?: boolean
+  ) => {
     set(partial, replace)
     // 延遲保存以避免過於頻繁的寫入
     setTimeout(saveUserData, 0)

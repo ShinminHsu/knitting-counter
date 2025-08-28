@@ -1,4 +1,4 @@
-import { Project } from '../../types'
+import { Project, Round, ChartSummary } from '../../types'
 import { getRoundTotalStitches } from '../pattern/operations'
 import { getProjectPattern, getProjectCurrentRound, getProjectCurrentStitch } from './migration'
 import { getProjectChartSummaries, getChartCompletedStitches } from '../chart/progress'
@@ -12,13 +12,13 @@ export function getProjectTotalTime(project: Project): number {
 // 計算專案總圈數
 export function getProjectTotalRounds(project: Project): number {
   const pattern = getProjectPattern(project)
-  return pattern.map(round => round.roundNumber).reduce((max, num) => Math.max(max, num), 0)
+  return pattern.map((round: Round) => round.roundNumber).reduce((max: number, num: number) => Math.max(max, num), 0)
 }
 
 // 計算專案總針數
 export function getProjectTotalStitches(project: Project): number {
   const pattern = getProjectPattern(project)
-  return pattern.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)
+  return pattern.reduce((sum: number, round: Round) => sum + getRoundTotalStitches(round), 0)
 }
 
 // 計算專案已完成針數
@@ -32,14 +32,14 @@ export function getProjectCompletedStitches(project: Project): number {
   
   // 計算已完成的完整圈數
   for (let roundNumber = 1; roundNumber < currentRound; roundNumber++) {
-    const round = pattern.find(r => r.roundNumber === roundNumber)
+    const round = pattern.find((r: Round) => r.roundNumber === roundNumber)
     if (round) {
       completed += getRoundTotalStitches(round)
     }
   }
   
   // 添加當前圈的進度，但要確保不超出範圍
-  const currentRoundData = pattern.find(r => r.roundNumber === currentRound)
+  const currentRoundData = pattern.find((r: Round) => r.roundNumber === currentRound)
   if (currentRoundData) {
     const maxStitchesInCurrentRound = getRoundTotalStitches(currentRoundData)
     const validCurrentStitch = Math.min(Math.max(0, currentStitch), maxStitchesInCurrentRound)
@@ -69,13 +69,13 @@ export function getProjectProgressPercentage(project: Project): number {
 // 計算專案總圈數（所有織圖）
 export function getProjectTotalRoundsAllCharts(project: Project): number {
   const chartSummaries = getProjectChartSummaries(project)
-  return chartSummaries.reduce((sum, chart) => sum + chart.roundCount, 0)
+  return chartSummaries.reduce((sum: number, chart: ChartSummary) => sum + chart.roundCount, 0)
 }
 
 // 計算專案總針數（所有織圖）
 export function getProjectTotalStitchesAllCharts(project: Project): number {
   const chartSummaries = getProjectChartSummaries(project)
-  return chartSummaries.reduce((sum, chart) => sum + chart.totalStitches, 0)
+  return chartSummaries.reduce((sum: number, chart: ChartSummary) => sum + chart.totalStitches, 0)
 }
 
 // 計算專案已完成針數（所有織圖）
@@ -120,7 +120,7 @@ export function isProjectCompleted(project: Project): boolean {
   
   // 如果在最後一圈且針數達到最後一針，也認為已完成
   if (currentRound === totalRounds) {
-    const lastRound = pattern.find(r => r.roundNumber === totalRounds)
+    const lastRound = pattern.find((r: Round) => r.roundNumber === totalRounds)
     if (lastRound) {
       const totalStitchesInLastRound = getRoundTotalStitches(lastRound)
       return currentStitch >= totalStitchesInLastRound
@@ -143,7 +143,7 @@ export function getProjectCurrentStitchSafe(project: Project | null | undefined)
 }
 
 // 安全獲取專案織圖數據
-export function getProjectPatternSafe(project: Project | null | undefined): any[] {
+export function getProjectPatternSafe(project: Project | null | undefined): Round[] {
   if (!project) return []
   return getProjectPattern(project)
 }

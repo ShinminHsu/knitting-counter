@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
+import { ChartSummary } from '../../../types'
 
 export interface EditChartModalProps {
   isOpen: boolean
-  chart: any | null
+  chart: ChartSummary | null
   onClose: () => void
   onSave: (name: string, description: string, notes: string) => void
 }
