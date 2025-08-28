@@ -29,6 +29,9 @@ interface PatternStoreActions {
   deleteGroup: (roundNumber: number, groupIndex: number) => Promise<void>
   duplicateGroup: (roundNumber: number, groupIndex: number) => Promise<void>
   
+  // Pattern item reordering
+  reorderPatternItemsInRound: (roundNumber: number, fromIndex: number, toIndex: number) => Promise<void>
+  
   // Pattern utilities
   getPatternStats: () => { totalRounds: number; totalStitches: number; averageStitchesPerRound: number }
   validatePattern: () => { isValid: boolean; errors: string[] }
@@ -657,6 +660,79 @@ export const usePatternStore = create<PatternStore>(() => ({
       console.log('[PATTERN] Duplicated group in round:', roundNumber, 'at index:', groupIndex)
     } catch (error) {
       handleAsyncError(error, 'Failed to duplicate group')
+    }
+  },
+
+  // Pattern item reordering
+  reorderPatternItemsInRound: async (roundNumber, fromIndex, toIndex) => {
+    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    if (!currentProject) return
+
+    try {
+      const pattern = getProjectPattern(currentProject)
+      const targetRound = pattern.find(r => r.roundNumber === roundNumber)
+      if (!targetRound) {
+        console.error('[PATTERN] reorderPatternItemsInRound: Round not found:', roundNumber)
+        return
+      }
+
+      // Create a combined array of pattern items (stitches and groups)
+      const patternItems = [
+        ...targetRound.stitches.map((stitch, index) => ({ type: 'stitch' as const, item: stitch, originalIndex: index })),
+        ...targetRound.stitchGroups.map((group, index) => ({ type: 'group' as const, item: group, originalIndex: index }))
+      ]
+
+      if (fromIndex < 0 || fromIndex >= patternItems.length || toIndex < 0 || toIndex >= patternItems.length) {
+        console.error('[PATTERN] reorderPatternItemsInRound: Invalid indices', fromIndex, toIndex)
+        return
+      }
+
+      // Reorder the items
+      const reorderedItems = [...patternItems]
+      const [movedItem] = reorderedItems.splice(fromIndex, 1)
+      reorderedItems.splice(toIndex, 0, movedItem)
+
+      // Separate back into stitches and groups
+      const newStitches: StitchInfo[] = []
+      const newGroups: StitchGroup[] = []
+
+      reorderedItems.forEach(({ type, item }) => {
+        if (type === 'stitch') {
+          newStitches.push(item as StitchInfo)
+        } else {
+          newGroups.push(item as StitchGroup)
+        }
+      })
+
+      const updatedPattern = pattern.map(round =>
+        round.roundNumber === roundNumber
+          ? { ...round, stitches: newStitches, stitchGroups: newGroups }
+          : round
+      )
+
+      // Update the current chart with new pattern
+      const currentChart = getCurrentChart(currentProject)
+      if (currentChart) {
+        const updatedChart = {
+          ...currentChart,
+          rounds: updatedPattern,
+          lastModified: new Date()
+        }
+        const updatedProject = { ...currentProject }
+        updateChartInProject(updatedProject, updatedChart)
+        await updateProjectLocally(updatedProject)
+      } else {
+        // Fallback to legacy pattern update
+        await updateProjectLocally({
+          ...currentProject,
+          pattern: updatedPattern,
+          lastModified: new Date()
+        })
+      }
+
+      console.log('[PATTERN] Reordered pattern items in round:', roundNumber, 'from index', fromIndex, 'to', toIndex)
+    } catch (error) {
+      handleAsyncError(error, 'Failed to reorder pattern items')
     }
   },
 

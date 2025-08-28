@@ -1,16 +1,13 @@
 import { StitchType, StitchInfo, StitchGroup, Round } from '../types'
 import { generateId } from '../utils'
-import { useSyncedAppStore } from '../store/syncedAppStore'
+import { useProjectStore } from '../stores/useProjectStore'
+import { useChartStore } from '../stores/useChartStore'
+import { usePatternStore } from '../stores/usePatternStore'
 
 export function usePatternOperations() {
-  const {
-    currentProject,
-    addRound,
-    updateRound,
-    deleteRound,
-    addStitchToRound,
-    updateChart
-  } = useSyncedAppStore()
+  const { currentProject } = useProjectStore()
+  const { updateChart } = useChartStore()
+  const { addRound, updateRound, deleteRound, addStitch } = usePatternStore()
 
   const handleAddRound = async (
     currentChart: any,
@@ -41,7 +38,7 @@ export function usePatternOperations() {
           rounds: [...currentChart.rounds, newRound],
           lastModified: new Date()
         }
-        await updateChart(updatedChart)
+        await updateChart(updatedChart.id, updatedChart)
       } else {
         await addRound(newRound)
       }
@@ -70,7 +67,7 @@ export function usePatternOperations() {
           rounds: updatedRounds,
           lastModified: new Date()
         }
-        await updateChart(updatedChart)
+        await updateChart(updatedChart.id, updatedChart)
       } else {
         await deleteRound(roundNumber)
       }
@@ -93,6 +90,8 @@ export function usePatternOperations() {
     setIsLoading(true)
     
     try {
+      const { addStitchToPatternItems } = await import('../utils')
+      
       const newStitch: StitchInfo = {
         id: generateId(),
         type: stitchType,
@@ -107,21 +106,17 @@ export function usePatternOperations() {
       if (currentChart) {
         const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
         if (targetRound) {
-          const updatedRound = {
-            ...targetRound,
-            stitches: [...targetRound.stitches, newStitch]
-          }
-          const updatedChart = {
-            ...currentChart,
+          // 使用 addStitchToPatternItems 來維持順序
+          const updatedRound = addStitchToPatternItems(targetRound, newStitch)
+          
+          await updateChart(currentChart.id, {
             rounds: currentChart.rounds.map((r: Round) =>
               r.roundNumber === roundNumber ? updatedRound : r
-            ),
-            lastModified: new Date()
-          }
-          await updateChart(updatedChart)
+            )
+          })
         }
       } else {
-        await addStitchToRound(roundNumber, newStitch)
+        await addStitch(roundNumber, newStitch)
       }
     } catch (error) {
       console.error('Error adding stitch:', error)
@@ -179,7 +174,7 @@ export function usePatternOperations() {
             ),
             lastModified: new Date()
           }
-          await updateChart(updatedChart)
+          await updateChart(updatedChart.id, updatedChart)
         }
       } else {
         // Handle legacy project structure
@@ -193,7 +188,7 @@ export function usePatternOperations() {
                 : g
             )
           }
-          await updateRound(updatedRound)
+          await updateRound(updatedRound.roundNumber, updatedRound)
         }
       }
     } catch (error) {
@@ -222,6 +217,8 @@ export function usePatternOperations() {
     }
 
     try {
+      const { addGroupToPatternItems } = await import('../utils')
+      
       const newGroup: StitchGroup = {
         id: generateId(),
         name: trimmedName,
@@ -235,27 +232,20 @@ export function usePatternOperations() {
       if (currentChart) {
         const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
         if (targetRound) {
-          const updatedRound = {
-            ...targetRound,
-            stitchGroups: [...targetRound.stitchGroups, newGroup]
-          }
-          const updatedChart = {
-            ...currentChart,
+          // 使用 addGroupToPatternItems 來維持順序
+          const updatedRound = addGroupToPatternItems(targetRound, newGroup)
+          
+          await updateChart(currentChart.id, {
             rounds: currentChart.rounds.map((r: Round) =>
               r.roundNumber === roundNumber ? updatedRound : r
-            ),
-            lastModified: new Date()
-          }
-          await updateChart(updatedChart)
+            )
+          })
         }
       } else {
         const targetRound = chartPattern.find(r => r.roundNumber === roundNumber)
         if (targetRound) {
-          const updatedRound = {
-            ...targetRound,
-            stitchGroups: [...targetRound.stitchGroups, newGroup]
-          }
-          await updateRound(updatedRound)
+          const updatedRound = addGroupToPatternItems(targetRound, newGroup)
+          await updateRound(updatedRound.roundNumber, updatedRound)
         }
       }
     } catch (error) {

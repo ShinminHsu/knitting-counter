@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Project } from '../types'
-import { useAuthStore } from '../store/authStore'
+import { useAuthStore } from './useAuthStore'
 import { firestoreService, UserProfile } from '../services/firestoreService'
 import { networkStatus } from '../utils/networkStatus'
 import { useBaseStore, handleAsyncError } from './useBaseStore'

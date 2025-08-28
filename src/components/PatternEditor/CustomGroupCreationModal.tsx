@@ -153,7 +153,10 @@ export default function CustomGroupCreationModal({
             取消
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => {
+              onConfirm()
+              onClose() // Close modal after confirmation
+            }}
             className="btn btn-primary flex-1"
             disabled={newGroupStitches.length === 0}
           >

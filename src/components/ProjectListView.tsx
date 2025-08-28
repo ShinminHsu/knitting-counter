@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useSyncedAppStore } from '../store/syncedAppStore'
+import { useProjectStore } from '../stores/useProjectStore'
 import UserProfile from './UserProfile'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { formatDate, getProjectProgressPercentage, getProjectTotalRounds, getProjectTotalStitches, getProjectCompletedStitches } from '../utils'
 
 export default function ProjectListView() {
-  const { projects, createProject, deleteProject } = useSyncedAppStore()
+  const { projects, createProject, deleteProject } = useProjectStore()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectSource, setNewProjectSource] = useState('')

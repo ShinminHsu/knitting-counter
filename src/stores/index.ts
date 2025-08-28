@@ -7,17 +7,19 @@ import { useChartStore } from './useChartStore'
 import { useYarnStore } from './useYarnStore'
 import { useTemplateStore } from './useTemplateStore'
 import { useProgressStore } from './useProgressStore'
+import { useAuthStore } from './useAuthStore'
 
 // Re-export all individual stores
-export { 
-  useBaseStore, 
-  useSyncStore, 
-  useProjectStore, 
-  usePatternStore, 
-  useChartStore, 
-  useYarnStore, 
-  useTemplateStore, 
-  useProgressStore 
+export {
+  useBaseStore,
+  useSyncStore,
+  useProjectStore,
+  usePatternStore,
+  useChartStore,
+  useYarnStore,
+  useTemplateStore,
+  useProgressStore,
+  useAuthStore
 }
 
 // Export utility functions from template store
@@ -57,6 +59,7 @@ export const useAppState = () => {
   const yarn = useYarnStore()
   const template = useTemplateStore()
   const progress = useProgressStore()
+  const auth = useAuthStore()
 
   return {
     base,
@@ -67,16 +70,19 @@ export const useAppState = () => {
     yarn,
     template,
     progress,
+    auth,
     
     // Computed values - only use properties that exist
-    isLoading: base.isLoading || template.isLoading,
-    hasError: !!base.error,
-    error: base.error,
+    isLoading: base.isLoading || template.isLoading || auth.isLoading,
+    hasError: !!base.error || !!auth.error,
+    error: base.error || auth.error,
     
     // Quick access to commonly used values
     currentProject: project.currentProject,
     projects: project.projects,
-    templates: template.templates
+    templates: template.templates,
+    user: auth.user,
+    isAuthenticated: !!auth.user
   }
 }
 

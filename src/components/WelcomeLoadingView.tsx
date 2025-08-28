@@ -1,10 +1,14 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSyncedAppStore } from '../store/syncedAppStore'
+import { useBaseStore } from '../stores/useBaseStore'
+import { useSyncStore } from '../stores/useSyncStore'
+import { useProjectStore } from '../stores/useProjectStore'
 
 export default function WelcomeLoadingView() {
   const navigate = useNavigate()
-  const { isLoading, isSyncing, projects, error } = useSyncedAppStore()
+  const { isLoading, error } = useBaseStore()
+  const { isSyncing } = useSyncStore()
+  const { projects } = useProjectStore()
 
   useEffect(() => {
     // 當載入和同步都完成，且有專案資料時，導航到專案列表

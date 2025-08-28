@@ -107,7 +107,7 @@ export default function PatternPreview({
 
         {/* 總計資訊 */}
         <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div className="grid grid-cols-3 gap-4 text-sm w-full">
+          <div className="grid grid-cols-2 gap-4 text-sm w-full">
             <div>
               <span className="text-text-secondary">總圈數: </span>
               <span className="font-medium text-text-primary">{chartPattern.length}</span>
@@ -118,10 +118,10 @@ export default function PatternPreview({
                 {chartPattern.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)}
               </span>
             </div>
-            <div>
+            {/* <div>
               <span className="text-text-secondary">使用毛線: </span>
               <span className="font-medium text-text-primary">{currentProject?.yarns.length || 0} 種</span>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

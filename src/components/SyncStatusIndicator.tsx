@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react'
-import { useSyncedAppStore } from '../store/syncedAppStore'
+import { useSyncStore } from '../stores/useSyncStore'
+import { useBaseStore } from '../stores/useBaseStore'
 import { authListener } from '../services/authListener'
 import { networkStatus } from '../utils/networkStatus'
 
 export default function SyncStatusIndicator() {
-  const { 
-    isSyncing, 
-    lastSyncTime, 
-    error, 
+  const {
+    isSyncing,
+    lastSyncTime
+  } = useSyncStore()
+  
+  const {
+    error,
     setError,
     isLocallyUpdating
-  } = useSyncedAppStore()
+  } = useBaseStore()
   
   const [isExpanded, setIsExpanded] = useState(false)
   const [isOnline, setIsOnline] = useState(networkStatus.getIsOnline())

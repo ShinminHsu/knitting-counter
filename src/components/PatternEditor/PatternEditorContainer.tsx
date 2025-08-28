@@ -1,7 +1,9 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { useSyncedAppStore } from '../../store/syncedAppStore'
+import { useProjectStore } from '../../stores/useProjectStore'
+import { useChartStore } from '../../stores/useChartStore'
+import { usePatternStore } from '../../stores/usePatternStore'
 import { useModalStates } from '../../hooks/useModalStates'
 import { usePatternEditorState } from '../../hooks/usePatternEditorState'
 import { usePatternOperations } from '../../hooks/usePatternOperations'
@@ -11,8 +13,7 @@ import { Round, StitchType, StitchInfo, StitchGroup } from '../../types'
 import {
   generateId,
   getCurrentChart,
-  getProjectPattern,
-  isLegacyProject
+  getProjectPattern
 } from '../../utils'
 
 // Components
@@ -32,14 +33,19 @@ export default function PatternEditorContainer() {
   
   const {
     currentProject,
-    setCurrentProject,
-    projects,
+    setCurrentProjectById,
+    projects
+  } = useProjectStore()
+  
+  const {
     updateChart,
-    migrateCurrentProjectToMultiChart,
-    updateRound,
     getChartSummaries,
     setCurrentChart
-  } = useSyncedAppStore()
+  } = useChartStore()
+  
+  const {
+    updateRound
+  } = usePatternStore()
 
   // Use extracted hooks
   const modalStates = useModalStates()
@@ -58,17 +64,14 @@ export default function PatternEditorContainer() {
     if (projectId) {
       const project = projects.find(p => p.id === projectId)
       if (project) {
-        setCurrentProject(projectId)
+        setCurrentProjectById(projectId)
         
-        if (isLegacyProject(project)) {
-          console.log('Migrating legacy project to multi-chart format')
-          migrateCurrentProjectToMultiChart()
-        }
+        // 舊格式專案的自動遷移已在 store 層處理
       } else {
         navigate('/404')
       }
     }
-  }, [projectId, projects, navigate, setCurrentProject, migrateCurrentProjectToMultiChart])
+  }, [projectId, projects, navigate, setCurrentProjectById])
 
   useEffect(() => {
     if (!currentProject) return
@@ -161,16 +164,22 @@ export default function PatternEditorContainer() {
   const handleAddGroup = async () => {
     if (!patternEditorState.showAddGroupModal) return
     
-    await patternOperations.handleAddGroup(
-      patternEditorState.showAddGroupModal.roundNumber,
-      patternEditorState.newGroupName,
-      patternEditorState.newGroupRepeatCount,
-      patternEditorState.newGroupStitches,
-      currentChart,
-      chartPattern
-    )
-    
-    patternEditorState.resetNewGroupForm()
+    try {
+      await patternOperations.handleAddGroup(
+        patternEditorState.showAddGroupModal.roundNumber,
+        patternEditorState.newGroupName,
+        patternEditorState.newGroupRepeatCount,
+        patternEditorState.newGroupStitches,
+        currentChart,
+        chartPattern
+      )
+      
+      // 成功時重置表單
+      patternEditorState.resetNewGroupForm()
+    } catch (error) {
+      console.error('Error adding group:', error)
+      alert('新增群組時發生錯誤，請重試')
+    }
   }
 
   const handleCopyRound = (roundNumber: number) => {
@@ -224,13 +233,12 @@ export default function PatternEditorContainer() {
     }
 
     const finalRounds = [...updatedRounds, newRound].sort((a, b) => a.roundNumber - b.roundNumber)
-    const updatedChart = {
+
+    await updateChart(currentChart.id, {
       ...currentChart,
       rounds: finalRounds,
       lastModified: new Date()
-    }
-
-    await updateChart(updatedChart)
+    })
     modalStates.setShowCopyRoundModal(null)
   }
 
@@ -270,14 +278,13 @@ export default function PatternEditorContainer() {
             ...targetRound,
             stitchGroups: [...targetRound.stitchGroups, newGroup]
           }
-          const updatedChart = {
+          await updateChart(currentChart.id, {
             ...currentChart,
             rounds: currentChart.rounds.map((r: Round) =>
               r.roundNumber === roundNumber ? updatedRound : r
             ),
             lastModified: new Date()
-          }
-          await updateChart(updatedChart)
+          })
         }
       } else {
         // Handle legacy project structure if needed
@@ -287,7 +294,7 @@ export default function PatternEditorContainer() {
             ...targetRound,
             stitchGroups: [...targetRound.stitchGroups, newGroup]
           }
-          await updateRound(updatedRound)
+          await updateRound(roundNumber, updatedRound)
         }
       }
       modalStates.setShowAddGroupModal(null)
@@ -413,16 +420,13 @@ export default function PatternEditorContainer() {
           onUpdateRoundNotes={async (round, notes) => {
             const updatedRound = { ...round, notes: notes.trim() || undefined }
             if (currentChart) {
-              const updatedChart = {
-                ...currentChart,
+              await updateChart(currentChart.id, {
                 rounds: currentChart.rounds.map((r: Round) =>
                   r.id === round.id ? updatedRound : r
-                ),
-                lastModified: new Date()
-              }
-              await updateChart(updatedChart)
+                )
+              })
             } else {
-              await updateRound(updatedRound)
+              await updateRound(round.roundNumber, updatedRound)
             }
             patternEditorState.setEditingRound(null)
           }}
@@ -453,14 +457,11 @@ export default function PatternEditorContainer() {
                         : s
                     )
                   }
-                  const updatedChart = {
-                    ...currentChart,
+                  await updateChart(currentChart.id, {
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
-                    ),
-                    lastModified: new Date()
-                  }
-                  await updateChart(updatedChart)
+                    )
+                  })
                 }
               } else {
                 // Handle legacy project structure
@@ -474,7 +475,7 @@ export default function PatternEditorContainer() {
                         : s
                     )
                   }
-                  await updateRound(updatedRound)
+                  await updateRound(roundNumber, updatedRound)
                 }
               }
             } catch (error) {
@@ -493,14 +494,11 @@ export default function PatternEditorContainer() {
                     ...targetRound,
                     stitches: targetRound.stitches.filter((s: StitchInfo) => s.id !== stitchId)
                   }
-                  const updatedChart = {
-                    ...currentChart,
+                  await updateChart(currentChart.id, {
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
-                    ),
-                    lastModified: new Date()
-                  }
-                  await updateChart(updatedChart)
+                    )
+                  })
                 }
               } else {
                 // Handle legacy deletion
@@ -535,14 +533,11 @@ export default function PatternEditorContainer() {
                         : g
                     )
                   }
-                  const updatedChart = {
-                    ...currentChart,
+                  await updateChart(currentChart.id, {
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
-                    ),
-                    lastModified: new Date()
-                  }
-                  await updateChart(updatedChart)
+                    )
+                  })
                 }
               } else {
                 const targetRound = chartPattern.find(r => r.roundNumber === roundNumber)
@@ -555,7 +550,7 @@ export default function PatternEditorContainer() {
                         : g
                     )
                   }
-                  await updateRound(updatedRound)
+                  await updateRound(roundNumber, updatedRound)
                 }
               }
             } catch (error) {
@@ -574,14 +569,11 @@ export default function PatternEditorContainer() {
                     ...targetRound,
                     stitchGroups: targetRound.stitchGroups.filter((g: StitchGroup) => g.id !== groupId)
                   }
-                  const updatedChart = {
-                    ...currentChart,
+                  await updateChart(currentChart.id, {
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
-                    ),
-                    lastModified: new Date()
-                  }
-                  await updateChart(updatedChart)
+                    )
+                  })
                 }
               }
             }
@@ -616,14 +608,11 @@ export default function PatternEditorContainer() {
                         : g
                     )
                   }
-                  const updatedChart = {
-                    ...currentChart,
+                  await updateChart(currentChart.id, {
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
-                    ),
-                    lastModified: new Date()
-                  }
-                  await updateChart(updatedChart)
+                    )
+                  })
                 }
               }
             } catch (error) {
@@ -651,14 +640,13 @@ export default function PatternEditorContainer() {
                         : g
                     )
                   }
-                  const updatedChart = {
+                  await updateChart(currentChart.id, {
                     ...currentChart,
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
                     ),
                     lastModified: new Date()
-                  }
-                  await updateChart(updatedChart)
+                  })
                 }
               }
             } catch (error) {

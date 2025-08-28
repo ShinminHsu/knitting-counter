@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSyncedAppStore } from '../store/syncedAppStore'
+import { usePatternStore } from '../stores/usePatternStore'
 
 interface DraggedItem {
   index: number
@@ -8,7 +8,7 @@ interface DraggedItem {
 
 export function useDragAndDrop() {
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null)
-  const { reorderPatternItemsInRound } = useSyncedAppStore()
+  const { reorderPatternItemsInRound } = usePatternStore()
 
   const handleDragStart = (_e: React.DragEvent, index: number, roundNumber: number) => {
     console.log('[DRAG] Starting drag for PatternItem:', { index, roundNumber })

@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useSyncedAppStore } from './store/syncedAppStore'
-import { useAuthStore } from './store/authStore'
+import { useBaseStore } from './stores/useBaseStore'
+import { useSyncStore } from './stores/useSyncStore'
+import { useAuthStore } from './stores/useAuthStore'
 import { authListener } from './services/authListener'
 import { testFirebaseConnection, testAuthConnection } from './utils/firebaseTest'
 // import { networkStatus } from './utils/networkStatus'
@@ -16,12 +17,13 @@ import GoogleSignIn from './components/GoogleSignIn'
 import LoadingPage from './components/LoadingPage'
 
 function AppWithSync() {
-  const { 
-    setError, 
+  const {
+    setError,
     error,
-    isSyncing,
     isLoading: appLoading
-  } = useSyncedAppStore()
+  } = useBaseStore()
+  
+  const { isSyncing } = useSyncStore()
   
   const { user, isLoading: authLoading, initialize } = useAuthStore()
 

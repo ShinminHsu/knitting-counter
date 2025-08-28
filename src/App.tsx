@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useSyncedAppStore } from './store/syncedAppStore'
-import { useAuthStore } from './store/authStore'
+import { useProjectStore } from './stores/useProjectStore'
+import { useBaseStore } from './stores/useBaseStore'
+import { useSyncStore } from './stores/useSyncStore'
+import { useAuthStore } from './stores/useAuthStore'
 import { cleanupLegacyData, migrateLegacyUserData, debugStorageInfo } from './utils/migrateLegacyData'
 import ProjectListView from './components/ProjectListView'
 import ProjectDetailView from './components/ProjectDetailView'
@@ -14,7 +16,9 @@ import GoogleSignIn from './components/GoogleSignIn'
 import WelcomeLoadingView from './components/WelcomeLoadingView'
 
 function App() {
-  const { loadUserProjects, clearUserDataSilently, setError, error, isLoading: appIsLoading, isSyncing, projects } = useSyncedAppStore()
+  const { loadUserProjects, clearUserDataSilently, projects } = useProjectStore()
+  const { setError, error, isLoading: appIsLoading } = useBaseStore()
+  const { isSyncing } = useSyncStore()
   const { user, isLoading: authIsLoading, initialize } = useAuthStore()
 
   useEffect(() => {

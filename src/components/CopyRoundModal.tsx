@@ -52,6 +52,7 @@ export default function CopyRoundModal({
     }
 
     onConfirm(finalTargetRoundNumber, finalInsertPosition)
+    onClose() // Close modal after confirmation
   }
 
   if (!isOpen || !sourceRound) return null

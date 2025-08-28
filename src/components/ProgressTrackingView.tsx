@@ -1,38 +1,32 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { BsHouse } from 'react-icons/bs'
-import { useSyncedAppStore } from '../store/syncedAppStore'
-import SyncStatusIndicator from './SyncStatusIndicator'
-import ChartSelectorHeader from './ChartSelectorHeader'
-import StitchProgressRenderer from './StitchProgressRenderer'
-import ProgressActionButtons from './ProgressActionButtons'
+import { useProjectStore } from '../stores/useProjectStore'
+import { useChartStore } from '../stores/useChartStore'
 import { useAutoScroll } from '../hooks/useAutoScroll'
 import { useProgressCalculations } from '../hooks/useProgressCalculations'
-import {
-  getProjectTotalRoundsAllCharts,
-  getProjectTotalStitchesAllCharts,
-  getProjectCompletedStitchesAllCharts,
-  getChartProgressPercentage,
-  getChartCompletedStitches,
-  getRoundTotalStitches
-} from '../utils'
-import { useRef } from 'react'
+import ProgressHeader from './ProgressTracking/ProgressHeader'
+import ChartSelector from './ProgressTracking/ChartSelector'
+import ProgressDisplay from './ProgressTracking/ProgressDisplay'
+import StitchRenderer from './ProgressTracking/StitchRenderer'
+import ActionControls from './ProgressTracking/ActionControls'
 
 export default function ProgressTrackingView() {
   const { projectId } = useParams()
   const navigate = useNavigate()
   
-  
-  // Use the same store as ProjectDetailView
+  // Use separate stores for projects and charts
   const {
     projects,
     currentProject,
-    setCurrentProject,
+    setCurrentProjectById
+  } = useProjectStore()
+  
+  const {
     getChartSummaries,
     setCurrentChart,
     getCurrentChart,
     updateChart
-  } = useSyncedAppStore()
+  } = useChartStore()
   
   // Get current chart
   const currentChart = getCurrentChart()
@@ -49,12 +43,12 @@ export default function ProgressTrackingView() {
       const project = projects.find((p: any) => p.id === projectId)
       
       if (project) {
-        setCurrentProject(projectId)
+        setCurrentProjectById(projectId)
       } else {
         navigate('/404')
       }
     }
-  }, [projectId, setCurrentProject, projects, navigate])
+  }, [projectId, setCurrentProjectById, projects, navigate])
 
   // Get progress calculations
   const {
@@ -139,12 +133,10 @@ export default function ProgressTrackingView() {
       }
     }
 
-    await updateChart({
-      ...currentChart,
+    await updateChart(currentChart.id, {
       currentRound: newRound,
       currentStitch: newStitch,
-      isCompleted,
-      lastModified: new Date()
+      isCompleted
     })
   }, [currentProject, currentChart, updateChart])
 
@@ -183,12 +175,10 @@ export default function ProgressTrackingView() {
       newStitch = 0
     }
 
-    await updateChart({
-      ...currentChart,
+    await updateChart(currentChart.id, {
       currentRound: newRound,
       currentStitch: newStitch,
-      isCompleted: false,
-      lastModified: new Date()
+      isCompleted: false
     })
   }, [currentProject, currentChart, updateChart])
 
@@ -213,20 +203,16 @@ export default function ProgressTrackingView() {
           return sum + (groupStitches * group.repeatCount)
         }, 0) : 0
       
-      await updateChart({
-        ...currentChart,
+      await updateChart(currentChart.id, {
         currentStitch: totalStitches,
-        isCompleted: true,
-        lastModified: new Date()
+        isCompleted: true
       })
     } else {
       // Move to next round
-      await updateChart({
-        ...currentChart,
+      await updateChart(currentChart.id, {
         currentRound: currentChart.currentRound + 1,
         currentStitch: 0,
-        isCompleted: false,
-        lastModified: new Date()
+        isCompleted: false
       })
     }
     
@@ -247,12 +233,10 @@ export default function ProgressTrackingView() {
     }
     
     // Reset chart progress to beginning
-    await updateChart({
-      ...currentChart,
+    await updateChart(currentChart.id, {
       currentRound: 1,
       currentStitch: 0,
-      isCompleted: false,
-      lastModified: new Date()
+      isCompleted: false
     })
     
     console.log('[DEBUG] Chart progress reset to beginning')
@@ -288,190 +272,68 @@ export default function ProgressTrackingView() {
     )
   }
 
-  // Calculate current chart progress (not overall project progress)
-  const progressPercentage = currentChart ?
-    (getChartProgressPercentage(currentChart) / 100) : 0
   const hasMultipleCharts = chartSummaries.length > 1
 
   return (
     <div className="min-h-screen bg-background-primary safe-top safe-bottom">
       {/* Header */}
-      <div className="bg-background-secondary border-b border-border sticky top-0 z-10">
-        <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link
-                to={`/project/${projectId}`}
-                className="text-text-secondary hover:text-text-primary transition-colors"
-                title="返回"
-              >
-                ←
-              </Link>
-              <Link
-                to="/"
-                className="text-text-secondary hover:text-text-primary transition-colors"
-                title="首頁"
-              >
-                <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
-              </Link>
-              <h1 className="text-base sm:text-xl font-semibold text-text-primary truncate">
-                {currentProject.name}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <SyncStatusIndicator />
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProgressHeader 
+        project={currentProject}
+        projectId={projectId!}
+      />
 
       <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Chart Selector (only show if multiple charts) */}
-        {hasMultipleCharts && (
-          <ChartSelectorHeader
-            currentChartId={currentChart?.id}
-            chartSummaries={chartSummaries}
-            hasMultipleCharts={hasMultipleCharts}
-            onChartChange={handleChartChange}
-            isViewMode={isViewMode}
-            displayRoundNumber={displayRoundNumber}
-          />
-        )}
+        <ChartSelector
+          currentChart={currentChart}
+          chartSummaries={chartSummaries}
+          hasMultipleCharts={hasMultipleCharts}
+          isViewMode={isViewMode}
+          displayRoundNumber={displayRoundNumber}
+          onChartChange={handleChartChange}
+        />
 
         {/* Overall Progress */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xl font-semibold text-text-primary">
-              {hasMultipleCharts ? `${currentChart?.name || '當前織圖'} 進度` : '專案進度'}
-            </h2>
-            <span className="text-sm text-text-secondary font-medium">
-              {Math.round(progressPercentage * 100)}%
-            </span>
-          </div>
-          <div className="w-full bg-background-tertiary rounded-full h-3 mb-4">
-            <div
-              className="bg-primary h-3 rounded-full transition-all duration-500"
-              style={{ width: `${progressPercentage * 100}%` }}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="text-text-secondary">圈數進度</div>
-              <div className="font-semibold text-text-primary">
-                {currentChart ?
-                  `${Math.max(0, currentChart.currentRound - 1)} / ${currentChart.rounds?.length || 0} 圈` :
-                  `${Math.max(0, currentRound - 1)} / ${getProjectTotalRoundsAllCharts(currentProject)} 圈`
-                }
-              </div>
-            </div>
-            <div>
-              <div className="text-text-secondary">針數進度</div>
-              <div className="font-semibold text-text-primary">
-                {currentChart ?
-                  `${getChartCompletedStitches(currentChart)} / ${currentChart.rounds?.reduce((sum, round) => sum + getRoundTotalStitches(round), 0) || 0} 針` :
-                  `${getProjectCompletedStitchesAllCharts(currentProject)} / ${getProjectTotalStitchesAllCharts(currentProject)} 針`
-                }
-              </div>
-            </div>
-          </div>
-        </div>
+        <ProgressDisplay
+          currentProject={currentProject}
+          currentChart={currentChart}
+          currentRound={currentRound}
+          hasMultipleCharts={hasMultipleCharts}
+        />
 
         {/* Current Chart Progress & Controls */}
         {currentChart && (
           <>
-            {/* Quick Round Navigation */}
-            <div className="card">
-              <h2 className="text-xl font-semibold text-text-primary mb-3">快速跳轉</h2>
-              <div className="flex items-center gap-4">
-                <label className="text-sm text-text-secondary">跳轉到第</label>
-                <select
-                  value={displayRoundNumber}
-                  onChange={(e) => handleJumpToRound(parseInt(e.target.value))}
-                  className="input w-auto min-w-0 flex-shrink-0"
-                >
-                  {Array.from(
-                    { length: Math.max(...(currentChart.rounds?.map((r: any) => r.roundNumber) || [1])) },
-                    (_, i) => i + 1
-                  ).map(roundNumber => (
-                    <option key={roundNumber} value={roundNumber}>
-                      {roundNumber}
-                    </option>
-                  ))}
-                </select>
-                <label className="text-sm text-text-secondary">圈</label>
-                {isViewMode && (
-                  <span className="text-sm" style={{ color: 'rgb(217, 115, 152)' }}>查看模式</span>
-                )}
-              </div>
-            </div>
-
             {/* Stitch Progress & Controls */}
-            <div className="card">
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-text-primary mb-3">
-                  {hasMultipleCharts ? `${currentChart.name} - 本圈織圖` : '本圈織圖'}
-                </h2>
-                <div className="mb-3">
-                  <span className="text-base text-text-primary">
-                    第 {displayRoundNumber} 圈
-                    {isViewMode && (
-                      <span className="text-sm ml-2" style={{ color: 'rgb(217, 115, 152)' }}>（查看中）</span>
-                    )}
-                  </span>
-                  {displayRound && roundDescription && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      {roundDescription}
-                    </div>
-                  )}
-                </div>
-                {displayRound?.notes && (
-                  <div className="text-xs text-gray-500 mb-4">
-                    備註：{displayRound.notes}
-                  </div>
-                )}
-              </div>
+            <StitchRenderer
+              currentProject={currentProject}
+              currentChart={currentChart}
+              displayRound={displayRound}
+              displayRoundNumber={displayRoundNumber}
+              currentStitchInRound={currentStitchInRound}
+              totalStitchesInCurrentRound={totalStitchesInCurrentRound}
+              roundDescription={roundDescription}
+              isViewMode={isViewMode}
+              hasMultipleCharts={hasMultipleCharts}
+              onJumpToRound={handleJumpToRound}
+              patternContainerRef={patternContainerRef}
+            />
 
-              {/* Stitch Progress Visualization */}
-              <div
-                ref={patternContainerRef}
-                className="mb-6 max-h-80 overflow-y-auto border border-border rounded-lg p-1 sm:p-3 bg-background-secondary"
-              >
-                <StitchProgressRenderer
-                  displayRound={displayRound}
-                  currentStitchInRound={currentStitchInRound}
-                  totalStitchesInCurrentRound={totalStitchesInCurrentRound}
-                  getYarnColor={(yarnId: string) => {
-                    const yarn = currentProject?.yarns.find((y: any) => y.id === yarnId)
-                    return yarn?.color.hex || '#000000'
-                  }}
-                  isLightColor={(hex: string) => {
-                    const color = hex.replace('#', '')
-                    const r = parseInt(color.substring(0, 2), 16)
-                    const g = parseInt(color.substring(2, 4), 16)
-                    const b = parseInt(color.substring(4, 6), 16)
-                    const brightness = (r * 299 + g * 587 + b * 114) / 1000
-                    return brightness > 200
-                  }}
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <ProgressActionButtons
-                currentProject={currentProject}
-                currentChart={currentChart}
-                isViewMode={isViewMode}
-                isCompleted={currentChart?.isCompleted || false}
-                currentStitchInRound={currentStitchInRound}
-                totalStitchesInCurrentRound={totalStitchesInCurrentRound}
-                displayRoundNumber={displayRoundNumber}
-                onNextStitch={handleNextStitch}
-                onPreviousStitch={handlePreviousStitch}
-                onCompleteRound={handleCompleteRound}
-                onExitViewMode={handleExitViewMode}
-                onResetProject={handleResetProject}
-                onShareSuccess={handleShareSuccess}
-              />
-            </div>
+            {/* Action Buttons */}
+            <ActionControls
+              currentProject={currentProject}
+              currentChart={currentChart}
+              isViewMode={isViewMode}
+              currentStitchInRound={currentStitchInRound}
+              totalStitchesInCurrentRound={totalStitchesInCurrentRound}
+              displayRoundNumber={displayRoundNumber}
+              onNextStitch={handleNextStitch}
+              onPreviousStitch={handlePreviousStitch}
+              onCompleteRound={handleCompleteRound}
+              onExitViewMode={handleExitViewMode}
+              onResetProject={handleResetProject}
+              onShareSuccess={handleShareSuccess}
+            />
           </>
         )}
 

@@ -1,4 +1,4 @@
-import { useAuthStore } from '../store/authStore'
+import { useAuthStore } from '../stores/useAuthStore'
 
 export default function GoogleSignIn() {
   const { signInWithGoogle, isLoading, error } = useAuthStore()
