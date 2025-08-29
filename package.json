@@ -11,7 +11,11 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "test:integration": "vitest --config vitest.integration.config.ts",
+    "test:integration:ui": "vitest --config vitest.integration.config.ts --ui",
+    "test:integration:coverage": "vitest --config vitest.integration.config.ts --coverage",
+    "test:all": "npm run test && npm run test:integration"
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.15.0",
