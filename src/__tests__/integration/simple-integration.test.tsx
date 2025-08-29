@@ -1,4 +1,3 @@
-import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { BrowserRouter } from 'react-router-dom'
@@ -208,7 +207,7 @@ describe('Simple Integration Tests', () => {
       expect(mockUseProjectStore).toBeDefined()
       
       // Verify the mock return value structure matches expectations
-      const mockReturnValue = mockUseProjectStore.mock.calls[0] ?
+      mockUseProjectStore.mock.calls[0] ?
         mockUseProjectStore.mock.results[mockUseProjectStore.mock.results.length - 1]?.value :
         { projects: mockProjects, currentProject: mockProjects[0] }
       

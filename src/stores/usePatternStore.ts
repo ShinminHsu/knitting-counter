@@ -44,7 +44,7 @@ interface PatternStore extends PatternStoreState, PatternStoreActions {}
 export const usePatternStore = create<PatternStore>(() => ({
   // Round management
   addRound: async (roundData = {}) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[PATTERN] addRound: No current project')
       return
@@ -92,7 +92,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   deleteRound: async (roundNumber) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -151,7 +151,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   updateRound: async (roundNumber, updates) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -189,7 +189,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   duplicateRound: async (roundNumber) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -242,7 +242,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   reorderRounds: async (fromIndex, toIndex) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -292,7 +292,7 @@ export const usePatternStore = create<PatternStore>(() => ({
 
   // Stitch management
   addStitch: async (roundNumber, stitchData) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -344,7 +344,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   updateStitch: async (roundNumber, stitchIndex, updates) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -386,7 +386,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   deleteStitch: async (roundNumber, stitchIndex) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -426,7 +426,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   duplicateStitch: async (roundNumber, stitchIndex) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -477,7 +477,7 @@ export const usePatternStore = create<PatternStore>(() => ({
 
   // Group management
   addGroup: async (roundNumber, groupData) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -529,7 +529,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   updateGroup: async (roundNumber, groupIndex, updates) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -571,7 +571,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   deleteGroup: async (roundNumber, groupIndex) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -611,7 +611,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   duplicateGroup: async (roundNumber, groupIndex) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -666,7 +666,7 @@ export const usePatternStore = create<PatternStore>(() => ({
 
   // Pattern item reordering
   reorderPatternItemsInRound: async (roundNumber, fromIndex, toIndex) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {
@@ -843,7 +843,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   },
 
   optimizePattern: async () => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     try {

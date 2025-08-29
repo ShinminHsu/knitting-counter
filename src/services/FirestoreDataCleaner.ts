@@ -2,7 +2,7 @@ import { Timestamp } from 'firebase/firestore'
 import {
   Project, Round, StitchInfo, StitchGroup, Yarn, WorkSession, Chart,
   FirestoreYarn, FirestoreWorkSession, FirestoreStitchInfo, FirestoreStitchGroup,
-  FirestoreRound, FirestoreChart, FirestoreProject, FirestoreProjectCreate,
+  FirestoreRound, FirestoreChart, FirestoreProjectCreate,
   FirestoreProjectUpdate, TimestampConvertible
 } from '../types'
 

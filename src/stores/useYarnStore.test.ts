@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useYarnStore, hexToRgb, rgbToHex, getColorBrightness, isLightColor, getContrastColor, getColorDistance, findSimilarColors } from './useYarnStore'
 import { useProjectStore } from './useProjectStore'
-import { Project, Yarn, YarnColor, StitchType } from '../types'
-import { generateId } from '../utils'
+import { Project, YarnColor, StitchType } from '../types'
 
 // Mock dependencies
 vi.mock('./useProjectStore')

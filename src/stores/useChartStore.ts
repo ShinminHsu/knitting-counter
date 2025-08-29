@@ -136,7 +136,7 @@ interface ChartStore extends ChartStoreState, ChartStoreActions {}
 export const useChartStore = create<ChartStore>(() => ({
   // Chart management
   createChart: async (chartData: CreateChartRequest) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[CHART] createChart: No current project')
       return null
@@ -171,7 +171,7 @@ export const useChartStore = create<ChartStore>(() => ({
   },
 
   duplicateChart: async (chartId: string) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[CHART] duplicateChart: No current project')
       return null
@@ -240,7 +240,7 @@ export const useChartStore = create<ChartStore>(() => ({
   },
 
   updateChart: async (chartId: string, updates: Partial<Chart>) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[CHART] updateChart: No current project')
       return
@@ -294,7 +294,7 @@ export const useChartStore = create<ChartStore>(() => ({
   },
 
   deleteChart: async (chartId: string) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[CHART] deleteChart: No current project')
       return
@@ -326,7 +326,7 @@ export const useChartStore = create<ChartStore>(() => ({
   },
 
   setCurrentChart: async (chartId: string) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[CHART] setCurrentChart: No current project')
       return
@@ -493,7 +493,7 @@ export const useChartStore = create<ChartStore>(() => ({
 
   // Chart operations
   clearChart: async (chartId: string) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[CHART] clearChart: No current project')
       return
@@ -540,7 +540,7 @@ export const useChartStore = create<ChartStore>(() => ({
   },
 
   resetChartProgress: async (chartId: string) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[CHART] resetChartProgress: No current project')
       return
@@ -586,7 +586,7 @@ export const useChartStore = create<ChartStore>(() => ({
   },
 
   markChartComplete: async (chartId: string) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[CHART] markChartComplete: No current project')
       return
@@ -688,7 +688,7 @@ export const useChartStore = create<ChartStore>(() => ({
   },
 
   importChart: async (chartData: string) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[CHART] importChart: No current project')
       return null

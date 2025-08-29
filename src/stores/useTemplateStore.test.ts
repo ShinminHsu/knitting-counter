@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useTemplateStore, createDefaultTemplates, validateTemplate, getTemplateStitchCount, getTemplatePreview } from './useTemplateStore'
+import { useTemplateStore, validateTemplate, getTemplateStitchCount, getTemplatePreview } from './useTemplateStore'
 import { StitchGroupTemplate, StitchInfo, StitchGroup, StitchType } from '../types'
 
 // Mock dependencies - fixed hoisting issue

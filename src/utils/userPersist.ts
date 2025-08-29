@@ -1,18 +1,7 @@
-import { StateCreator, StoreMutatorIdentifier } from 'zustand'
+import { StateCreator } from 'zustand'
 import { getUserData, setUserData, removeUserData } from './userStorage'
 import { SerializedDate, SerializableValue } from '../types'
 
-// 擴展用戶專屬持久化中間件的類型
-type UserPersist<T, Mps extends [StoreMutatorIdentifier, unknown][] = [], Mcs extends [StoreMutatorIdentifier, unknown][] = []> = (
-  config: StateCreator<T, Mps, Mcs>,
-  options: {
-    name: string
-    getUserId: () => string | null
-    partialize?: (state: T) => Partial<T>
-    serialize?: (state: Partial<T>) => string
-    deserialize?: (str: string) => Partial<T>
-  }
-) => StateCreator<T, Mps, Mcs>
 
 // 日期序列化處理
 const serializeWithDates = <T>(obj: T): string => {

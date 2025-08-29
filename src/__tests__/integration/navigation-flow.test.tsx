@@ -7,7 +7,7 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import { useProjectStore } from '../../stores/useProjectStore'
 import { useBaseStore } from '../../stores/useBaseStore'
 import { useSyncStore } from '../../stores/useSyncStore'
-import { mockUser, mockProject, waitForAsyncUpdates } from './setup'
+import { mockUser, mockProject } from './setup'
 
 // Mock stores
 vi.mock('../../stores/useAuthStore')

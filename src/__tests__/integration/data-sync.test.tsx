@@ -319,7 +319,7 @@ describe('Data Synchronization Integration Tests', () => {
     })
 
     it('should handle sync failures with retry logic', async () => {
-      mockSyncProjectWithRetry.mockImplementation(async (project, maxRetries, onRetry) => {
+      mockSyncProjectWithRetry.mockImplementation(async (_, maxRetries, onRetry) => {
         // Simulate retry attempts
         if (onRetry) {
           onRetry(1, maxRetries || 3)

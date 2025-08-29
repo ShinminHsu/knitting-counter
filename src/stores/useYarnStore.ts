@@ -40,7 +40,7 @@ interface YarnStore extends YarnStoreState, YarnStoreActions {}
 export const useYarnStore = create<YarnStore>((_set, get) => ({
   // Yarn management
   addYarn: async (yarnData) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[YARN] addYarn: No current project')
       return null
@@ -70,7 +70,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
   },
 
   updateYarn: async (yarnId, updates) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[YARN] updateYarn: No current project')
       return
@@ -95,7 +95,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
   },
 
   deleteYarn: async (yarnId) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[YARN] deleteYarn: No current project')
       return
@@ -125,7 +125,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
   },
 
   duplicateYarn: async (yarnId) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[YARN] duplicateYarn: No current project')
       return null
@@ -310,7 +310,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
 
   // Bulk operations
   importYarns: async (yarns) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.error('[YARN] importYarns: No current project')
       return

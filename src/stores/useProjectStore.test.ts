@@ -6,7 +6,7 @@ import { useSyncStore } from './useSyncStore'
 import { useBaseStore } from './useBaseStore'
 import { firestoreService } from '../services/firestoreService'
 import { Project } from '../types'
-import { generateId, createSampleProject } from '../utils'
+import { createSampleProject } from '../utils'
 import { User } from 'firebase/auth'
 
 // Mock dependencies

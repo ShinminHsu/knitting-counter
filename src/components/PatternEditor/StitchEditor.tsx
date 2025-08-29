@@ -19,7 +19,7 @@ export default function StitchEditor({
   onCountChange,
   onConfirm,
   onCancel,
-  fieldKey = 'stitchEditor'
+  fieldKey: _ = 'stitchEditor'
 }: StitchEditorProps) {
   
 

@@ -44,13 +44,6 @@ describe('Pattern Operations', () => {
     }
   ]
 
-  const mockStitch: StitchInfo = {
-    id: 'stitch-1',
-    type: StitchType.SINGLE,
-    yarnId: 'yarn-1',
-    count: 5
-  }
-
   const mockStitchGroup: StitchGroup = {
     id: 'group-1',
     name: '測試群組',

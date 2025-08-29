@@ -32,7 +32,7 @@ interface ProgressStore extends ProgressStoreState, ProgressStoreActions {}
 export const useProgressStore = create<ProgressStore>(() => ({
   // Navigation actions
   nextStitch: async () => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject || currentProject.isCompleted) {
       console.log('[PROGRESS] nextStitch: No current project or already completed')
       return
@@ -99,7 +99,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
   },
 
   previousStitch: async () => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     const pattern = getProjectPattern(currentProject)
@@ -153,7 +153,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
   },
 
   setCurrentRound: async (roundNumber) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
       console.log('[PROGRESS] setCurrentRound: No current project')
       return
@@ -181,7 +181,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
   },
 
   setCurrentStitch: async (stitchNumber) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     const updatedProject = {
@@ -195,7 +195,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
 
   // Session management
   startSession: async () => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     const newSession: WorkSession = {
@@ -217,7 +217,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
   },
 
   endSession: async () => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject || currentProject.sessions.length === 0) return
 
     const lastSession = currentProject.sessions[currentProject.sessions.length - 1]
@@ -246,7 +246,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
 
   // Progress utilities
   goToRoundStart: async (roundNumber) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     // Validate round exists
@@ -270,7 +270,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
   },
 
   goToRoundEnd: async (roundNumber) => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     // Validate round exists
@@ -294,7 +294,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
   },
 
   markProjectComplete: async () => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     const pattern = getProjectPattern(currentProject)
@@ -317,7 +317,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
   },
 
   resetProgress: async () => {
-    const { currentProject, updateProjectLocally } = useProjectStore.getState()
+    const { currentProject } = useProjectStore.getState()
     if (!currentProject) return
 
     const pattern = getProjectPattern(currentProject)

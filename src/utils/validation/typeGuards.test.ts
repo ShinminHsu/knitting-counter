@@ -10,16 +10,11 @@ import {
   isValidStitchType,
   isValidStitchInfo,
   isValidStitchGroup,
-  isValidRound,
   isValidYarn,
   isValidWorkSession,
   isValidChart,
   isValidProject,
   validateProject,
-  validateRound,
-  validateChart,
-  validateStitchInfo,
-  validateYarn,
   safeParseProject,
   safeParseProjects,
   assertIsProject,
@@ -30,13 +25,12 @@ import {
   StitchType,
   StitchInfo,
   StitchGroup,
-  Round,
   Yarn,
   WorkSession,
   Chart,
   Project
 } from '../../types'
-import { createMockProject, createMockChart, createMockYarn } from '../../test/utils'
+import { createMockProject, createMockChart } from '../../test/utils'
 
 describe('Type Guards', () => {
   describe('Basic type guards', () => {

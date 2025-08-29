@@ -39,7 +39,7 @@ describe('Date Formatters', () => {
     beforeEach(() => {
       // Mock the timezone to Taiwan for consistent testing
       vi.stubGlobal('Intl', {
-        DateTimeFormat: vi.fn().mockImplementation((locale, options) => ({
+        DateTimeFormat: vi.fn().mockImplementation((_, __) => ({
           format: vi.fn().mockImplementation((date) => {
             // Mock Taiwan format
             const year = date.getFullYear()

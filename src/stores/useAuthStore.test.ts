@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, type MockedFunction } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { User, UserCredential } from 'firebase/auth'
 
 // Mock Firebase modules first
@@ -234,7 +234,7 @@ describe('useAuthStore', () => {
       const mockUser = { uid: 'test-uid', email: 'test@example.com' } as User
       let authStateCallback: (user: User | null) => void
       
-      mockOnAuthStateChanged.mockImplementation((auth, callback) => {
+      mockOnAuthStateChanged.mockImplementation((_, callback) => {
         authStateCallback = callback as (user: User | null) => void
         return vi.fn()
       })
@@ -253,7 +253,7 @@ describe('useAuthStore', () => {
     it('should handle auth state changes with null user', () => {
       let authStateCallback: (user: User | null) => void
       
-      mockOnAuthStateChanged.mockImplementation((auth, callback) => {
+      mockOnAuthStateChanged.mockImplementation((_, callback) => {
         authStateCallback = callback as (user: User | null) => void
         return vi.fn()
       })
