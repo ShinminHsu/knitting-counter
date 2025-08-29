@@ -440,13 +440,21 @@ export default function PatternEditorContainer() {
             patternEditorState.handleStitchCountChange(String(stitch.count))
           }}
           onUpdateStitch={async () => {
+            console.log('🪲 DEBUG onUpdateStitch started at:', new Date().toISOString())
+            const updateStartTime = performance.now()
+            
             if (!patternEditorState.editingStitch) return
             
             const { roundNumber, stitchId } = patternEditorState.editingStitch
             const count = parseInt(patternEditorState.editStitchCount) || 1
             
+            console.log('🪲 DEBUG onUpdateStitch processing data:', { roundNumber, stitchId, count })
+            
             try {
+              const beforeDataUpdate = performance.now()
+              
               if (currentChart) {
+                console.log('🪲 DEBUG updating current chart')
                 const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
                 if (targetRound) {
                   const updatedRound = {
@@ -457,13 +465,18 @@ export default function PatternEditorContainer() {
                         : s
                     )
                   }
+                  
+                  const beforeUpdateChart = performance.now()
                   await updateChart(currentChart.id, {
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
                     )
                   })
+                  const afterUpdateChart = performance.now()
+                  console.log('🪲 DEBUG updateChart took:', afterUpdateChart - beforeUpdateChart, 'ms')
                 }
               } else {
+                console.log('🪲 DEBUG updating legacy pattern')
                 // Handle legacy project structure
                 const targetRound = chartPattern.find(r => r.roundNumber === roundNumber)
                 if (targetRound) {
@@ -475,15 +488,31 @@ export default function PatternEditorContainer() {
                         : s
                     )
                   }
+                  
+                  const beforeUpdateRound = performance.now()
                   await updateRound(roundNumber, updatedRound)
+                  const afterUpdateRound = performance.now()
+                  console.log('🪲 DEBUG updateRound took:', afterUpdateRound - beforeUpdateRound, 'ms')
                 }
               }
+              
+              const afterDataUpdate = performance.now()
+              console.log('🪲 DEBUG total data update took:', afterDataUpdate - beforeDataUpdate, 'ms')
             } catch (error) {
               console.error('Error updating stitch:', error)
               alert('更新針法時發生錯誤')
             }
             
+            const beforeStateReset = performance.now()
             patternEditorState.setEditingStitch(null)
+            const afterStateReset = performance.now()
+            
+            const updateEndTime = performance.now()
+            console.log('🪲 DEBUG onUpdateStitch performance:', {
+              totalTime: updateEndTime - updateStartTime,
+              stateResetTime: afterStateReset - beforeStateReset,
+              timestamp: new Date().toISOString()
+            })
           }}
           onDeleteStitch={async (roundNumber, stitchId) => {
             if (confirm('確定要刪除這個針法嗎？')) {

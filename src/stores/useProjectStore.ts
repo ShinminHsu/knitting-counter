@@ -112,15 +112,14 @@ export const useProjectStore = create<ProjectStore>()(
         }
       },
 
-      // Update project locally with retry sync mechanism
+      // Update project locally with non-blocking background sync
       updateProjectLocally: async (updatedProject: Project) => {
         console.log('[PROJECT] Starting local project update:', {
           projectId: updatedProject.id,
-          lastModified: updatedProject.lastModified,
-          userAgent: navigator.userAgent
+          lastModified: updatedProject.lastModified
         })
         
-        // Update local state immediately
+        // Update local state immediately - this should be instant
         set(state => ({
           projects: state.projects.map(p =>
             p.id === updatedProject.id ? updatedProject : p
@@ -132,40 +131,39 @@ export const useProjectStore = create<ProjectStore>()(
 
         // Use base store for local update tracking
         const baseStore = useBaseStore.getState()
-        baseStore.setLocallyUpdating(true)
         baseStore.setLastLocalUpdateTime(new Date())
         baseStore.addRecentLocalChange(updatedProject.id)
 
-        // Attempt sync to Firestore with retry mechanism
+        // Perform background sync without blocking UI
         const { user } = useAuthStore.getState()
         if (user) {
+          // Fire and forget - don't await the sync operation
           const syncStore = useSyncStore.getState()
-          const success = await syncStore.syncProjectWithRetry(
+          syncStore.syncProjectWithRetry(
             updatedProject,
-            3, // max retries
+            2, // reduced retries for faster response
             (attempt, maxRetries) => {
-              baseStore.setError(`同步失敗，正在重試 (${attempt}/${maxRetries})`)
-              
-              // Clear error after a delay during retry
-              setTimeout(() => {
-                baseStore.setError(null)
-              }, 2000)
+              // Only show error for final failure, not during retries
+              if (attempt === maxRetries) {
+                baseStore.setError('同步失敗，資料已保存在本地')
+                setTimeout(() => baseStore.setError(null), 3000)
+              }
             }
-          )
-
-          if (success) {
-            console.log('[PROJECT] Project synced successfully:', updatedProject.id)
-          } else {
-            console.log('[PROJECT] Project sync failed, data saved locally:', updatedProject.id)
-          }
+          ).then(success => {
+            if (success) {
+              console.log('[PROJECT] Background sync successful:', updatedProject.id)
+            } else {
+              console.log('[PROJECT] Background sync failed, data saved locally:', updatedProject.id)
+            }
+          }).catch(error => {
+            console.error('[PROJECT] Background sync error:', error)
+          })
         }
 
-        baseStore.setLocallyUpdating(false)
-
-        // Schedule cleanup of recent change flag
+        // Quick cleanup
         setTimeout(() => {
           baseStore.removeRecentLocalChange(updatedProject.id)
-        }, 5000)
+        }, 3000) // Reduced from 5000ms to 3000ms
       },
 
       // Delete project

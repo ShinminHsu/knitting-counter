@@ -21,6 +21,8 @@ export default function StitchEditor({
   onCancel,
   fieldKey = 'stitchEditor'
 }: StitchEditorProps) {
+  
+
   return (
     <div className="w-full">
       {/* 手機版：垂直佈局 */}
@@ -40,7 +42,7 @@ export default function StitchEditor({
         <div className="flex items-center gap-2">
           <input
             type="text"
-            value={stitchCount}
+            value={stitchCount || ''}
             onChange={(e) => {
               const value = e.target.value
               // 允許空字串和數字，立即更新
@@ -49,15 +51,23 @@ export default function StitchEditor({
               }
             }}
             onKeyDown={(e) => {
-              // 明確處理 Backspace 和 Delete 鍵
-              if (e.key === 'Backspace' || e.key === 'Delete') {
-                // 讓瀏覽器處理預設行為，不阻止
+              // 允許複製貼上快捷鍵
+              if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'x' || e.key === 'a')) {
                 return
               }
-              // 允許方向鍵、Tab 等控制鍵
-              if (e.key.length > 1) {
+              
+              // 允許刪除鍵、方向鍵、Tab等控制鍵
+              if (e.key === 'Backspace' ||
+                  e.key === 'Delete' ||
+                  e.key === 'ArrowLeft' ||
+                  e.key === 'ArrowRight' ||
+                  e.key === 'Tab' ||
+                  e.key === 'Home' ||
+                  e.key === 'End' ||
+                  e.key.length > 1) {
                 return
               }
+              
               // 只允許數字鍵
               if (!/\d/.test(e.key)) {
                 e.preventDefault()
@@ -77,7 +87,13 @@ export default function StitchEditor({
           />
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={(e) => {
+              console.log('🪲 DEBUG confirm button clicked at:', new Date().toISOString())
+              const startTime = performance.now()
+              onConfirm()
+              const endTime = performance.now()
+              console.log('🪲 DEBUG onConfirm execution time:', endTime - startTime, 'ms')
+            }}
             className="text-green-500 hover:text-green-600 p-2 w-10 h-10 flex items-center justify-center bg-white border border-border rounded hover:bg-gray-50 transition-colors"
           >
             <CiCircleCheck className="w-5 h-5" />
@@ -107,7 +123,7 @@ export default function StitchEditor({
         </select>
         <input
           type="text"
-          value={stitchCount}
+          value={stitchCount || ''}
           onChange={(e) => {
             const value = e.target.value
             // 允許空字串和數字，立即更新
@@ -116,15 +132,23 @@ export default function StitchEditor({
             }
           }}
           onKeyDown={(e) => {
-            // 明確處理 Backspace 和 Delete 鍵
-            if (e.key === 'Backspace' || e.key === 'Delete') {
-              // 讓瀏覽器處理預設行為，不阻止
+            // 允許複製貼上快捷鍵
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'x' || e.key === 'a')) {
               return
             }
-            // 允許方向鍵、Tab 等控制鍵
-            if (e.key.length > 1) {
+            
+            // 允許刪除鍵、方向鍵、Tab等控制鍵
+            if (e.key === 'Backspace' ||
+                e.key === 'Delete' ||
+                e.key === 'ArrowLeft' ||
+                e.key === 'ArrowRight' ||
+                e.key === 'Tab' ||
+                e.key === 'Home' ||
+                e.key === 'End' ||
+                e.key.length > 1) {
               return
             }
+            
             // 只允許數字鍵
             if (!/\d/.test(e.key)) {
               e.preventDefault()
@@ -143,7 +167,13 @@ export default function StitchEditor({
         />
         <button
           type="button"
-          onClick={onConfirm}
+          onClick={(e) => {
+            console.log('🪲 DEBUG desktop confirm button clicked at:', new Date().toISOString())
+            const startTime = performance.now()
+            onConfirm()
+            const endTime = performance.now()
+            console.log('🪲 DEBUG desktop onConfirm execution time:', endTime - startTime, 'ms')
+          }}
           className="text-green-500 hover:text-green-600 p-1 w-8 h-8 flex items-center justify-center flex-shrink-0"
         >
           <CiCircleCheck className="w-4 h-4" />

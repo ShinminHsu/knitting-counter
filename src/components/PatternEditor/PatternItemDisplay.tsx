@@ -91,10 +91,12 @@ export default function PatternItemDisplay({
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Delete' || e.key === 'Backspace') {
-            e.preventDefault()
+            // 只有在非編輯模式時才處理刪除，編輯模式時讓輸入框正常處理
             if (!isEditing) {
+              e.preventDefault()
               onDeleteStitch(roundNumber, stitch.id)
             }
+            // 編輯模式時不阻止預設行為，讓輸入框正常處理
           }
         }}
         onFocus={(e) => {
@@ -122,7 +124,6 @@ export default function PatternItemDisplay({
               onCountChange={onStitchCountChange}
               onConfirm={() => onUpdateStitch()}
               onCancel={onCancelEdit}
-              fieldKey={`editStitch_${stitch.id}`}
             />
           </div>
         ) : (
@@ -181,10 +182,12 @@ export default function PatternItemDisplay({
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Delete' || e.key === 'Backspace') {
-            e.preventDefault()
+            // 只有在非編輯模式時才處理刪除，編輯模式時讓輸入框正常處理
             if (!isEditingGroup) {
+              e.preventDefault()
               onDeleteGroup(roundNumber, group.id)
             }
+            // 編輯模式時不阻止預設行為，讓輸入框正常處理
           }
         }}
         onFocus={(e) => {
@@ -245,10 +248,12 @@ export default function PatternItemDisplay({
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Delete' || e.key === 'Backspace') {
-                    e.preventDefault()
+                    // 只有在非編輯模式時才處理刪除，編輯模式時讓輸入框正常處理
                     if (!isEditingGroupStitch) {
+                      e.preventDefault()
                       onDeleteGroupStitch(roundNumber, group.id, stitch.id)
                     }
+                    // 編輯模式時不阻止預設行為，讓輸入框正常處理
                   }
                 }}
                 onFocus={(e) => {
@@ -276,7 +281,6 @@ export default function PatternItemDisplay({
                       onCountChange={onGroupStitchCountChange}
                       onConfirm={() => onUpdateGroupStitch()}
                       onCancel={onCancelEdit}
-                      fieldKey={`editGroupStitch_${stitch.id}`}
                     />
                   </div>
                 ) : (
