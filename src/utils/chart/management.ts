@@ -107,21 +107,6 @@ export function updateChartInProject(project: Project, updatedChart: Chart): boo
   
   // CRITICAL FIX: Use the updatedChart directly to avoid reintroducing Timestamp objects
   // The updatedChart should already contain all necessary fields with proper Date objects
-  console.log('[CHART-MANAGEMENT-DEBUG] Updating chart in project:', {
-    chartId: updatedChart.id,
-    originalChart: {
-      createdDate: project.charts[index].createdDate,
-      lastModified: project.charts[index].lastModified,
-      createdDateType: typeof project.charts[index].createdDate,
-      lastModifiedType: typeof project.charts[index].lastModified
-    },
-    updatedChart: {
-      createdDate: updatedChart.createdDate,
-      lastModified: updatedChart.lastModified,
-      createdDateType: typeof updatedChart.createdDate,
-      lastModifiedType: typeof updatedChart.lastModified
-    }
-  })
   
   // Use updatedChart as the primary source, only preserve essential fields if missing
   project.charts[index] = {
@@ -130,17 +115,6 @@ export function updateChartInProject(project: Project, updatedChart: Chart): boo
     lastModified: new Date()
   }
   
-  console.log('[CHART-MANAGEMENT-DEBUG] Chart updated in project:', {
-    chartId: project.charts[index].id,
-    finalChart: {
-      createdDate: project.charts[index].createdDate,
-      lastModified: project.charts[index].lastModified,
-      createdDateType: typeof project.charts[index].createdDate,
-      lastModifiedType: typeof project.charts[index].lastModified,
-      createdDateIsValid: project.charts[index].createdDate instanceof Date && !isNaN(project.charts[index].createdDate.getTime()),
-      lastModifiedIsValid: project.charts[index].lastModified instanceof Date && !isNaN(project.charts[index].lastModified.getTime())
-    }
-  })
   
   return true
 }

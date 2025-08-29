@@ -23,11 +23,9 @@ const createSafeUpdateProjectLocally = () => {
         const timestamp = dateValue.seconds * 1000 + dateValue.nanoseconds / 1000000
         const date = new Date(timestamp)
         if (!isNaN(date.getTime())) {
-          console.log('[SAFE-UPDATE] Successfully converted Firestore Timestamp to Date:', dateValue, '→', date)
           return date
         }
       } catch (e) {
-        console.warn('[SAFE-UPDATE] Failed to convert Firestore Timestamp:', dateValue, e)
       }
     }
     // Handle Firestore Timestamp objects with toDate method
@@ -35,25 +33,17 @@ const createSafeUpdateProjectLocally = () => {
       try {
         const date = dateValue.toDate()
         if (date instanceof Date && !isNaN(date.getTime())) {
-          console.log('[SAFE-UPDATE] Successfully converted Firestore Timestamp using toDate():', date)
           return date
         }
       } catch (e) {
-        console.warn('[SAFE-UPDATE] Failed to convert Firestore Timestamp using toDate():', e)
       }
     }
-    console.warn('[SAFE-UPDATE] Using fallback date for invalid date value:', dateValue)
     return fallback
   }
 
-  return async (project: Project, context: string = 'unknown') => {
+  return async (project: Project, _context: string = 'unknown') => {
     const { updateProjectLocally } = useProjectStore.getState()
     
-    console.log(`[SAFE-UPDATE] Cleaning project for ${context}:`, {
-      projectId: project.id,
-      projectName: project.name,
-      chartsCount: project.charts?.length || 0
-    })
 
     const cleanedProject = {
       ...project,
@@ -63,17 +53,7 @@ const createSafeUpdateProjectLocally = () => {
         ...session,
         startTime: safeCreateDate(session.startTime)
       })) || [],
-      charts: project.charts?.map((chart, index) => {
-        const hasTimestampCreatedDate = chart.createdDate && typeof chart.createdDate === 'object' && 'seconds' in chart.createdDate
-        const hasTimestampLastModified = chart.lastModified && typeof chart.lastModified === 'object' && 'seconds' in chart.lastModified
-        
-        if (hasTimestampCreatedDate || hasTimestampLastModified) {
-          console.log(`[SAFE-UPDATE] ${context} - Cleaning chart ${index} (${chart.id}):`, {
-            hasTimestampCreatedDate,
-            hasTimestampLastModified
-          })
-        }
-
+      charts: project.charts?.map((chart) => {
         return {
           ...chart,
           createdDate: safeCreateDate(chart.createdDate, project.createdDate),
@@ -90,12 +70,6 @@ const createSafeUpdateProjectLocally = () => {
       }) || []
     }
 
-    console.log(`[SAFE-UPDATE] ${context} - Project cleaned, all charts have valid dates:`,
-      cleanedProject.charts?.every(chart =>
-        chart.createdDate instanceof Date && !isNaN(chart.createdDate.getTime()) &&
-        chart.lastModified instanceof Date && !isNaN(chart.lastModified.getTime())
-      )
-    )
 
     await updateProjectLocally(cleanedProject)
   }

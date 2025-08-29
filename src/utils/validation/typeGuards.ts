@@ -18,11 +18,7 @@ export function isDate(value: unknown): value is Date {
     return false
   }
   // Check if it's a valid date (not Invalid Date)
-  const isValid = !isNaN(value.getTime())
-  if (!isValid) {
-    console.log('[VALIDATION-DEBUG] Invalid Date detected:', value)
-  }
-  return isValid
+  return !isNaN(value.getTime())
 }
 
 export function isObject(value: unknown): value is Record<string, unknown> {
