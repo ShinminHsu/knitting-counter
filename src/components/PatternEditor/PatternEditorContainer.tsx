@@ -587,6 +587,7 @@ export default function PatternEditorContainer() {
             }
           }}
           onEditGroupStitch={(roundNumber, groupId, stitch) => {
+            console.log('[DEBUG] onEditGroupStitch called:', { roundNumber, groupId, stitch })
             patternEditorState.setEditingGroupStitch({ roundNumber, groupId, stitchId: stitch.id })
             patternEditorState.handleGroupStitchTypeChange(stitch.type)
             patternEditorState.handleGroupStitchCountChange(String(stitch.count))
@@ -596,6 +597,13 @@ export default function PatternEditorContainer() {
             
             const { roundNumber, groupId, stitchId } = patternEditorState.editingGroupStitch
             const count = parseInt(patternEditorState.editGroupStitchCount) || 1
+            
+            console.log('[DEBUG] onUpdateGroupStitch called:', {
+              editingGroupStitch: patternEditorState.editingGroupStitch,
+              editGroupStitchType: patternEditorState.editGroupStitchType,
+              editGroupStitchCount: patternEditorState.editGroupStitchCount,
+              parsedCount: count
+            })
             
             try {
               if (currentChart) {
@@ -631,6 +639,7 @@ export default function PatternEditorContainer() {
             patternEditorState.setEditingGroupStitch(null)
           }}
           onDeleteGroupStitch={async (roundNumber: number, groupId: string, stitchId: string) => {
+            console.log('[DEBUG] onDeleteGroupStitch called:', { roundNumber, groupId, stitchId })
             if (!confirm('確定要刪除這個針法嗎？')) return
             
             try {

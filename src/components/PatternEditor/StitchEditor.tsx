@@ -32,6 +32,10 @@ export default function StitchEditor({
           onChange={(e) => onTypeChange(e.target.value as StitchType)}
           className="input text-base w-full"
           style={{ fontSize: '16px' }}
+          onMouseDown={(e) => {
+            // 防止下拉選單快速關閉
+            e.currentTarget.focus()
+          }}
         >
           {Object.entries(StitchTypeInfo).map(([key, info]) => (
             <option key={key} value={key} style={{ fontSize: '16px' }}>
@@ -88,14 +92,14 @@ export default function StitchEditor({
           <button
             type="button"
             onClick={onConfirm}
-            className="text-green-500 hover:text-green-600 p-2 w-10 h-10 flex items-center justify-center bg-white border border-border rounded hover:bg-gray-50 transition-colors"
+            className="text-green-500 hover:text-green-600 p-2 w-10 h-10 flex items-center justify-center"
           >
             <CiCircleCheck className="w-5 h-5" />
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="text-text-tertiary hover:text-text-secondary p-2 w-10 h-10 flex items-center justify-center bg-white border border-border rounded hover:bg-gray-50 transition-colors"
+            className="text-text-tertiary hover:text-text-secondary p-2 w-10 h-10 flex items-center justify-center"
           >
             <RxCrossCircled className="w-5 h-5" />
           </button>
@@ -108,6 +112,10 @@ export default function StitchEditor({
           value={stitchType}
           onChange={(e) => onTypeChange(e.target.value as StitchType)}
           className="input text-sm flex-1 min-w-0"
+          onMouseDown={(e) => {
+            // 防止下拉選單快速關閉
+            e.currentTarget.focus()
+          }}
         >
           {Object.entries(StitchTypeInfo).map(([key, info]) => (
             <option key={key} value={key}>

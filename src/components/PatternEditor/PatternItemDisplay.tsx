@@ -90,19 +90,22 @@ export default function PatternItemDisplay({
         onDrop={(e) => onDrop(e, index, roundNumber)}
         tabIndex={0}
         onKeyDown={(e) => {
+          // 編輯模式時完全不處理父容器的鍵盤事件，讓輸入框正常處理
+          if (isEditing) {
+            return
+          }
+          
           if (e.key === 'Delete' || e.key === 'Backspace') {
-            // 只有在非編輯模式時才處理刪除，編輯模式時讓輸入框正常處理
-            if (!isEditing) {
-              e.preventDefault()
-              onDeleteStitch(roundNumber, stitch.id)
-            }
-            // 編輯模式時不阻止預設行為，讓輸入框正常處理
+            e.preventDefault()
+            onDeleteStitch(roundNumber, stitch.id)
           }
         }}
         onFocus={(e) => {
-          // Add visual feedback when focused
-          e.currentTarget.style.outline = '2px solid #3b82f6'
-          e.currentTarget.style.outlineOffset = '2px'
+          // 編輯模式時不顯示外框
+          if (!isEditing) {
+            e.currentTarget.style.outline = '2px solid #3b82f6'
+            e.currentTarget.style.outlineOffset = '2px'
+          }
         }}
         onBlur={(e) => {
           // Remove visual feedback when unfocused
@@ -173,7 +176,7 @@ export default function PatternItemDisplay({
     return (
       <div
         key={patternItem.id}
-        className="border border-border rounded-lg p-3 cursor-move"
+        className="border border-border rounded-lg p-3 cursor-move focus:outline-none"
         data-group-id={group.id}
         draggable
         onDragStart={(e) => onDragStart(e, index, roundNumber)}
@@ -181,23 +184,23 @@ export default function PatternItemDisplay({
         onDrop={(e) => onDrop(e, index, roundNumber)}
         tabIndex={0}
         onKeyDown={(e) => {
+          // 檢查是否有任何群組內的針目正在編輯
+          const hasEditingGroupStitch = group.stitches.some(stitch =>
+            editingGroupStitch?.stitchId === stitch.id &&
+            editingGroupStitch?.groupId === group.id
+          )
+          
           if (e.key === 'Delete' || e.key === 'Backspace') {
-            // 只有在非編輯模式時才處理刪除，編輯模式時讓輸入框正常處理
-            if (!isEditingGroup) {
-              e.preventDefault()
-              onDeleteGroup(roundNumber, group.id)
+            // 編輯模式時（包括群組本身編輯或群組內針目編輯）完全阻止事件傳播，讓輸入框正常處理
+            if (isEditingGroup || hasEditingGroupStitch) {
+              e.stopPropagation()
+              return
             }
-            // 編輯模式時不阻止預設行為，讓輸入框正常處理
+            
+            // 只有在非編輯模式時才處理刪除
+            e.preventDefault()
+            onDeleteGroup(roundNumber, group.id)
           }
-        }}
-        onFocus={(e) => {
-          // Add visual feedback when focused
-          e.currentTarget.style.outline = '2px solid #3b82f6'
-          e.currentTarget.style.outlineOffset = '2px'
-        }}
-        onBlur={(e) => {
-          // Remove visual feedback when unfocused
-          e.currentTarget.style.outline = 'none'
         }}
       >
         {/* Group Header */}
@@ -244,26 +247,18 @@ export default function PatternItemDisplay({
             return (
               <div
                 key={stitch.id}
-                className="grid grid-cols-[40px_1fr_100px] items-center gap-3 p-2 bg-background-tertiary rounded ml-4"
+                className="grid grid-cols-[40px_1fr_100px] items-center gap-3 p-2 bg-background-tertiary rounded ml-4 focus:outline-none"
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  if (e.key === 'Delete' || e.key === 'Backspace') {
-                    // 只有在非編輯模式時才處理刪除，編輯模式時讓輸入框正常處理
-                    if (!isEditingGroupStitch) {
-                      e.preventDefault()
-                      onDeleteGroupStitch(roundNumber, group.id, stitch.id)
-                    }
-                    // 編輯模式時不阻止預設行為，讓輸入框正常處理
+                  // 編輯模式時完全不處理父容器的鍵盤事件，讓輸入框正常處理
+                  if (isEditingGroupStitch) {
+                    return
                   }
-                }}
-                onFocus={(e) => {
-                  // Add visual feedback when focused
-                  e.currentTarget.style.outline = '2px solid #3b82f6'
-                  e.currentTarget.style.outlineOffset = '2px'
-                }}
-                onBlur={(e) => {
-                  // Remove visual feedback when unfocused
-                  e.currentTarget.style.outline = 'none'
+                  
+                  if (e.key === 'Delete' || e.key === 'Backspace') {
+                    e.preventDefault()
+                    onDeleteGroupStitch(roundNumber, group.id, stitch.id)
+                  }
                 }}
               >
                 {/* 針目圖標 */}
