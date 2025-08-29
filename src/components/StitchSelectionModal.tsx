@@ -2,6 +2,65 @@ import { useState, useEffect } from 'react'
 import { StitchType, StitchTypeInfo, Yarn, StitchInfo } from '../types'
 import { getStitchDisplayInfo } from '../utils'
 
+// 針法分組定義
+const stitchGroups = {
+  basic: {
+    title: '基礎針法',
+    stitches: [
+      StitchType.SINGLE,
+      StitchType.HALF_DOUBLE, 
+      StitchType.DOUBLE,
+      StitchType.TRIPLE,
+      StitchType.CHAIN,
+      StitchType.SLIP,
+      StitchType.MAGIC_RING
+    ]
+  },
+  increase: {
+    title: '加針',
+    stitches: [
+      StitchType.SINGLE_INCREASE,
+      StitchType.HALF_DOUBLE_INCREASE,
+      StitchType.DOUBLE_INCREASE,
+      StitchType.TRIPLE_INCREASE,
+      StitchType.INCREASE
+    ]
+  },
+  decrease: {
+    title: '減針',
+    stitches: [
+      StitchType.SINGLE_DECREASE,
+      StitchType.HALF_DOUBLE_DECREASE,
+      StitchType.DOUBLE_DECREASE,
+      StitchType.TRIPLE_DECREASE,
+      StitchType.DECREASE
+    ]
+  },
+  special: {
+    title: '特殊針法',
+    stitches: [
+      StitchType.FRONT_POST,
+      StitchType.BACK_POST
+    ]
+  },
+  knitting: {
+    title: '棒針',
+    stitches: [
+      StitchType.KNIT,
+      StitchType.PURL,
+      StitchType.KNIT_FRONT_BACK,
+      StitchType.PURL_FRONT_BACK,
+      StitchType.KNIT_TWO_TOGETHER,
+      StitchType.PURL_TWO_TOGETHER,
+      StitchType.SLIP_SLIP_KNIT,
+      StitchType.YARN_OVER,
+      StitchType.SLIP_STITCH_KNIT,
+      StitchType.CABLE_FRONT,
+      StitchType.CABLE_BACK
+    ]
+  }
+}
+
 interface StitchSelectionModalProps {
   isOpen: boolean
   onClose: () => void
@@ -75,16 +134,16 @@ export default function StitchSelectionModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-[80]">
-      <div className="bg-background-secondary rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="bg-background-secondary rounded-xl p-6 w-full max-w-lg sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold text-text-primary mb-6">
           {title}
         </h2>
 
-        {/* 針法類型選擇 */}
+        {/* 分組針法選擇 */}
         <div className="mb-6">
           <h3 className="text-sm font-medium text-text-secondary mb-3">針法類型</h3>
           
-          {/* 手機版：下拉式選單 */}
+          {/* 手機版：分組下拉選單 */}
           <div className="block sm:hidden">
             <select
               value={selectedStitchType}
@@ -92,44 +151,91 @@ export default function StitchSelectionModal({
               className="input w-full text-base"
               style={{ fontSize: '16px' }}
             >
-              {Object.entries(StitchTypeInfo).map(([key, info]) => (
-                <option key={key} value={key} style={{ fontSize: '16px' }}>
-                  {info.symbol} {info.rawValue} ({info.englishName})
-                </option>
+              {Object.entries(stitchGroups).map(([groupKey, group]) => (
+                <optgroup key={groupKey} label={group.title}>
+                  {group.stitches.map((stitchType) => {
+                    const info = StitchTypeInfo[stitchType]
+                    return (
+                      <option key={stitchType} value={stitchType} style={{ fontSize: '16px' }}>
+                        {info.symbol} {info.rawValue} ({info.englishName})
+                      </option>
+                    )
+                  })}
+                </optgroup>
               ))}
+              <option value={StitchType.CUSTOM}>? 自定義 (custom)</option>
             </select>
           </div>
 
-          {/* 電腦版：網格選擇 */}
-          <div className="hidden sm:grid grid-cols-6 gap-3">
-            {Object.entries(StitchTypeInfo).map(([key, info]) => (
-              <div
-                key={key}
-                className={`
-                  p-3 rounded-lg border-2 cursor-pointer transition-all
-                  flex flex-col items-center justify-center min-h-[80px]
-                  ${selectedStitchType === key 
-                    ? 'border-primary bg-primary/10' 
-                    : 'border-border hover:border-primary/50 hover:bg-background-tertiary'
-                  }
-                `}
-                onClick={() => setSelectedStitchType(key as StitchType)}
-              >
-                <div className={`text-xl font-bold mb-1 ${
-                  selectedStitchType === key ? 'text-primary' : 'text-text-primary'
-                }`}>
-                  {info.symbol}
-                </div>
-                <div className={`text-xs font-medium text-center leading-tight ${
-                  selectedStitchType === key ? 'text-text-primary' : 'text-text-secondary'
-                }`}>
-                  {info.rawValue}
-                </div>
-                <div className="text-xs text-text-tertiary mt-1">
-                  {info.englishName}
+          {/* 電腦版：分組網格選擇 */}
+          <div className="hidden sm:block space-y-4">
+            {Object.entries(stitchGroups).map(([groupKey, group]) => (
+              <div key={groupKey}>
+                <h4 className="text-xs font-medium text-text-tertiary mb-2">{group.title}</h4>
+                <div className="grid grid-cols-8 gap-2">
+                  {group.stitches.map((stitchType) => {
+                    const info = StitchTypeInfo[stitchType]
+                    return (
+                      <div
+                        key={stitchType}
+                        className={`
+                          p-2 rounded-lg border-2 cursor-pointer transition-all
+                          flex flex-col items-center justify-center min-h-[70px]
+                          ${selectedStitchType === stitchType 
+                            ? 'border-primary bg-primary/10' 
+                            : 'border-border hover:border-primary/50 hover:bg-background-tertiary'
+                          }
+                        `}
+                        onClick={() => setSelectedStitchType(stitchType)}
+                      >
+                        <div className={`text-lg font-bold mb-1 ${
+                          selectedStitchType === stitchType ? 'text-primary' : 'text-text-primary'
+                        }`}>
+                          {info.symbol}
+                        </div>
+                        <div className={`text-xs font-medium text-center leading-tight ${
+                          selectedStitchType === stitchType ? 'text-text-primary' : 'text-text-secondary'
+                        }`}>
+                          {info.rawValue}
+                        </div>
+                        <div className="text-xs text-text-tertiary mt-1">
+                          {info.englishName}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             ))}
+            
+            {/* 自定義針法 */}
+            <div>
+              <h4 className="text-xs font-medium text-text-tertiary mb-2">自定義</h4>
+              <div className="grid grid-cols-8 gap-2">
+                <div
+                  className={`
+                    p-2 rounded-lg border-2 cursor-pointer transition-all
+                    flex flex-col items-center justify-center min-h-[70px]
+                    ${selectedStitchType === StitchType.CUSTOM 
+                      ? 'border-primary bg-primary/10' 
+                      : 'border-border hover:border-primary/50 hover:bg-background-tertiary'
+                    }
+                  `}
+                  onClick={() => setSelectedStitchType(StitchType.CUSTOM)}
+                >
+                  <div className={`text-lg font-bold mb-1 ${
+                    selectedStitchType === StitchType.CUSTOM ? 'text-primary' : 'text-text-primary'
+                  }`}>
+                    ?
+                  </div>
+                  <div className={`text-xs font-medium text-center leading-tight ${
+                    selectedStitchType === StitchType.CUSTOM ? 'text-text-primary' : 'text-text-secondary'
+                  }`}>
+                    自定義
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

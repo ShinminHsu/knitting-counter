@@ -10,9 +10,57 @@ interface ExpandedStitch {
   groupId?: string
 }
 
+// 計算單一針法的實際針數（考慮加減針）
+export function getStitchActualCount(stitch: StitchInfo): number {
+  const stitchCountMap: Partial<Record<StitchType, number>> = {
+    // 基礎針法 = 1針
+    [StitchType.SINGLE]: 1,
+    [StitchType.HALF_DOUBLE]: 1,
+    [StitchType.DOUBLE]: 1,
+    [StitchType.TRIPLE]: 1,
+    [StitchType.CHAIN]: 1,
+    [StitchType.SLIP]: 1,
+    [StitchType.MAGIC_RING]: 1,
+    [StitchType.FRONT_POST]: 1,
+    [StitchType.BACK_POST]: 1,
+    
+    // 加針類 = 2針 (1針變2針)
+    [StitchType.SINGLE_INCREASE]: 2,
+    [StitchType.HALF_DOUBLE_INCREASE]: 2,
+    [StitchType.DOUBLE_INCREASE]: 2,
+    [StitchType.TRIPLE_INCREASE]: 2,
+    [StitchType.INCREASE]: 2, // 通用加針
+    
+    // 減針類 = 1針 (2針變1針)
+    [StitchType.SINGLE_DECREASE]: 1,
+    [StitchType.HALF_DOUBLE_DECREASE]: 1,
+    [StitchType.DOUBLE_DECREASE]: 1,
+    [StitchType.TRIPLE_DECREASE]: 1,
+    [StitchType.DECREASE]: 1, // 通用減針
+    
+    // 棒針針法
+    [StitchType.KNIT]: 1,
+    [StitchType.PURL]: 1,
+    [StitchType.KNIT_FRONT_BACK]: 2, // 棒針加針
+    [StitchType.PURL_FRONT_BACK]: 2, // 棒針加針
+    [StitchType.KNIT_TWO_TOGETHER]: 1, // 棒針減針
+    [StitchType.PURL_TWO_TOGETHER]: 1, // 棒針減針
+    [StitchType.SLIP_SLIP_KNIT]: 1, // 棒針減針
+    [StitchType.YARN_OVER]: 1,
+    [StitchType.SLIP_STITCH_KNIT]: 1,
+    [StitchType.CABLE_FRONT]: 1,
+    [StitchType.CABLE_BACK]: 1,
+    
+    [StitchType.CUSTOM]: 1
+  }
+  
+  const multiplier = stitchCountMap[stitch.type] || 1
+  return multiplier * stitch.count
+}
+
 // 計算群組總針數
 export function getStitchGroupTotalStitches(group: StitchGroup): number {
-  return group.stitches.reduce((sum, stitch) => sum + stitch.count, 0) * group.repeatCount
+  return group.stitches.reduce((sum, stitch) => sum + getStitchActualCount(stitch), 0) * group.repeatCount
 }
 
 // 計算圈數總針數
@@ -23,7 +71,7 @@ export function getRoundTotalStitches(round: Round): number {
     return sortedPatternItems.reduce((sum: number, item: PatternItem) => {
       if (item.type === PatternItemType.STITCH) {
         const stitch = item.data as StitchInfo
-        return sum + stitch.count
+        return sum + getStitchActualCount(stitch)
       } else if (item.type === PatternItemType.GROUP) {
         const group = item.data as StitchGroup
         return sum + getStitchGroupTotalStitches(group)
@@ -33,7 +81,7 @@ export function getRoundTotalStitches(round: Round): number {
   }
   
   // 回退到舊格式計算（向後相容）
-  const individualStitches = round.stitches.reduce((sum, stitch) => sum + stitch.count, 0)
+  const individualStitches = round.stitches.reduce((sum, stitch) => sum + getStitchActualCount(stitch), 0)
   const groupStitches = round.stitchGroups.reduce((sum, group) => sum + getStitchGroupTotalStitches(group), 0)
   return individualStitches + groupStitches
 }
