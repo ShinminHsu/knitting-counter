@@ -14,7 +14,15 @@ export function isBoolean(value: unknown): value is boolean {
 }
 
 export function isDate(value: unknown): value is Date {
-  return value instanceof Date && !isNaN(value.getTime())
+  if (!(value instanceof Date)) {
+    return false
+  }
+  // Check if it's a valid date (not Invalid Date)
+  const isValid = !isNaN(value.getTime())
+  if (!isValid) {
+    console.log('[VALIDATION-DEBUG] Invalid Date detected:', value)
+  }
+  return isValid
 }
 
 export function isObject(value: unknown): value is Record<string, unknown> {
@@ -123,20 +131,49 @@ export function isValidChart(value: unknown): value is Chart {
   
   const chart = value as Record<string, unknown>
   
+  const chartChecks = {
+    hasId: isString(chart.id),
+    hasName: isString(chart.name),
+    hasValidDescription: (chart.description === undefined || isString(chart.description)),
+    hasValidNotes: (chart.notes === undefined || isString(chart.notes)),
+    hasValidRounds: isArray(chart.rounds) && chart.rounds.every(isValidRound),
+    hasValidCurrentRound: isNumber(chart.currentRound) && chart.currentRound > 0,
+    hasValidCurrentStitch: isNumber(chart.currentStitch) && chart.currentStitch >= 0,
+    hasValidIsCompleted: (chart.isCompleted === undefined || isBoolean(chart.isCompleted)),
+    hasValidCreatedDate: isDate(chart.createdDate),
+    hasValidLastModified: isDate(chart.lastModified)
+  }
+  
+  console.log('[VALIDATION-DEBUG] Chart validation details for chart:', chart.id, chartChecks)
+  
+  // Log type information for Date fields if they fail
+  if (!chartChecks.hasValidCreatedDate) {
+    console.log('[VALIDATION-DEBUG] Chart createdDate issue:', {
+      type: typeof chart.createdDate,
+      value: chart.createdDate,
+      isDate: chart.createdDate instanceof Date
+    })
+  }
+  
+  if (!chartChecks.hasValidLastModified) {
+    console.log('[VALIDATION-DEBUG] Chart lastModified issue:', {
+      type: typeof chart.lastModified,
+      value: chart.lastModified,
+      isDate: chart.lastModified instanceof Date
+    })
+  }
+  
   return (
-    isString(chart.id) &&
-    isString(chart.name) &&
-    (chart.description === undefined || isString(chart.description)) &&
-    (chart.notes === undefined || isString(chart.notes)) &&
-    isArray(chart.rounds) &&
-    chart.rounds.every(isValidRound) &&
-    isNumber(chart.currentRound) &&
-    chart.currentRound > 0 &&
-    isNumber(chart.currentStitch) &&
-    chart.currentStitch >= 0 &&
-    (chart.isCompleted === undefined || isBoolean(chart.isCompleted)) &&
-    isDate(chart.createdDate) &&
-    isDate(chart.lastModified)
+    chartChecks.hasId &&
+    chartChecks.hasName &&
+    chartChecks.hasValidDescription &&
+    chartChecks.hasValidNotes &&
+    chartChecks.hasValidRounds &&
+    chartChecks.hasValidCurrentRound &&
+    chartChecks.hasValidCurrentStitch &&
+    chartChecks.hasValidIsCompleted &&
+    chartChecks.hasValidCreatedDate &&
+    chartChecks.hasValidLastModified
   )
 }
 
@@ -146,23 +183,71 @@ export function isValidProject(value: unknown): value is Project {
   
   const project = value as Record<string, unknown>
   
+  const checks = {
+    hasId: isString(project.id),
+    hasName: isString(project.name),
+    hasValidSource: (project.source === undefined || isString(project.source)),
+    hasValidNotes: (project.notes === undefined || isString(project.notes)),
+    hasValidPattern: (project.pattern === undefined || (isArray(project.pattern) && project.pattern.every(isValidRound))),
+    hasValidCurrentRound: (project.currentRound === undefined || (isNumber(project.currentRound) && project.currentRound > 0)),
+    hasValidCurrentStitch: (project.currentStitch === undefined || (isNumber(project.currentStitch) && project.currentStitch >= 0)),
+    hasValidYarns: isArray(project.yarns) && project.yarns.every(isValidYarn),
+    hasValidSessions: isArray(project.sessions) && project.sessions.every(isValidWorkSession),
+    hasValidCreatedDate: isDate(project.createdDate),
+    hasValidLastModified: isDate(project.lastModified),
+    hasValidIsCompleted: (project.isCompleted === undefined || isBoolean(project.isCompleted)),
+    hasValidCharts: (project.charts === undefined || (isArray(project.charts) && project.charts.every(isValidChart)))
+  }
+  
+  console.log('[VALIDATION-DEBUG] Individual field checks:', checks)
+  
+  // Log pattern validation details if it exists
+  if (project.pattern && isArray(project.pattern)) {
+    console.log('[VALIDATION-DEBUG] Pattern validation details:', {
+      patternLength: project.pattern.length,
+      allRoundsValid: project.pattern.every(isValidRound),
+      firstRoundValid: project.pattern.length > 0 ? isValidRound(project.pattern[0]) : 'N/A'
+    })
+  }
+  
+  // Log charts validation details if it exists
+  if (project.charts && isArray(project.charts)) {
+    const chartValidations = project.charts.map((chart: any, index: number) => ({
+      index,
+      id: chart.id,
+      isValid: isValidChart(chart)
+    }))
+    
+    console.log('[VALIDATION-DEBUG] Charts validation details:', {
+      chartsLength: project.charts.length,
+      allChartsValid: project.charts.every(isValidChart),
+      individualChartValidation: chartValidations
+    })
+    
+    // Log details for invalid charts
+    chartValidations.forEach(({index, id, isValid}) => {
+      if (!isValid) {
+        console.log(`[VALIDATION-DEBUG] Invalid chart at index ${index} (id: ${id}) - validating individually...`)
+        // This will trigger the detailed chart validation logging
+        isValidChart((project.charts as any[])[index])
+      }
+    })
+  }
+  
   return (
-    isString(project.id) &&
-    isString(project.name) &&
-    (project.source === undefined || isString(project.source)) &&
-    (project.notes === undefined || isString(project.notes)) &&
-    // Pattern is optional for compatibility
-    (project.pattern === undefined || (isArray(project.pattern) && project.pattern.every(isValidRound))) &&
-    (project.currentRound === undefined || (isNumber(project.currentRound) && project.currentRound > 0)) &&
-    (project.currentStitch === undefined || (isNumber(project.currentStitch) && project.currentStitch >= 0)) &&
-    isArray(project.yarns) &&
-    project.yarns.every(isValidYarn) &&
-    isArray(project.sessions) &&
-    project.sessions.every(isValidWorkSession) &&
-    isDate(project.createdDate) &&
-    isDate(project.lastModified) &&
-    (project.isCompleted === undefined || isBoolean(project.isCompleted)) &&
-    (project.charts === undefined || (isArray(project.charts) && project.charts.every(isValidChart)))
+    checks.hasId &&
+    checks.hasName &&
+    checks.hasValidSource &&
+    checks.hasValidNotes &&
+    checks.hasValidPattern &&
+    checks.hasValidCurrentRound &&
+    checks.hasValidCurrentStitch &&
+    checks.hasValidYarns &&
+    checks.hasValidSessions &&
+    checks.hasValidCreatedDate &&
+    checks.hasValidLastModified &&
+    checks.hasValidIsCompleted &&
+    checks.hasValidCharts
   )
 }
 
@@ -305,6 +390,81 @@ export function safeParseProjects(data: unknown): Project[] {
 // Runtime assertion functions for critical paths
 export function assertIsProject(value: unknown, context = 'unknown'): asserts value is Project {
   if (!isValidProject(value)) {
+    // Enhanced error reporting for debugging
+    console.error('[VALIDATION-DEBUG] Project validation failed in context:', context)
+    console.error('[VALIDATION-DEBUG] Value type:', typeof value)
+    console.error('[VALIDATION-DEBUG] Value is object:', isObject(value))
+    
+    if (isObject(value)) {
+      const project = value as Record<string, unknown>
+      console.error('[VALIDATION-DEBUG] Project validation details:', {
+        hasId: !!project.id && isString(project.id),
+        hasName: !!project.name && isString(project.name),
+        hasCreatedDate: !!project.createdDate && isDate(project.createdDate),
+        hasLastModified: !!project.lastModified && isDate(project.lastModified),
+        hasYarns: !!project.yarns && isArray(project.yarns),
+        hasSessions: !!project.sessions && isArray(project.sessions),
+        projectKeys: Object.keys(project),
+        createdDateType: typeof project.createdDate,
+        lastModifiedType: typeof project.lastModified,
+        yarnsType: typeof project.yarns,
+        sessionsType: typeof project.sessions,
+        createdDateIsDate: project.createdDate instanceof Date,
+        lastModifiedIsDate: project.lastModified instanceof Date,
+        projectId: project.id,
+        projectName: project.name
+      })
+      
+      // Check individual field validation
+      if (project.yarns && isArray(project.yarns)) {
+        console.error('[VALIDATION-DEBUG] Yarns validation:', {
+          yarnsLength: project.yarns.length,
+          allYarnsValid: project.yarns.every(isValidYarn),
+          firstYarnValid: project.yarns.length > 0 ? isValidYarn(project.yarns[0]) : 'N/A'
+        })
+      }
+      
+      if (project.sessions && isArray(project.sessions)) {
+        console.error('[VALIDATION-DEBUG] Sessions validation:', {
+          sessionsLength: project.sessions.length,
+          allSessionsValid: project.sessions.every(isValidWorkSession),
+          firstSessionValid: project.sessions.length > 0 ? isValidWorkSession(project.sessions[0]) : 'N/A'
+        })
+      }
+      
+      // Check charts validation if it exists
+      if (project.charts !== undefined) {
+        console.error('[VALIDATION-DEBUG] Charts field validation:', {
+          chartsExists: !!project.charts,
+          chartsIsArray: isArray(project.charts),
+          chartsType: typeof project.charts,
+          chartsLength: isArray(project.charts) ? project.charts.length : 'N/A'
+        })
+        
+        if (isArray(project.charts)) {
+          const chartValidations = project.charts.map((chart: any, index: number) => {
+            const isValid = isValidChart(chart)
+            console.error(`[VALIDATION-DEBUG] Chart ${index} (id: ${chart?.id}) validation:`, isValid)
+            if (!isValid) {
+              console.error(`[VALIDATION-DEBUG] Invalid chart ${index} details:`, {
+                type: typeof chart,
+                isObject: isObject(chart),
+                hasId: isString(chart?.id),
+                hasName: isString(chart?.name),
+                hasCreatedDate: isDate(chart?.createdDate),
+                hasLastModified: isDate(chart?.lastModified),
+                createdDateType: typeof chart?.createdDate,
+                lastModifiedType: typeof chart?.lastModified
+              })
+            }
+            return { index, id: chart?.id, isValid }
+          })
+          
+          console.error('[VALIDATION-DEBUG] All charts validation results:', chartValidations)
+        }
+      }
+    }
+    
     throw new Error(`[VALIDATION] Expected valid Project in ${context}, got: ${typeof value}`)
   }
 }

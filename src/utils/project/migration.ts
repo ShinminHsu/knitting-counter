@@ -76,8 +76,21 @@ export function isMultiChartProject(project: Project): boolean {
 // 將舊格式專案遷移為新格式（向後兼容）
 export function migrateProjectToMultiChart(project: Project): ProjectMigrationResult {
   try {
+    console.log('[MIGRATION-DEBUG] Starting migration for project:', {
+      projectId: project.id,
+      projectName: project.name,
+      hasCharts: !!project.charts,
+      hasPattern: !!project.pattern,
+      chartsLength: project.charts?.length || 0,
+      patternLength: project.pattern?.length || 0,
+      projectKeys: Object.keys(project),
+      isLegacy: isLegacyProject(project),
+      isMultiChart: isMultiChartProject(project)
+    })
+
     // 如果已經是新格式，直接返回
     if (isMultiChartProject(project)) {
+      console.log('[MIGRATION-DEBUG] Project already in multi-chart format')
       return {
         success: true,
         migratedChartsCount: 0,
@@ -87,6 +100,8 @@ export function migrateProjectToMultiChart(project: Project): ProjectMigrationRe
 
     // 如果是舊格式，進行遷移
     if (isLegacyProject(project)) {
+      console.log('[MIGRATION-DEBUG] Migrating legacy project to multi-chart format')
+      
       const defaultChart: Chart = {
         id: generateId(),
         name: '主織圖',
@@ -100,6 +115,13 @@ export function migrateProjectToMultiChart(project: Project): ProjectMigrationRe
         notes: ''
       }
 
+      console.log('[MIGRATION-DEBUG] Created default chart:', {
+        chartId: defaultChart.id,
+        roundsCount: defaultChart.rounds.length,
+        currentRound: defaultChart.currentRound,
+        currentStitch: defaultChart.currentStitch
+      })
+
       // 更新專案結構
       const migratedProject: Project = {
         ...project,
@@ -111,7 +133,36 @@ export function migrateProjectToMultiChart(project: Project): ProjectMigrationRe
         currentStitch: project.currentStitch
       }
 
+      console.log('[MIGRATION-DEBUG] About to assign migrated project with keys:', Object.keys(migratedProject))
+      console.log('[MIGRATION-DEBUG] Original project before assignment:', {
+        projectId: project.id,
+        hasRequiredFields: {
+          id: !!project.id,
+          name: !!project.name,
+          createdDate: project.createdDate instanceof Date,
+          lastModified: project.lastModified instanceof Date,
+          yarns: Array.isArray(project.yarns),
+          sessions: Array.isArray(project.sessions)
+        }
+      })
+
       Object.assign(project, migratedProject)
+
+      console.log('[MIGRATION-DEBUG] Project after assignment:', {
+        projectId: project.id,
+        hasCharts: !!project.charts,
+        chartsLength: project.charts?.length || 0,
+        currentChartId: project.currentChartId,
+        hasRequiredFields: {
+          id: !!project.id,
+          name: !!project.name,
+          createdDate: project.createdDate instanceof Date,
+          lastModified: project.lastModified instanceof Date,
+          yarns: Array.isArray(project.yarns),
+          sessions: Array.isArray(project.sessions)
+        },
+        projectKeys: Object.keys(project)
+      })
 
       return {
         success: true,
@@ -122,6 +173,7 @@ export function migrateProjectToMultiChart(project: Project): ProjectMigrationRe
 
     // 如果沒有任何織圖資料，創建空的 charts 陣列
     if (!project.charts) {
+      console.log('[MIGRATION-DEBUG] Creating empty charts array for project')
       project.charts = []
     }
     return {
@@ -131,7 +183,7 @@ export function migrateProjectToMultiChart(project: Project): ProjectMigrationRe
     }
 
   } catch (error) {
-    console.error('Migration failed:', error)
+    console.error('[MIGRATION-DEBUG] Migration failed:', error)
     return {
       success: false,
       migratedChartsCount: 0,
