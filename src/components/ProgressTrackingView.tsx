@@ -92,21 +92,17 @@ export default function ProgressTrackingView() {
 
   // Handle next stitch using direct store operations
   const handleNextStitch = useCallback(async () => {
-    console.log('[DEBUG] handleNextStitch called - using direct store operations')
     if (!currentProject || !currentChart) {
-      console.log('[DEBUG] No current project or chart available')
       return
     }
-    
+
     const pattern = currentChart.rounds || []
     if (pattern.length === 0) {
-      console.log('[DEBUG] No pattern available in current chart')
       return
     }
 
     const currentRound = pattern.find(r => r.roundNumber === currentChart.currentRound)
     if (!currentRound) {
-      console.log('[DEBUG] Current round not found', currentChart.currentRound)
       return
     }
 
@@ -142,15 +138,12 @@ export default function ProgressTrackingView() {
 
   // Handle previous stitch using direct store operations
   const handlePreviousStitch = useCallback(async () => {
-    console.log('[DEBUG] handlePreviousStitch called - using direct store operations')
     if (!currentProject || !currentChart) {
-      console.log('[DEBUG] No current project or chart available')
       return
     }
 
     const pattern = currentChart.rounds || []
     if (pattern.length === 0) {
-      console.log('[DEBUG] No pattern available in current chart')
       return
     }
 
@@ -184,9 +177,7 @@ export default function ProgressTrackingView() {
 
   // Handle complete round using direct store operations
   const handleCompleteRound = useCallback(async () => {
-    console.log('[DEBUG] handleCompleteRound called - using direct store operations')
     if (!currentProject || !currentChart) {
-      console.log('[DEBUG] No current project or chart available')
       return
     }
     
@@ -226,9 +217,7 @@ export default function ProgressTrackingView() {
 
   // Handle reset project
   const handleResetProject = useCallback(async () => {
-    console.log('[DEBUG] handleResetProject called - using direct store operations')
     if (!currentProject || !currentChart) {
-      console.log('[DEBUG] No current project or chart available for reset')
       return
     }
     
@@ -238,8 +227,6 @@ export default function ProgressTrackingView() {
       currentStitch: 0,
       isCompleted: false
     })
-    
-    console.log('[DEBUG] Chart progress reset to beginning')
   }, [currentProject, currentChart, updateChart])
 
   // Handle share success

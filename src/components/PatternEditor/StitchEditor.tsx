@@ -87,13 +87,7 @@ export default function StitchEditor({
           />
           <button
             type="button"
-            onClick={(e) => {
-              console.log('🪲 DEBUG confirm button clicked at:', new Date().toISOString())
-              const startTime = performance.now()
-              onConfirm()
-              const endTime = performance.now()
-              console.log('🪲 DEBUG onConfirm execution time:', endTime - startTime, 'ms')
-            }}
+            onClick={onConfirm}
             className="text-green-500 hover:text-green-600 p-2 w-10 h-10 flex items-center justify-center bg-white border border-border rounded hover:bg-gray-50 transition-colors"
           >
             <CiCircleCheck className="w-5 h-5" />
@@ -167,13 +161,7 @@ export default function StitchEditor({
         />
         <button
           type="button"
-          onClick={(e) => {
-            console.log('🪲 DEBUG desktop confirm button clicked at:', new Date().toISOString())
-            const startTime = performance.now()
-            onConfirm()
-            const endTime = performance.now()
-            console.log('🪲 DEBUG desktop onConfirm execution time:', endTime - startTime, 'ms')
-          }}
+          onClick={onConfirm}
           className="text-green-500 hover:text-green-600 p-1 w-8 h-8 flex items-center justify-center flex-shrink-0"
         >
           <CiCircleCheck className="w-4 h-4" />
