@@ -74,7 +74,7 @@ export default function StitchSelectionModal({
   const selectedYarn = availableYarns.find(yarn => yarn.id === selectedYarnId)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[80]">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-[80]">
       <div className="bg-background-secondary rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold text-text-primary mb-6">
           {title}

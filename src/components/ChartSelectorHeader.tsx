@@ -62,7 +62,8 @@ export const ChartSelectorHeader = memo<ChartSelectorHeaderProps>(({
           <select
             value={currentChartId || ''}
             onChange={(e) => onChartChange(e.target.value)}
-            className="input flex-1 max-w-xs"
+            className="input flex-1 max-w-xs text-sm sm:text-sm text-base"
+            style={{ fontSize: '16px' }}
             disabled={isViewMode}
           >
             {chartSummaries.map(chart => (

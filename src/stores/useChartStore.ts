@@ -4,6 +4,106 @@ import { generateId, createChart, getCurrentChart, getProjectChartSummaries, set
 import { useProjectStore } from './useProjectStore'
 import { handleAsyncError } from './useBaseStore'
 
+// Common utility function for safe project updates with Timestamp cleaning
+const createSafeUpdateProjectLocally = () => {
+  const safeCreateDate = (dateValue: any, fallback: Date = new Date()): Date => {
+    if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+      return new Date(dateValue)
+    }
+    if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+      const parsed = new Date(dateValue)
+      if (!isNaN(parsed.getTime())) {
+        return parsed
+      }
+    }
+    // Handle Firestore Timestamp objects
+    if (dateValue && typeof dateValue === 'object' && 'seconds' in dateValue && 'nanoseconds' in dateValue) {
+      try {
+        // Convert Firestore Timestamp to Date
+        const timestamp = dateValue.seconds * 1000 + dateValue.nanoseconds / 1000000
+        const date = new Date(timestamp)
+        if (!isNaN(date.getTime())) {
+          console.log('[SAFE-UPDATE] Successfully converted Firestore Timestamp to Date:', dateValue, '→', date)
+          return date
+        }
+      } catch (e) {
+        console.warn('[SAFE-UPDATE] Failed to convert Firestore Timestamp:', dateValue, e)
+      }
+    }
+    // Handle Firestore Timestamp objects with toDate method
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      try {
+        const date = dateValue.toDate()
+        if (date instanceof Date && !isNaN(date.getTime())) {
+          console.log('[SAFE-UPDATE] Successfully converted Firestore Timestamp using toDate():', date)
+          return date
+        }
+      } catch (e) {
+        console.warn('[SAFE-UPDATE] Failed to convert Firestore Timestamp using toDate():', e)
+      }
+    }
+    console.warn('[SAFE-UPDATE] Using fallback date for invalid date value:', dateValue)
+    return fallback
+  }
+
+  return async (project: Project, context: string = 'unknown') => {
+    const { updateProjectLocally } = useProjectStore.getState()
+    
+    console.log(`[SAFE-UPDATE] Cleaning project for ${context}:`, {
+      projectId: project.id,
+      projectName: project.name,
+      chartsCount: project.charts?.length || 0
+    })
+
+    const cleanedProject = {
+      ...project,
+      lastModified: new Date(),
+      createdDate: safeCreateDate(project.createdDate, new Date()),
+      sessions: project.sessions?.map(session => ({
+        ...session,
+        startTime: safeCreateDate(session.startTime)
+      })) || [],
+      charts: project.charts?.map((chart, index) => {
+        const hasTimestampCreatedDate = chart.createdDate && typeof chart.createdDate === 'object' && 'seconds' in chart.createdDate
+        const hasTimestampLastModified = chart.lastModified && typeof chart.lastModified === 'object' && 'seconds' in chart.lastModified
+        
+        if (hasTimestampCreatedDate || hasTimestampLastModified) {
+          console.log(`[SAFE-UPDATE] ${context} - Cleaning chart ${index} (${chart.id}):`, {
+            hasTimestampCreatedDate,
+            hasTimestampLastModified
+          })
+        }
+
+        return {
+          ...chart,
+          createdDate: safeCreateDate(chart.createdDate, project.createdDate),
+          lastModified: safeCreateDate(chart.lastModified, new Date()),
+          rounds: chart.rounds?.map(round => ({
+            ...round,
+            stitches: [...round.stitches],
+            stitchGroups: round.stitchGroups?.map(group => ({
+              ...group,
+              stitches: [...group.stitches]
+            })) || []
+          })) || []
+        }
+      }) || []
+    }
+
+    console.log(`[SAFE-UPDATE] ${context} - Project cleaned, all charts have valid dates:`,
+      cleanedProject.charts?.every(chart =>
+        chart.createdDate instanceof Date && !isNaN(chart.createdDate.getTime()) &&
+        chart.lastModified instanceof Date && !isNaN(chart.lastModified.getTime())
+      )
+    )
+
+    await updateProjectLocally(cleanedProject)
+  }
+}
+
+// Export the safe update function for use in other stores
+export const safeUpdateProjectLocally = createSafeUpdateProjectLocally()
+
 interface ChartStoreState {
   // No persistent state needed - charts are managed in projects
 }
@@ -60,10 +160,7 @@ export const useChartStore = create<ChartStore>(() => ({
         return null
       }
 
-      await updateProjectLocally({
-        ...updatedProject,
-        lastModified: new Date()
-      })
+      await safeUpdateProjectLocally(updatedProject, 'createChart')
 
       console.log('[CHART] Created chart:', newChart.name, 'with ID:', newChart.id)
       return newChart
@@ -132,10 +229,7 @@ export const useChartStore = create<ChartStore>(() => ({
         return null
       }
 
-      await updateProjectLocally({
-        ...updatedProject,
-        lastModified: new Date()
-      })
+      await safeUpdateProjectLocally(updatedProject, 'duplicateChart')
 
       console.log('[CHART] Duplicated chart:', sourceChart.name, 'as:', duplicatedChart.name)
       return duplicatedChart
@@ -382,7 +476,7 @@ export const useChartStore = create<ChartStore>(() => ({
         projectKeys: Object.keys(updatedProject)
       })
 
-      await updateProjectLocally(updatedProject)
+      await safeUpdateProjectLocally(updatedProject, 'updateChart')
 
       console.log('[CHART] Updated chart:', chartId)
     } catch (error) {
@@ -415,10 +509,7 @@ export const useChartStore = create<ChartStore>(() => ({
         return
       }
 
-      await updateProjectLocally({
-        ...updatedProject,
-        lastModified: new Date()
-      })
+      await safeUpdateProjectLocally(updatedProject, 'deleteChart')
 
       console.log('[CHART] Deleted chart:', chartId)
     } catch (error) {
@@ -434,10 +525,111 @@ export const useChartStore = create<ChartStore>(() => ({
     }
 
     try {
+      console.log('[CHART-DEBUG] Starting setCurrentChart:', {
+        chartId,
+        projectId: currentProject.id,
+        projectName: currentProject.name,
+        hasCharts: !!currentProject.charts,
+        chartsLength: currentProject.charts?.length || 0,
+        currentChartId: currentProject.currentChartId
+      })
+
       // Ensure project is migrated to multi-chart format
       migrateProjectToMultiChart(currentProject)
       
-      const updatedProject = { ...currentProject }
+      // Create a proper deep copy of the project while fixing broken Date objects
+      const safeCreateDate = (dateValue: any, fallback: Date = new Date()): Date => {
+        if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+          return new Date(dateValue)
+        }
+        if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+          const parsed = new Date(dateValue)
+          if (!isNaN(parsed.getTime())) {
+            return parsed
+          }
+        }
+        // Handle Firestore Timestamp objects
+        if (dateValue && typeof dateValue === 'object' && 'seconds' in dateValue && 'nanoseconds' in dateValue) {
+          try {
+            // Convert Firestore Timestamp to Date
+            const timestamp = dateValue.seconds * 1000 + dateValue.nanoseconds / 1000000
+            const date = new Date(timestamp)
+            if (!isNaN(date.getTime())) {
+              console.log('[CHART-DEBUG] setCurrentChart - Successfully converted Firestore Timestamp to Date:', dateValue, '→', date)
+              return date
+            }
+          } catch (e) {
+            console.warn('[CHART-DEBUG] setCurrentChart - Failed to convert Firestore Timestamp:', dateValue, e)
+          }
+        }
+        // Handle Firestore Timestamp objects with toDate method
+        if (dateValue && typeof dateValue.toDate === 'function') {
+          try {
+            const date = dateValue.toDate()
+            if (date instanceof Date && !isNaN(date.getTime())) {
+              console.log('[CHART-DEBUG] setCurrentChart - Successfully converted Firestore Timestamp using toDate():', date)
+              return date
+            }
+          } catch (e) {
+            console.warn('[CHART-DEBUG] setCurrentChart - Failed to convert Firestore Timestamp using toDate():', e)
+          }
+        }
+        console.warn('[CHART-DEBUG] setCurrentChart - Using fallback date for invalid date value:', dateValue)
+        return fallback
+      }
+
+      const updatedProject = {
+        ...currentProject,
+        lastModified: new Date(),
+        sessions: currentProject.sessions?.map(session => ({
+          ...session,
+          startTime: safeCreateDate(session.startTime)
+        })) || [],
+        charts: currentProject.charts?.map((chart, index) => {
+          const hasTimestampCreatedDate = chart.createdDate && typeof chart.createdDate === 'object' && 'seconds' in chart.createdDate
+          const hasTimestampLastModified = chart.lastModified && typeof chart.lastModified === 'object' && 'seconds' in chart.lastModified
+          
+          console.log('[CHART-DEBUG] setCurrentChart - Processing chart dates:', {
+            chartIndex: index,
+            chartId: chart.id,
+            chartName: chart.name,
+            originalCreatedDate: chart.createdDate,
+            originalLastModified: chart.lastModified,
+            createdDateValid: chart.createdDate instanceof Date && !isNaN(chart.createdDate.getTime()),
+            lastModifiedValid: chart.lastModified instanceof Date && !isNaN(chart.lastModified.getTime()),
+            hasTimestampCreatedDate,
+            hasTimestampLastModified,
+            chartKeys: Object.keys(chart)
+          })
+
+          // ALWAYS fix Timestamp objects for ALL charts
+          const processedChart = {
+            ...chart,
+            createdDate: safeCreateDate(chart.createdDate, currentProject.createdDate),
+            lastModified: safeCreateDate(chart.lastModified, new Date()),
+            rounds: chart.rounds?.map(round => ({
+              ...round,
+              stitches: [...round.stitches],
+              stitchGroups: round.stitchGroups?.map(group => ({
+                ...group,
+                stitches: [...group.stitches]
+              })) || []
+            })) || []
+          }
+          
+          console.log('[CHART-DEBUG] setCurrentChart - After processing chart dates:', {
+            chartIndex: index,
+            chartId: chart.id,
+            processedCreatedDate: processedChart.createdDate,
+            processedLastModified: processedChart.lastModified,
+            createdDateIsNowValid: processedChart.createdDate instanceof Date && !isNaN(processedChart.createdDate.getTime()),
+            lastModifiedIsNowValid: processedChart.lastModified instanceof Date && !isNaN(processedChart.lastModified.getTime())
+          })
+
+          return processedChart
+        }) || []
+      }
+      
       const success = setCurrentChart(updatedProject, chartId)
       
       if (!success) {
@@ -445,13 +637,21 @@ export const useChartStore = create<ChartStore>(() => ({
         return
       }
 
-      await updateProjectLocally({
-        ...updatedProject,
-        lastModified: new Date()
+      console.log('[CHART-DEBUG] setCurrentChart - About to call updateProjectLocally with cleaned project:', {
+        projectId: updatedProject.id,
+        projectName: updatedProject.name,
+        chartsCount: updatedProject.charts?.length || 0,
+        allChartsHaveValidDates: updatedProject.charts?.every(chart =>
+          chart.createdDate instanceof Date && !isNaN(chart.createdDate.getTime()) &&
+          chart.lastModified instanceof Date && !isNaN(chart.lastModified.getTime())
+        )
       })
+
+      await safeUpdateProjectLocally(updatedProject, 'setCurrentChart')
 
       console.log('[CHART] Set current chart to:', chartId)
     } catch (error) {
+      console.error('[CHART-DEBUG] Error in setCurrentChart:', error)
       handleAsyncError(error, 'Failed to set current chart')
     }
   },
@@ -523,10 +723,7 @@ export const useChartStore = create<ChartStore>(() => ({
         return
       }
 
-      await updateProjectLocally({
-        ...updatedProject,
-        lastModified: new Date()
-      })
+      await safeUpdateProjectLocally(updatedProject, 'clearChart')
 
       console.log('[CHART] Cleared chart:', chartId)
     } catch (error) {
@@ -572,10 +769,7 @@ export const useChartStore = create<ChartStore>(() => ({
         return
       }
 
-      await updateProjectLocally({
-        ...updatedProject,
-        lastModified: new Date()
-      })
+      await safeUpdateProjectLocally(updatedProject, 'resetChartProgress')
 
       console.log('[CHART] Reset progress for chart:', chartId)
     } catch (error) {
@@ -639,10 +833,7 @@ export const useChartStore = create<ChartStore>(() => ({
         return
       }
 
-      await updateProjectLocally({
-        ...updatedProject,
-        lastModified: new Date()
-      })
+      await safeUpdateProjectLocally(updatedProject, 'markChartComplete')
 
       console.log('[CHART] Marked chart as complete:', chartId)
     } catch (error) {
@@ -724,10 +915,7 @@ export const useChartStore = create<ChartStore>(() => ({
         return null
       }
 
-      await updateProjectLocally({
-        ...updatedProject,
-        lastModified: new Date()
-      })
+      await safeUpdateProjectLocally(updatedProject, 'importChart')
 
       console.log('[CHART] Imported chart:', importedChart.name)
       return importedChart

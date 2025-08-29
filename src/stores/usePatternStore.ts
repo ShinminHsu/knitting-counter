@@ -4,6 +4,7 @@ import { Round, StitchInfo, StitchGroup, StitchType } from '../types'
 import { generateId, getProjectPattern, getProjectCurrentRound, getRoundTotalStitches, updateChartInProject, getCurrentChart } from '../utils'
 import { useProjectStore } from './useProjectStore'
 import { handleAsyncError } from './useBaseStore'
+import { safeUpdateProjectLocally } from './useChartStore'
 
 interface PatternStoreState {
   // No persistent state needed - patterns are managed in projects
@@ -74,14 +75,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'addRound')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'addRound')
       }
 
       console.log('[PATTERN] Added round:', nextRoundNumber)
@@ -131,16 +132,16 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'deleteRound')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: renumberedPattern,
           currentRound: newCurrentRound,
           currentStitch: 0,
           lastModified: new Date()
-        })
+        }, 'deleteRound')
       }
 
       console.log('[PATTERN] Deleted round:', roundNumber, 'Adjusted current round to:', newCurrentRound)
@@ -171,14 +172,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'updateRound')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'updateRound')
       }
 
       console.log('[PATTERN] Updated round:', roundNumber)
@@ -224,14 +225,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'duplicateRound')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'duplicateRound')
       }
 
       console.log('[PATTERN] Duplicated round:', roundNumber, 'as round:', duplicatedRound.roundNumber)
@@ -273,14 +274,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'reorderRounds')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: renumberedPattern,
           lastModified: new Date()
-        })
+        }, 'reorderRounds')
       }
 
       console.log('[PATTERN] Reordered rounds from index', fromIndex, 'to', toIndex)
@@ -326,14 +327,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'addStitch')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'addStitch')
       }
 
       console.log('[PATTERN] Added stitch to round:', roundNumber)
@@ -368,14 +369,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'updateStitch')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'updateStitch')
       }
 
       console.log('[PATTERN] Updated stitch in round:', roundNumber, 'at index:', stitchIndex)
@@ -408,14 +409,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'deleteStitch')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'deleteStitch')
       }
 
       console.log('[PATTERN] Deleted stitch from round:', roundNumber, 'at index:', stitchIndex)
@@ -458,14 +459,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'duplicateStitch')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'duplicateStitch')
       }
 
       console.log('[PATTERN] Duplicated stitch in round:', roundNumber, 'at index:', stitchIndex)
@@ -511,14 +512,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'addGroup')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'addGroup')
       }
 
       console.log('[PATTERN] Added group to round:', roundNumber)
@@ -553,14 +554,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'updateGroup')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'updateGroup')
       }
 
       console.log('[PATTERN] Updated group in round:', roundNumber, 'at index:', groupIndex)
@@ -593,14 +594,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'deleteGroup')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'deleteGroup')
       }
 
       console.log('[PATTERN] Deleted group from round:', roundNumber, 'at index:', groupIndex)
@@ -647,14 +648,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'duplicateGroup')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'duplicateGroup')
       }
 
       console.log('[PATTERN] Duplicated group in round:', roundNumber, 'at index:', groupIndex)
@@ -720,14 +721,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'reorderPatternItemsInRound')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: updatedPattern,
           lastModified: new Date()
-        })
+        }, 'reorderPatternItemsInRound')
       }
 
       console.log('[PATTERN] Reordered pattern items in round:', roundNumber, 'from index', fromIndex, 'to', toIndex)
@@ -883,14 +884,14 @@ export const usePatternStore = create<PatternStore>(() => ({
         }
         const updatedProject = { ...currentProject }
         updateChartInProject(updatedProject, updatedChart)
-        await updateProjectLocally(updatedProject)
+        await safeUpdateProjectLocally(updatedProject, 'optimizePattern')
       } else {
         // Fallback to legacy pattern update
-        await updateProjectLocally({
+        await safeUpdateProjectLocally({
           ...currentProject,
           pattern: optimizedPattern,
           lastModified: new Date()
-        })
+        }, 'optimizePattern')
       }
 
       console.log('[PATTERN] Pattern optimized successfully')

@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { WorkSession, Project } from '../types'
 import { generateId, getProjectPattern, getProjectCurrentRound, getProjectCurrentStitch, getRoundTotalStitches } from '../utils'
 import { useProjectStore } from './useProjectStore'
+import { safeUpdateProjectLocally } from './useChartStore'
 
 interface ProgressStoreState {
   // No persistent state needed - progress is managed in projects
@@ -54,7 +55,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
         currentStitch: 0,
         lastModified: new Date()
       }
-      await updateProjectLocally(updatedProject)
+      await safeUpdateProjectLocally(updatedProject, 'nextStitch')
       return
     }
 
@@ -94,7 +95,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'nextStitch')
   },
 
   previousStitch: async () => {
@@ -148,7 +149,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'previousStitch')
   },
 
   setCurrentRound: async (roundNumber) => {
@@ -176,7 +177,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'setCurrentRound')
   },
 
   setCurrentStitch: async (stitchNumber) => {
@@ -189,7 +190,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'setCurrentStitch')
   },
 
   // Session management
@@ -211,7 +212,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'startSession')
     console.log('[PROGRESS] Started new session:', newSession.id)
   },
 
@@ -239,7 +240,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'endSession')
     console.log('[PROGRESS] Ended session:', lastSession.id, 'Duration:', duration, 'seconds')
   },
 
@@ -264,7 +265,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'goToRoundStart')
     console.log('[PROGRESS] Moved to start of round', roundNumber)
   },
 
@@ -288,7 +289,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'goToRoundEnd')
     console.log('[PROGRESS] Moved to end of round', roundNumber)
   },
 
@@ -311,7 +312,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'markProjectComplete')
     console.log('[PROGRESS] Project marked as complete:', currentProject.name)
   },
 
@@ -330,7 +331,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await updateProjectLocally(updatedProject)
+    await safeUpdateProjectLocally(updatedProject, 'resetProgress')
     console.log('[PROGRESS] Progress reset for project:', currentProject.name)
   }
 }))

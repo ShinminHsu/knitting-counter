@@ -81,13 +81,31 @@ export default function PatternItemDisplay({
     const isEditing = editingStitch?.stitchId === stitch.id
 
     return (
-      <div 
-        key={patternItem.id} 
+      <div
+        key={patternItem.id}
         className="grid grid-cols-[40px_1fr_100px] items-center gap-3 p-2 bg-background-tertiary rounded cursor-move"
         draggable
         onDragStart={(e) => onDragStart(e, index, roundNumber)}
         onDragOver={onDragOver}
         onDrop={(e) => onDrop(e, index, roundNumber)}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault()
+            if (!isEditing) {
+              onDeleteStitch(roundNumber, stitch.id)
+            }
+          }
+        }}
+        onFocus={(e) => {
+          // Add visual feedback when focused
+          e.currentTarget.style.outline = '2px solid #3b82f6'
+          e.currentTarget.style.outlineOffset = '2px'
+        }}
+        onBlur={(e) => {
+          // Remove visual feedback when unfocused
+          e.currentTarget.style.outline = 'none'
+        }}
       >
         {/* 針目圖標 */}
         <div className="text-lg flex items-center justify-center">
@@ -95,8 +113,8 @@ export default function PatternItemDisplay({
         </div>
         
         {/* 針目資訊 */}
-        <div className="min-w-0">
-          {isEditing ? (
+        {isEditing ? (
+          <div className="col-span-2 min-w-0">
             <StitchEditor
               stitchType={editStitchType}
               stitchCount={editStitchCount}
@@ -106,7 +124,9 @@ export default function PatternItemDisplay({
               onCancel={onCancelEdit}
               fieldKey={`editStitch_${stitch.id}`}
             />
-          ) : (
+          </div>
+        ) : (
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-medium text-text-primary">
                 {getStitchDisplayInfo(stitch).rawValue}
@@ -115,8 +135,8 @@ export default function PatternItemDisplay({
                 ×{stitch.count}
               </span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
         
         {/* 操作按鈕 */}
         <div className="flex items-center justify-end gap-1">
@@ -150,14 +170,32 @@ export default function PatternItemDisplay({
     const isEditingGroup = editingGroup?.groupId === group.id
 
     return (
-      <div 
-        key={patternItem.id} 
+      <div
+        key={patternItem.id}
         className="border border-border rounded-lg p-3 cursor-move"
         data-group-id={group.id}
         draggable
         onDragStart={(e) => onDragStart(e, index, roundNumber)}
         onDragOver={onDragOver}
         onDrop={(e) => onDrop(e, index, roundNumber)}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault()
+            if (!isEditingGroup) {
+              onDeleteGroup(roundNumber, group.id)
+            }
+          }
+        }}
+        onFocus={(e) => {
+          // Add visual feedback when focused
+          e.currentTarget.style.outline = '2px solid #3b82f6'
+          e.currentTarget.style.outlineOffset = '2px'
+        }}
+        onBlur={(e) => {
+          // Remove visual feedback when unfocused
+          e.currentTarget.style.outline = 'none'
+        }}
       >
         {/* Group Header */}
         <div className="flex items-center justify-between mb-2">
@@ -201,15 +239,36 @@ export default function PatternItemDisplay({
                                        editingGroupStitch?.groupId === group.id
 
             return (
-              <div key={stitch.id} className="grid grid-cols-[40px_1fr_100px] items-center gap-3 p-2 bg-background-tertiary rounded ml-4">
+              <div
+                key={stitch.id}
+                className="grid grid-cols-[40px_1fr_100px] items-center gap-3 p-2 bg-background-tertiary rounded ml-4"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Delete' || e.key === 'Backspace') {
+                    e.preventDefault()
+                    if (!isEditingGroupStitch) {
+                      onDeleteGroupStitch(roundNumber, group.id, stitch.id)
+                    }
+                  }
+                }}
+                onFocus={(e) => {
+                  // Add visual feedback when focused
+                  e.currentTarget.style.outline = '2px solid #3b82f6'
+                  e.currentTarget.style.outlineOffset = '2px'
+                }}
+                onBlur={(e) => {
+                  // Remove visual feedback when unfocused
+                  e.currentTarget.style.outline = 'none'
+                }}
+              >
                 {/* 針目圖標 */}
                 <div className="text-lg flex items-center justify-center">
                   {getStitchDisplayInfo(stitch).symbol}
                 </div>
                 
                 {/* 針目資訊 */}
-                <div className="min-w-0">
-                  {isEditingGroupStitch ? (
+                {isEditingGroupStitch ? (
+                  <div className="col-span-2 min-w-0">
                     <StitchEditor
                       stitchType={editGroupStitchType}
                       stitchCount={editGroupStitchCount}
@@ -219,7 +278,9 @@ export default function PatternItemDisplay({
                       onCancel={onCancelEdit}
                       fieldKey={`editGroupStitch_${stitch.id}`}
                     />
-                  ) : (
+                  </div>
+                ) : (
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-text-primary">
                         {getStitchDisplayInfo(stitch).rawValue}
@@ -228,8 +289,8 @@ export default function PatternItemDisplay({
                         ×{stitch.count}
                       </span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
                 
                 {/* 操作按鈕 */}
                 <div className="flex items-center justify-end gap-1">

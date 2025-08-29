@@ -3,6 +3,7 @@ import { Yarn, YarnColor } from '../types'
 import { generateId } from '../utils'
 import { useProjectStore } from './useProjectStore'
 import { handleAsyncError } from './useBaseStore'
+import { safeUpdateProjectLocally } from './useChartStore'
 
 interface YarnStoreState {
   // No persistent state needed - yarns are managed in projects
@@ -59,7 +60,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
         lastModified: new Date()
       }
 
-      await updateProjectLocally(updatedProject)
+      await safeUpdateProjectLocally(updatedProject, 'addYarn')
       console.log('[YARN] Added yarn:', newYarn.name)
       return newYarn
     } catch (error) {
@@ -86,7 +87,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
         lastModified: new Date()
       }
 
-      await updateProjectLocally(updatedProject)
+      await safeUpdateProjectLocally(updatedProject, 'updateYarn')
       console.log('[YARN] Updated yarn:', yarnId)
     } catch (error) {
       handleAsyncError(error, 'Failed to update yarn')
@@ -116,7 +117,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
         lastModified: new Date()
       }
 
-      await updateProjectLocally(updatedProject)
+      await safeUpdateProjectLocally(updatedProject, 'deleteYarn')
       console.log('[YARN] Deleted yarn:', yarnId)
     } catch (error) {
       handleAsyncError(error, 'Failed to delete yarn')
@@ -149,7 +150,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
         lastModified: new Date()
       }
 
-      await updateProjectLocally(updatedProject)
+      await safeUpdateProjectLocally(updatedProject, 'duplicateYarn')
       console.log('[YARN] Duplicated yarn:', sourceYarn.name)
       return duplicatedYarn
     } catch (error) {
@@ -328,7 +329,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
         lastModified: new Date()
       }
 
-      await updateProjectLocally(updatedProject)
+      await safeUpdateProjectLocally(updatedProject, 'importYarns')
       console.log('[YARN] Imported', importedYarns.length, 'yarns')
     } catch (error) {
       handleAsyncError(error, 'Failed to import yarns')
