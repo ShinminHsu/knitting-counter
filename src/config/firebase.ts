@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore, enableNetwork, disableNetwork, initializeFirestore } from 'firebase/firestore'
+import { getFirestore, enableNetwork, disableNetwork, initializeFirestore, Firestore } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -24,7 +24,7 @@ const isMobileDevice = () => {
 }
 
 // 初始化 Firestore 並啟用離線持久化
-let db: any
+let db: Firestore
 try {
   const firestoreSettings = {
     ignoreUndefinedProperties: true, // 忽略 undefined 屬性

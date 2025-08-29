@@ -13,18 +13,28 @@ export interface Yarn {
 }
 
 export enum StitchType {
-  // 鉤針針法
+  // 鉤針基礎針法
   SINGLE = 'single',
   HALF_DOUBLE = 'half_double',
   DOUBLE = 'double',
   TRIPLE = 'triple', 
   CHAIN = 'chain',
   SLIP = 'slip',
-  INCREASE = 'increase',
-  DECREASE = 'decrease',
   MAGIC_RING = 'magic_ring',
   FRONT_POST = 'front_post',
   BACK_POST = 'back_post',
+  // 鉤針加減針法
+  SINGLE_INCREASE = 'single_increase',
+  SINGLE_DECREASE = 'single_decrease',
+  HALF_DOUBLE_INCREASE = 'half_double_increase',
+  HALF_DOUBLE_DECREASE = 'half_double_decrease',
+  DOUBLE_INCREASE = 'double_increase',
+  DOUBLE_DECREASE = 'double_decrease',
+  TRIPLE_INCREASE = 'triple_increase',
+  TRIPLE_DECREASE = 'triple_decrease',
+  // 通用加減針法 (向後相容)
+  INCREASE = 'increase',
+  DECREASE = 'decrease',
   // 棒針針法
   KNIT = 'knit',
   PURL = 'purl',
@@ -45,18 +55,28 @@ export const StitchTypeInfo: Record<StitchType, {
   symbol: string
   englishName: string
 }> = {
-  // 鉤針針法
+  // 鉤針基礎針法
   [StitchType.SINGLE]: { rawValue: '短針', symbol: '×', englishName: 'sc' },
   [StitchType.HALF_DOUBLE]: { rawValue: '中長針', symbol: '⊥', englishName: 'hdc' },
   [StitchType.DOUBLE]: { rawValue: '長針', symbol: '↑', englishName: 'dc' },
   [StitchType.TRIPLE]: { rawValue: '長長針', symbol: '↟', englishName: 'tr' },
   [StitchType.CHAIN]: { rawValue: '鎖針', symbol: '○', englishName: 'ch' },
   [StitchType.SLIP]: { rawValue: '引拔針', symbol: '•', englishName: 'sl st' },
-  [StitchType.INCREASE]: { rawValue: '加針', symbol: '▲', englishName: 'inc' },
-  [StitchType.DECREASE]: { rawValue: '減針', symbol: '▼', englishName: 'dec' },
   [StitchType.MAGIC_RING]: { rawValue: '魔術環', symbol: '◉', englishName: 'mr' },
   [StitchType.FRONT_POST]: { rawValue: '前柱針', symbol: '⟨', englishName: 'fp' },
   [StitchType.BACK_POST]: { rawValue: '後柱針', symbol: '⟩', englishName: 'bp' },
+  // 鉤針組合針法
+  [StitchType.SINGLE_INCREASE]: { rawValue: '短針加針', symbol: '×↗', englishName: 'sc inc' },
+  [StitchType.SINGLE_DECREASE]: { rawValue: '短針減針', symbol: '×↘', englishName: 'sc dec' },
+  [StitchType.HALF_DOUBLE_INCREASE]: { rawValue: '中長針加針', symbol: '⊥↗', englishName: 'hdc inc' },
+  [StitchType.HALF_DOUBLE_DECREASE]: { rawValue: '中長針減針', symbol: '⊥↘', englishName: 'hdc dec' },
+  [StitchType.DOUBLE_INCREASE]: { rawValue: '長針加針', symbol: '↑↗', englishName: 'dc inc' },
+  [StitchType.DOUBLE_DECREASE]: { rawValue: '長針減針', symbol: '↑↘', englishName: 'dc dec' },
+  [StitchType.TRIPLE_INCREASE]: { rawValue: '長長針加針', symbol: '↟↗', englishName: 'tr inc' },
+  [StitchType.TRIPLE_DECREASE]: { rawValue: '長長針減針', symbol: '↟↘', englishName: 'tr dec' },
+  // 通用加減針法
+  [StitchType.INCREASE]: { rawValue: '加針', symbol: '▲', englishName: 'inc' },
+  [StitchType.DECREASE]: { rawValue: '減針', symbol: '▼', englishName: 'dec' },
   // 棒針針法
   [StitchType.KNIT]: { rawValue: '下針', symbol: '∣', englishName: 'k' },
   [StitchType.PURL]: { rawValue: '上針', symbol: '⌒', englishName: 'p' },
@@ -263,4 +283,120 @@ export type RouteParams = {
   projectId?: string
   chartId?: string
   roundId?: string
+}
+
+// Firestore-specific types for data cleaning and conversion
+export interface FirestoreYarn {
+  id: string
+  name: string
+  brand?: string
+  color: {
+    name: string
+    hex: string
+  }
+}
+
+export interface FirestoreWorkSession {
+  id: string
+  startTime: any // Firestore Timestamp - handled by conversion utilities
+  duration: number
+  roundsCompleted: number
+  stitchesCompleted: number
+}
+
+export interface FirestoreStitchInfo {
+  id: string
+  type: StitchType
+  yarnId: string
+  count: number
+  customName?: string
+  customSymbol?: string
+}
+
+export interface FirestoreStitchGroup {
+  id: string
+  name: string
+  stitches: FirestoreStitchInfo[]
+  repeatCount: number
+  completedRepeats?: number
+}
+
+export interface FirestoreRound {
+  id: string
+  roundNumber: number
+  stitches: FirestoreStitchInfo[]
+  stitchGroups: FirestoreStitchGroup[]
+  notes?: string
+}
+
+export interface FirestoreChart {
+  id: string
+  name: string
+  description?: string
+  rounds: FirestoreRound[]
+  currentRound: number
+  currentStitch: number
+  createdDate: any // Firestore Timestamp - handled by conversion utilities
+  lastModified: any // Firestore Timestamp - handled by conversion utilities
+  isCompleted?: boolean
+  notes?: string
+}
+
+export interface FirestoreProject {
+  id: string
+  name: string
+  source?: string
+  notes?: string
+  currentRound?: number
+  currentStitch?: number
+  charts?: FirestoreChart[]
+  currentChartId?: string
+  yarns: FirestoreYarn[]
+  sessions: FirestoreWorkSession[]
+  createdDate: any // Firestore Timestamp - handled by conversion utilities
+  lastModified: any // Firestore Timestamp - handled by conversion utilities
+  isCompleted?: boolean
+}
+
+export interface FirestoreProjectCreate extends Omit<FirestoreProject, 'id'> {
+  id: string
+}
+
+export interface FirestoreProjectUpdate extends Omit<FirestoreProject, 'id' | 'createdDate'> {}
+
+// Generic Firestore document data type
+export interface FirestoreDocumentData {
+  [key: string]: any
+}
+
+// Date serialization types
+export interface SerializedDate {
+  __type: 'Date'
+  value: string
+}
+
+export type SerializableValue =
+  | string
+  | number
+  | boolean
+  | null
+  | SerializedDate
+  | SerializableValue[]
+  | { [key: string]: SerializableValue }
+
+export interface DateSerializationHelpers {
+  serializeWithDates: <T>(obj: T) => string
+  deserializeWithDates: <T>(str: string) => T
+}
+
+// Timestamp conversion utilities type
+export interface TimestampConvertible {
+  createdDate?: any
+  lastModified?: any
+  lastLogin?: any
+  sessions?: Array<{
+    startTime?: any
+    [key: string]: any
+  }>
+  [key: string]: any
 }

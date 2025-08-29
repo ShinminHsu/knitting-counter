@@ -2,9 +2,13 @@ import React from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import yarnAnimationData from '../assets/images/CIrcles Yarn.json';
 
+interface LottieAnimationData {
+  [key: string]: unknown;
+}
+
 interface LoadingPageProps {
   src?: string;
-  data?: any;
+  data?: LottieAnimationData;
   message?: string;
   submessage?: string;
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { StitchGroupTemplate, StitchGroup, StitchInfo } from '../types'
-import { useSyncedAppStore } from '../store/syncedAppStore'
+import { useTemplateStore } from '../stores/useTemplateStore'
 import { getStitchDisplayInfo, formatDate } from '../utils'
 
 interface StitchGroupTemplateModalProps {
@@ -20,7 +20,7 @@ export default function StitchGroupTemplateModal({
   mode,
   title
 }: StitchGroupTemplateModalProps) {
-  const { stitchGroupTemplates, saveStitchGroupAsTemplate, deleteStitchGroupTemplate } = useSyncedAppStore()
+  const { templates: stitchGroupTemplates, createFromStitchGroup, deleteTemplate } = useTemplateStore()
   
   // 存為範本的狀態
   const [templateName, setTemplateName] = useState('')
@@ -53,10 +53,10 @@ export default function StitchGroupTemplateModal({
   const handleSaveTemplate = async () => {
     if (!groupToSave || !templateName.trim()) return
     
-    await saveStitchGroupAsTemplate(
-      groupToSave, 
-      templateName, 
-      templateDescription || undefined, 
+    await createFromStitchGroup(
+      groupToSave,
+      templateName,
+      templateDescription || undefined,
       templateCategory || undefined
     )
     onClose()
@@ -71,7 +71,7 @@ export default function StitchGroupTemplateModal({
 
   const handleDeleteTemplate = async (templateId: string) => {
     if (confirm('確定要刪除此範本嗎？')) {
-      await deleteStitchGroupTemplate(templateId)
+      await deleteTemplate(templateId)
     }
   }
 
@@ -91,7 +91,7 @@ export default function StitchGroupTemplateModal({
   const modalTitle = title || (mode === 'save' ? '存為範本' : '選擇範本')
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[80]">
       <div className="bg-background-secondary rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold text-text-primary mb-6">
           {modalTitle}

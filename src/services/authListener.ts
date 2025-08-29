@@ -1,7 +1,9 @@
 import { User } from 'firebase/auth'
-import { useAuthStore } from '../store/authStore'
-import { useSyncedAppStore } from '../store/syncedAppStore'
-import { syncManager } from './syncManager'
+import { useAuthStore } from '../stores/useAuthStore'
+import { useProjectStore } from '../stores/useProjectStore'
+import { useBaseStore } from '../stores/useBaseStore'
+import { useSyncStore } from '../stores/useSyncStore'
+import { syncManager, ProjectConflict } from './syncManager'
 
 class AuthListener {
   private unsubscribeFirestore: (() => void) | null = null
@@ -10,22 +12,19 @@ class AuthListener {
     console.log('User logged in:', user.uid)
     
     try {
-      const appStore = useSyncedAppStore.getState()
-      
-      // 初始化用戶配置檔案
-      await appStore.initializeUserProfile(user)
+      const projectStore = useProjectStore.getState()
       
       // 載入用戶專案數據
-      await appStore.loadUserProjects()
+      await projectStore.loadUserProjects()
       
-      // 開始監聽Firestore變化
-      this.unsubscribeFirestore = appStore.subscribeToFirestoreChanges()
+      // TODO: 實現 Firestore 監聽功能（目前在新架構中暫不支援）
+      // this.unsubscribeFirestore = subscribeToFirestoreChanges()
       
       console.log('User login handling completed')
     } catch (error) {
       console.error('Error handling user login:', error)
-      const appStore = useSyncedAppStore.getState()
-      appStore.setError('登入時載入數據失敗，請檢查網絡連接並重新整理頁面')
+      const baseStore = useBaseStore.getState()
+      baseStore.setError('登入時載入數據失敗，請檢查網絡連接並重新整理頁面')
     }
   }
   
@@ -40,8 +39,8 @@ class AuthListener {
       }
       
       // 清空用戶數據
-      const appStore = useSyncedAppStore.getState()
-      appStore.clearUserData()
+      const projectStore = useProjectStore.getState()
+      projectStore.clearUserData()
       
       console.log('User logout handling completed')
     } catch (error) {
@@ -74,11 +73,12 @@ class AuthListener {
     console.log('Performing cross-device sync for user:', user.uid)
     
     try {
-      const appStore = useSyncedAppStore.getState()
-      appStore.setSyncing(true)
+      const syncStore = useSyncStore.getState()
+      const projectStore = useProjectStore.getState()
+      syncStore.setSyncing(true)
       
       // 獲取本地專案
-      const localProjects = appStore.projects
+      const localProjects = projectStore.projects
       
       // 執行數據合併
       const syncResult = await syncManager.mergeLocalAndRemoteData(
@@ -89,9 +89,11 @@ class AuthListener {
       
       if (syncResult.success) {
         // 更新本地狀態
-        appStore.projects = syncResult.merged
-        appStore.currentProject = syncResult.merged.find(p => p.id === appStore.currentProject?.id) || syncResult.merged[0] || null
-        appStore.lastSyncTime = new Date()
+        projectStore.setProjects(syncResult.merged)
+        const currentProjectId = projectStore.currentProject?.id
+        const newCurrentProject = syncResult.merged.find(p => p.id === currentProjectId) || syncResult.merged[0] || null
+        projectStore.setCurrentProject(newCurrentProject)
+        syncStore.setLastSyncTime(new Date())
         
         console.log('Cross-device sync completed successfully:', {
           merged: syncResult.merged.length,
@@ -100,15 +102,16 @@ class AuthListener {
         })
       } else {
         console.warn('Cross-device sync completed with issues:', syncResult.errors)
-        appStore.setError('同步過程中發生問題')
+        const baseStore = useBaseStore.getState()
+        baseStore.setError('同步過程中發生問題')
       }
     } catch (error) {
       console.error('Error in cross-device sync:', error)
-      const appStore = useSyncedAppStore.getState()
-      appStore.setError('跨裝置同步失敗')
+      const baseStore = useBaseStore.getState()
+      baseStore.setError('跨裝置同步失敗')
     } finally {
-      const appStore = useSyncedAppStore.getState()
-      appStore.setSyncing(false)
+      const syncStore = useSyncStore.getState()
+      syncStore.setSyncing(false)
     }
   }
   
@@ -159,7 +162,7 @@ class AuthListener {
     }
   }
   
-  async resolveConflicts(conflicts: any[], resolutions: { [projectId: string]: 'local' | 'remote' }) {
+  async resolveConflicts(conflicts: ProjectConflict[], resolutions: { [projectId: string]: 'local' | 'remote' }) {
     const { user } = useAuthStore.getState()
     if (!user) return false
     

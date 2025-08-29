@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { BsHouse } from 'react-icons/bs'
-import { useSyncedAppStore } from '../store/syncedAppStore'
+import { useProjectStore } from '../stores/useProjectStore'
+import { useYarnStore } from '../stores/useYarnStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { Yarn, YarnColor } from '../types'
 import { generateId } from '../utils'
@@ -24,7 +25,8 @@ const presetColors: YarnColor[] = [
 export default function YarnManagerView() {
   const { projectId } = useParams()
   const navigate = useNavigate()
-  const { currentProject, setCurrentProject, projects, addYarn, updateYarn, deleteYarn } = useSyncedAppStore()
+  const { currentProject, setCurrentProjectById, projects } = useProjectStore()
+  const { addYarn, updateYarn, deleteYarn } = useYarnStore()
   
   const [showAddYarn, setShowAddYarn] = useState(false)
   const [editingYarn, setEditingYarn] = useState<Yarn | null>(null)
@@ -37,12 +39,12 @@ export default function YarnManagerView() {
     if (projectId) {
       const project = projects.find(p => p.id === projectId)
       if (project) {
-        setCurrentProject(projectId)
+        setCurrentProjectById(projectId)
       } else {
         navigate('/404')
       }
     }
-  }, [projectId, setCurrentProject, projects, navigate])
+  }, [projectId, setCurrentProjectById, projects, navigate])
 
   if (!currentProject) {
     return (
@@ -88,7 +90,7 @@ export default function YarnManagerView() {
     }
 
     if (editingYarn) {
-      updateYarn(yarn)
+      updateYarn(yarn.id, yarn)
     } else {
       addYarn(yarn)
     }

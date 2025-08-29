@@ -6,7 +6,7 @@ import { generateId, createSampleProject } from './index'
 export interface SyncTestResult {
   success: boolean
   message: string
-  details?: any
+  details?: unknown
 }
 
 export class SyncTester {

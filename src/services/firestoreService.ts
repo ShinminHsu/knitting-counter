@@ -1,871 +1,247 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  orderBy, 
-  onSnapshot,
-  Timestamp,
-  enableNetwork,
-  disableNetwork
-} from 'firebase/firestore'
-import { db } from '../config/firebase'
-import { Project, Round, WorkSession, Yarn, StitchInfo, StitchGroup, Chart } from '../types'
+import { Project, Round, Chart } from '../types'
+import { firestoreUserService, UserProfile } from './FirestoreUserService'
+import { firestoreProjectService } from './FirestoreProjectService'
+import { firestoreRoundService } from './FirestoreRoundService'
+import { firestoreDataCleaner } from './FirestoreDataCleaner'
+import { firestoreConnectionManager } from './FirestoreConnectionManager'
 
-export interface UserProfile {
-  uid: string
-  displayName: string | null
-  email: string | null
-  createdAt: Date
-  lastLogin: Date
-}
+// Re-export interfaces for backward compatibility
+export type { UserProfile } from './FirestoreUserService'
 
-export interface FirestoreProject {
-  id: string
-  name: string
-  source?: string
-  notes?: string
-  // 向後兼容：保留舊的欄位
-  currentRound: number
-  currentStitch: number
-  // 新的多織圖結構
-  charts?: Chart[]
-  currentChartId?: string
-  yarns: Yarn[]
-  sessions: WorkSession[]
-  createdDate: Date
-  lastModified: Date
-  isCompleted?: boolean
-}
-
-export interface FirestoreRound {
-  id: string
-  roundNumber: number
-  stitches: StitchInfo[]
-  stitchGroups: StitchGroup[]
-  notes?: string
-}
-
+/**
+ * Main FirestoreService class that composes all specialized services
+ * This class maintains backward compatibility with the original API
+ * while delegating to specialized service classes for better organization
+ */
 class FirestoreService {
+  // Service instances
+  private userService = firestoreUserService
+  private projectService = firestoreProjectService
+  private roundService = firestoreRoundService
+  private dataCleaner = firestoreDataCleaner
+  private connectionManager = firestoreConnectionManager
+
+  // ===== USER PROFILE OPERATIONS =====
+  
+  /**
+   * Get user profile from Firestore
+   * @param userId - The user's UID
+   * @returns UserProfile object or null if not found
+   */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    try {
-      const userRef = doc(db, 'users', userId, 'profile', 'info')
-      const userSnap = await getDoc(userRef)
-      
-      if (userSnap.exists()) {
-        const data = userSnap.data()
-        return {
-          uid: data.uid,
-          displayName: data.displayName,
-          email: data.email,
-          createdAt: data.createdAt.toDate(),
-          lastLogin: data.lastLogin.toDate()
-        }
-      }
-      return null
-    } catch (error) {
-      console.error('Error getting user profile:', error)
-      throw error
-    }
+    return this.userService.getUserProfile(userId)
   }
 
+  /**
+   * Create a new user profile in Firestore
+   * @param profile - UserProfile object to create
+   */
   async createUserProfile(profile: UserProfile): Promise<void> {
-    try {
-      const userRef = doc(db, 'users', profile.uid, 'profile', 'info')
-      await setDoc(userRef, {
-        uid: profile.uid,
-        displayName: profile.displayName,
-        email: profile.email,
-        createdAt: Timestamp.fromDate(profile.createdAt),
-        lastLogin: Timestamp.fromDate(profile.lastLogin)
-      })
-    } catch (error) {
-      console.error('Error creating user profile:', error)
-      throw error
-    }
+    return this.userService.createUserProfile(profile)
   }
 
+  /**
+   * Update user's last login timestamp
+   * @param userId - The user's UID
+   */
   async updateUserLastLogin(userId: string): Promise<void> {
-    try {
-      const userRef = doc(db, 'users', userId, 'profile', 'info')
-      await updateDoc(userRef, {
-        lastLogin: Timestamp.fromDate(new Date())
-      })
-    } catch (error) {
-      console.error('Error updating last login:', error)
-      throw error
-    }
+    return this.userService.updateUserLastLogin(userId)
   }
 
+  // ===== PROJECT OPERATIONS =====
+
+  /**
+   * Get all projects for a user
+   * @param userId - User ID
+   * @returns Array of projects
+   */
   async getUserProjects(userId: string): Promise<Project[]> {
-    try {
-      const projectsRef = collection(db, 'users', userId, 'projects')
-      const projectsQuery = query(projectsRef, orderBy('lastModified', 'desc'))
-      const projectsSnap = await getDocs(projectsQuery)
-      
-      const projects: Project[] = []
-      
-      for (const projectDoc of projectsSnap.docs) {
-        const projectData = projectDoc.data() as FirestoreProject
-        
-        const roundsRef = collection(db, 'users', userId, 'projects', projectDoc.id, 'rounds')
-        const roundsQuery = query(roundsRef, orderBy('roundNumber'))
-        const roundsSnap = await getDocs(roundsQuery)
-        
-        const rounds: Round[] = roundsSnap.docs.map(roundDoc => {
-          const roundData = roundDoc.data() as FirestoreRound
-          return {
-            id: roundData.id,
-            roundNumber: roundData.roundNumber,
-            stitches: roundData.stitches,
-            stitchGroups: roundData.stitchGroups,
-            notes: roundData.notes
-          }
-        })
-        
-        // 檢查是否為舊格式專案（有 rounds 子集合但沒有 charts）
-        const isLegacyProject = rounds.length > 0 && (!projectData.charts || projectData.charts.length === 0)
-        
-        let finalCharts = projectData.charts || []
-        
-        // 如果是舊專案，自動遷移到新格式
-        if (isLegacyProject) {
-          console.log('[FIRESTORE] Migrating legacy project to multi-chart format:', projectData.id)
-          const migratedChart: Chart = {
-            id: `chart-${projectData.id}`,
-            name: '主織圖',
-            description: '從舊版本遷移的織圖',
-            rounds: rounds,
-            currentRound: projectData.currentRound || 1,
-            currentStitch: projectData.currentStitch || 0,
-            createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate && (projectData.createdDate as any).toDate ? (projectData.createdDate as any).toDate() : new Date()),
-            lastModified: new Date(),
-            isCompleted: projectData.isCompleted || false,
-            notes: ''
-          }
-          
-          finalCharts = [migratedChart]
-          
-          // 異步更新 Firebase 中的專案結構（但不等待，避免阻塞讀取）
-          setTimeout(() => {
-            this.migrateProjectToNewFormat(userId, projectData.id, migratedChart)
-          }, 100)
-        }
-
-        projects.push({
-          id: projectData.id,
-          name: projectData.name,
-          source: projectData.source,
-          notes: projectData.notes || '',
-          // 向後兼容：保留舊的 pattern 欄位
-          pattern: rounds,
-          currentRound: projectData.currentRound || 1,
-          currentStitch: projectData.currentStitch || 0,
-          // 新的多織圖結構
-          charts: finalCharts,
-          currentChartId: isLegacyProject ? finalCharts[0]?.id : (projectData.currentChartId || ''),
-          yarns: projectData.yarns || [],
-          sessions: projectData.sessions ? projectData.sessions.map(session => ({
-            ...session,
-            startTime: session.startTime instanceof Date ? session.startTime : (session.startTime && (session.startTime as any).toDate ? (session.startTime as any).toDate() : new Date())
-          })) : [],
-          createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate && (projectData.createdDate as any).toDate ? (projectData.createdDate as any).toDate() : new Date()),
-          lastModified: projectData.lastModified instanceof Date ? projectData.lastModified : (projectData.lastModified && (projectData.lastModified as any).toDate ? (projectData.lastModified as any).toDate() : new Date()),
-          isCompleted: projectData.isCompleted
-        })
-      }
-      
-      return projects
-    } catch (error) {
-      console.error('Error getting user projects:', error)
-      throw error
-    }
+    return this.projectService.getUserProjects(userId)
   }
 
+  /**
+   * Create a new project
+   * @param userId - User ID
+   * @param project - Project data to create
+   */
   async createProject(userId: string, project: Project): Promise<void> {
-    try {
-      const projectRef = doc(db, 'users', userId, 'projects', project.id)
-      
-      // Clean yarns data to ensure no undefined values
-      const cleanedYarns = (project.yarns || [])
-        .filter(yarn => yarn && yarn.id && yarn.name && yarn.color) // Filter out invalid yarns
-        .map(yarn => ({
-          id: yarn.id,
-          name: yarn.name,
-          color: {
-            name: yarn.color.name || '',
-            hex: yarn.color.hex || '#000000'
-          },
-          ...(yarn.brand && { brand: yarn.brand })
-        }))
-
-      const firestoreProject: FirestoreProject = {
-        id: project.id,
-        name: project.name || '',
-        source: project.source || '',
-        notes: project.notes || '',
-        currentRound: project.currentRound || 1,
-        currentStitch: project.currentStitch || 0,
-        charts: project.charts || [],
-        currentChartId: project.currentChartId || '',
-        yarns: cleanedYarns,
-        sessions: project.sessions?.map(session => ({
-          ...session,
-          startTime: session.startTime
-        })) || [],
-        createdDate: project.createdDate,
-        lastModified: project.lastModified,
-        isCompleted: project.isCompleted ?? false
-      }
-      
-      // Clean sessions data to ensure no undefined values
-      const cleanedSessions = firestoreProject.sessions
-        .filter(session => session && session.startTime) // Filter out sessions with undefined/null startTime
-        .map(session => ({
-          id: session.id || '',
-          duration: session.duration || 0,
-          roundsCompleted: session.roundsCompleted || 0,
-          stitchesCompleted: session.stitchesCompleted || 0,
-          startTime: Timestamp.fromDate(session.startTime)
-        }))
-
-      // Deep clean charts data to ensure no undefined values  
-      const cleanedChartsForCreate = (firestoreProject.charts || [])
-        .filter(chart => chart && chart.id && chart.name)
-        .map(chart => {
-          const cleanedRounds = (chart.rounds || []).map(round => ({
-            id: round.id,
-            roundNumber: round.roundNumber,
-            stitches: (round.stitches || []).map(stitch => ({
-              id: stitch.id || '',
-              type: stitch.type || 'single',
-              yarnId: stitch.yarnId || '',
-              count: stitch.count || 1,
-              ...(stitch.customName && { customName: stitch.customName }),
-              ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-            })),
-            stitchGroups: (round.stitchGroups || []).map(group => ({
-              id: group.id || '',
-              name: group.name || '',
-              repeatCount: group.repeatCount || 1,
-              stitches: (group.stitches || []).map(stitch => ({
-                id: stitch.id || '',
-                type: stitch.type || 'single',
-                yarnId: stitch.yarnId || '',
-                count: stitch.count || 1,
-                ...(stitch.customName && { customName: stitch.customName }),
-                ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-              })),
-              ...(group.completedRepeats !== undefined && { completedRepeats: group.completedRepeats })
-            })),
-            ...(round.notes && { notes: round.notes })
-          }))
-
-          return {
-            id: chart.id,
-            name: chart.name,
-            description: chart.description || '',
-            rounds: cleanedRounds,
-            currentRound: chart.currentRound || 1,
-            currentStitch: chart.currentStitch || 0,
-            createdDate: chart.createdDate,
-            lastModified: chart.lastModified,
-            isCompleted: chart.isCompleted || false,
-            notes: chart.notes || ''
-          }
-        })
-
-      await setDoc(projectRef, {
-        id: firestoreProject.id,
-        name: firestoreProject.name,
-        source: firestoreProject.source,
-        notes: firestoreProject.notes,
-        currentRound: firestoreProject.currentRound,
-        currentStitch: firestoreProject.currentStitch,
-        charts: cleanedChartsForCreate,
-        currentChartId: firestoreProject.currentChartId || '',
-        yarns: firestoreProject.yarns,
-        sessions: cleanedSessions,
-        createdDate: Timestamp.fromDate(firestoreProject.createdDate),
-        lastModified: Timestamp.fromDate(firestoreProject.lastModified),
-        isCompleted: firestoreProject.isCompleted
-      })
-      
-      for (const round of project.pattern || []) {
-        await this.createRound(userId, project.id, round)
-      }
-    } catch (error) {
-      console.error('Error creating project:', error)
-      throw error
-    }
+    return this.projectService.createProject(userId, project)
   }
 
+  /**
+   * Update an existing project
+   * @param userId - User ID
+   * @param project - Project data to update
+   */
   async updateProject(userId: string, project: Project): Promise<void> {
-    try {
-      console.log('[FIRESTORE] Updating project:', project.id, {
-        currentRound: project.currentRound,
-        currentStitch: project.currentStitch,
-        isCompleted: project.isCompleted,
-        patternLength: project.pattern?.length || 0
-      })
-      
-      // 先嘗試同步圈數，確保子集合更新成功
-      console.log('[FIRESTORE] Syncing rounds first...')
-      await this.syncRounds(userId, project.id, project.pattern || [])
-      console.log('[FIRESTORE] Rounds synced successfully')
-      
-      // 圈數同步成功後，才更新主專案文檔
-      const projectRef = doc(db, 'users', userId, 'projects', project.id)
-      
-      // Clean yarns data to ensure no undefined values
-      const cleanedYarns = (project.yarns || [])
-        .filter(yarn => yarn && yarn.id && yarn.name && yarn.color) // Filter out invalid yarns
-        .map(yarn => ({
-          id: yarn.id,
-          name: yarn.name,
-          color: {
-            name: yarn.color.name || '',
-            hex: yarn.color.hex || '#000000'
-          },
-          ...(yarn.brand && { brand: yarn.brand })
-        }))
-
-      const firestoreProject: Partial<FirestoreProject> = {
-        name: project.name || '',
-        source: project.source || '',
-        notes: project.notes || '',
-        currentRound: project.currentRound || 1,
-        currentStitch: project.currentStitch || 0,
-        charts: project.charts || [],
-        currentChartId: project.currentChartId || '',
-        yarns: cleanedYarns,
-        sessions: project.sessions?.map(session => ({
-          ...session,
-          startTime: session.startTime
-        })) || [],
-        lastModified: project.lastModified,
-        isCompleted: project.isCompleted ?? false
-      }
-      
-      // Clean sessions data to ensure no undefined values
-      const cleanedSessions = firestoreProject.sessions!
-        .filter(session => session && session.startTime) // Filter out sessions with undefined/null startTime
-        .map(session => ({
-          id: session.id || '',
-          duration: session.duration || 0,
-          roundsCompleted: session.roundsCompleted || 0,
-          stitchesCompleted: session.stitchesCompleted || 0,
-          startTime: Timestamp.fromDate(session.startTime)
-        }))
-      
-      console.log('[FIRESTORE] Updating project document...')
-      // Deep clean charts data to ensure no undefined values
-      const cleanedCharts = (firestoreProject.charts || [])
-        .filter(chart => chart && chart.id && chart.name)
-        .map(chart => {
-          const cleanedRounds = (chart.rounds || []).map(round => ({
-            id: round.id,
-            roundNumber: round.roundNumber,
-            stitches: (round.stitches || []).map(stitch => ({
-              id: stitch.id || '',
-              type: stitch.type || 'single',
-              yarnId: stitch.yarnId || '',
-              count: stitch.count || 1,
-              ...(stitch.customName && { customName: stitch.customName }),
-              ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-            })),
-            stitchGroups: (round.stitchGroups || []).map(group => ({
-              id: group.id || '',
-              name: group.name || '',
-              repeatCount: group.repeatCount || 1,
-              stitches: (group.stitches || []).map(stitch => ({
-                id: stitch.id || '',
-                type: stitch.type || 'single',
-                yarnId: stitch.yarnId || '',
-                count: stitch.count || 1,
-                ...(stitch.customName && { customName: stitch.customName }),
-                ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-              })),
-              ...(group.completedRepeats !== undefined && { completedRepeats: group.completedRepeats })
-            })),
-            ...(round.notes && { notes: round.notes })
-          }))
-
-          return {
-            id: chart.id,
-            name: chart.name,
-            description: chart.description || '',
-            rounds: cleanedRounds,
-            currentRound: chart.currentRound || 1,
-            currentStitch: chart.currentStitch || 0,
-            createdDate: chart.createdDate,
-            lastModified: chart.lastModified,
-            isCompleted: chart.isCompleted || false,
-            notes: chart.notes || ''
-          }
-        })
-
-      await updateDoc(projectRef, {
-        name: firestoreProject.name,
-        source: firestoreProject.source,
-        notes: firestoreProject.notes,
-        currentRound: firestoreProject.currentRound,
-        currentStitch: firestoreProject.currentStitch,
-        charts: cleanedCharts,
-        currentChartId: firestoreProject.currentChartId || '',
-        yarns: firestoreProject.yarns,
-        sessions: cleanedSessions,
-        lastModified: Timestamp.fromDate(firestoreProject.lastModified!),
-        isCompleted: firestoreProject.isCompleted
-      })
-      
-      console.log('[FIRESTORE] Project sync completed successfully')
-      
-      // 驗證同步結果
-      const roundsRef = collection(db, 'users', userId, 'projects', project.id, 'rounds')
-      const roundsSnap = await getDocs(roundsRef)
-      console.log('[FIRESTORE] Verification - Local pattern length:', project.pattern?.length || 0, 'Remote rounds count:', roundsSnap.docs.length)
-    } catch (error) {
-      console.error('[FIRESTORE] Error updating project:', error)
-      
-      // 檢查是否為網絡相關錯誤
-      if (error instanceof Error) {
-        if (error.message.includes('offline') || 
-            error.message.includes('network') || 
-            error.message.includes('fetch') ||
-            error.message.includes('unavailable') ||
-            error.message.includes('timeout') ||
-            error.name === 'AbortError') {
-          console.error('[FIRESTORE] Network connectivity issue detected:', error.message)
-          
-          // 針對移動裝置的網路問題，重新初始化 Firestore 連接
-          if (error.message.includes('failed to connect') || error.message.includes('network-request-failed')) {
-            console.log('[FIRESTORE] Attempting to restart Firestore connection...')
-            try {
-              await this.enableOfflineSupport()
-              setTimeout(async () => {
-                await this.disableOfflineSupport()
-              }, 1000)
-            } catch (restartError) {
-              console.error('[FIRESTORE] Failed to restart connection:', restartError)
-            }
-          }
-        }
-      }
-      
-      throw error
-    }
+    return this.projectService.updateProject(userId, project)
   }
 
+  /**
+   * Delete a project and all its rounds
+   * @param userId - User ID
+   * @param projectId - Project ID to delete
+   */
   async deleteProject(userId: string, projectId: string): Promise<void> {
-    try {
-      const roundsRef = collection(db, 'users', userId, 'projects', projectId, 'rounds')
-      const roundsSnap = await getDocs(roundsRef)
-      
-      for (const roundDoc of roundsSnap.docs) {
-        await deleteDoc(roundDoc.ref)
-      }
-      
-      const projectRef = doc(db, 'users', userId, 'projects', projectId)
-      await deleteDoc(projectRef)
-    } catch (error) {
-      console.error('Error deleting project:', error)
-      throw error
-    }
+    return this.projectService.deleteProject(userId, projectId)
   }
 
-  async createRound(userId: string, projectId: string, round: Round): Promise<void> {
-    try {
-      console.log('[FIRESTORE-CREATE-ROUND] Creating round:', {
-        userId,
-        projectId,
-        roundId: round.id,
-        roundNumber: round.roundNumber,
-        stitchCount: round.stitches.length,
-        groupCount: round.stitchGroups.length
-      })
-      
-      const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', round.id)
-      // Clean the data to ensure no undefined values
-      const cleanStitches = (round.stitches || []).filter(stitch => stitch !== undefined && stitch !== null)
-      const cleanStitchGroups = (round.stitchGroups || []).filter(group => group !== undefined && group !== null)
-      
-      // Deep clean stitches to remove any undefined properties
-      const deepCleanedStitches = cleanStitches.map(stitch => ({
-        id: stitch.id || '',
-        type: stitch.type || 'single',
-        yarnId: stitch.yarnId || '',
-        count: stitch.count || 1,
-        ...(stitch.customName && { customName: stitch.customName }),
-        ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-      }))
-      
-      // Deep clean stitch groups
-      const deepCleanedStitchGroups = cleanStitchGroups.map(group => ({
-        id: group.id || '',
-        name: group.name || '',
-        repeatCount: group.repeatCount || 1,
-        stitches: (group.stitches || []).map(stitch => ({
-          id: stitch.id || '',
-          type: stitch.type || 'single',
-          yarnId: stitch.yarnId || '',
-          count: stitch.count || 1,
-          ...(stitch.customName && { customName: stitch.customName }),
-          ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-        }))
-      }))
-      
-      const roundData: any = {
-        id: round.id,
-        roundNumber: round.roundNumber,
-        stitches: deepCleanedStitches,
-        stitchGroups: deepCleanedStitchGroups
-      }
-      
-      // Only include notes if it's defined and not empty
-      if (round.notes !== undefined && round.notes !== null) {
-        roundData.notes = round.notes
-      }
-      
-      await setDoc(roundRef, roundData)
-      
-      console.log('[FIRESTORE-CREATE-ROUND] Round created successfully:', round.id)
-    } catch (error) {
-      console.error('[FIRESTORE-CREATE-ROUND] Error creating round:', round.id, error)
-      throw error
-    }
-  }
-
-  async updateRound(userId: string, projectId: string, round: Round): Promise<void> {
-    try {
-      console.log('[FIRESTORE-UPDATE-ROUND] Updating round:', {
-        userId,
-        projectId,
-        roundId: round.id,
-        roundNumber: round.roundNumber,
-        stitchCount: round.stitches.length,
-        groupCount: round.stitchGroups.length
-      })
-      
-      const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', round.id)
-      // Clean the data to ensure no undefined values
-      const cleanStitches = (round.stitches || []).filter(stitch => stitch !== undefined && stitch !== null)
-      const cleanStitchGroups = (round.stitchGroups || []).filter(group => group !== undefined && group !== null)
-      
-      // Deep clean stitches to remove any undefined properties
-      const deepCleanedStitches = cleanStitches.map(stitch => ({
-        id: stitch.id || '',
-        type: stitch.type || 'single',
-        yarnId: stitch.yarnId || '',
-        count: stitch.count || 1,
-        ...(stitch.customName && { customName: stitch.customName }),
-        ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-      }))
-      
-      // Deep clean stitch groups
-      const deepCleanedStitchGroups = cleanStitchGroups.map(group => ({
-        id: group.id || '',
-        name: group.name || '',
-        repeatCount: group.repeatCount || 1,
-        stitches: (group.stitches || []).map(stitch => ({
-          id: stitch.id || '',
-          type: stitch.type || 'single',
-          yarnId: stitch.yarnId || '',
-          count: stitch.count || 1,
-          ...(stitch.customName && { customName: stitch.customName }),
-          ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-        }))
-      }))
-      
-      console.log('[FIRESTORE-UPDATE-ROUND] Cleaned data:', {
-        originalStitchesLength: round.stitches?.length || 0,
-        cleanStitchesLength: deepCleanedStitches.length,
-        originalGroupsLength: round.stitchGroups?.length || 0,
-        cleanGroupsLength: deepCleanedStitchGroups.length
-      })
-      
-      const updateData: any = {
-        roundNumber: round.roundNumber,
-        stitches: deepCleanedStitches,
-        stitchGroups: deepCleanedStitchGroups
-      }
-      
-      // Only include notes if it's defined and not empty
-      if (round.notes !== undefined && round.notes !== null) {
-        updateData.notes = round.notes
-      }
-      
-      // Use setDoc with merge to handle both create and update cases
-      await setDoc(roundRef, updateData, { merge: true })
-      
-      console.log('[FIRESTORE-UPDATE-ROUND] Round updated successfully:', round.id)
-    } catch (error) {
-      console.error('[FIRESTORE-UPDATE-ROUND] Error updating round:', round.id, error)
-      throw error
-    }
-  }
-
-  async deleteRound(userId: string, projectId: string, roundId: string): Promise<void> {
-    try {
-      console.log('[FIRESTORE-DELETE-ROUND] Deleting round:', {
-        userId,
-        projectId,
-        roundId
-      })
-      
-      const roundRef = doc(db, 'users', userId, 'projects', projectId, 'rounds', roundId)
-      await deleteDoc(roundRef)
-      
-      console.log('[FIRESTORE-DELETE-ROUND] Round deleted successfully:', roundId)
-    } catch (error) {
-      console.error('[FIRESTORE-DELETE-ROUND] Error deleting round:', roundId, error)
-      throw error
-    }
-  }
-
-  private async syncRounds(userId: string, projectId: string, rounds: Round[]): Promise<void> {
-    try {
-      console.log('[FIRESTORE-SYNC-ROUNDS] Starting sync for project:', projectId, {
-        localRoundsCount: rounds.length,
-        roundIds: rounds.map(r => ({ id: r.id, roundNumber: r.roundNumber }))
-      })
-      
-      const roundsRef = collection(db, 'users', userId, 'projects', projectId, 'rounds')
-      const existingRoundsSnap = await getDocs(roundsRef)
-      const existingRoundIds = new Set(existingRoundsSnap.docs.map(doc => doc.id))
-      const currentRoundIds = new Set(rounds.map(round => round.id))
-      
-      console.log('[FIRESTORE-SYNC-ROUNDS] Round comparison:', {
-        existingCount: existingRoundIds.size,
-        currentCount: currentRoundIds.size,
-        toDelete: Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id)),
-        toCreateOrUpdate: rounds.map(r => ({ 
-          id: r.id, 
-          action: existingRoundIds.has(r.id) ? 'update' : 'create' 
-        }))
-      })
-      
-      // 刪除不再存在的圈數
-      const roundsToDelete = Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id))
-      for (const roundId of roundsToDelete) {
-        console.log('[FIRESTORE-SYNC-ROUNDS] Deleting round:', roundId)
-        await this.deleteRound(userId, projectId, roundId)
-      }
-      
-      // 創建或更新圈數
-      for (const round of rounds) {
-        if (existingRoundIds.has(round.id)) {
-          console.log('[FIRESTORE-SYNC-ROUNDS] Updating round:', round.id, {
-            roundNumber: round.roundNumber,
-            stitchCount: round.stitches.length,
-            groupCount: round.stitchGroups.length
-          })
-          await this.updateRound(userId, projectId, round)
-        } else {
-          console.log('[FIRESTORE-SYNC-ROUNDS] Creating new round:', round.id, {
-            roundNumber: round.roundNumber,
-            stitchCount: round.stitches.length,
-            groupCount: round.stitchGroups.length
-          })
-          await this.createRound(userId, projectId, round)
-        }
-      }
-      
-      console.log('[FIRESTORE-SYNC-ROUNDS] Sync completed successfully')
-    } catch (error) {
-      console.error('Error syncing rounds:', error)
-      throw error
-    }
-  }
-
+  /**
+   * Subscribe to real-time updates for user projects
+   * @param userId - User ID
+   * @param callback - Callback function to handle project updates
+   * @returns Unsubscribe function
+   */
   subscribeToUserProjects(userId: string, callback: (projects: Project[]) => void): () => void {
-    const projectsRef = collection(db, 'users', userId, 'projects')
-    const projectsQuery = query(projectsRef, orderBy('lastModified', 'desc'))
-    
-    return onSnapshot(projectsQuery, async (snapshot) => {
-      try {
-        const projects: Project[] = []
-        
-        for (const projectDoc of snapshot.docs) {
-          const projectData = projectDoc.data() as FirestoreProject
-          
-          const roundsRef = collection(db, 'users', userId, 'projects', projectDoc.id, 'rounds')
-          const roundsQuery = query(roundsRef, orderBy('roundNumber'))
-          const roundsSnap = await getDocs(roundsQuery)
-          
-          const rounds: Round[] = roundsSnap.docs.map(roundDoc => {
-            const roundData = roundDoc.data() as FirestoreRound
-            return {
-              id: roundData.id,
-              roundNumber: roundData.roundNumber,
-              stitches: roundData.stitches,
-              stitchGroups: roundData.stitchGroups,
-              notes: roundData.notes
-            }
-          })
-          
-          // 檢查是否為舊格式專案（有 rounds 子集合但沒有 charts）
-          const isLegacyProject = rounds.length > 0 && (!projectData.charts || projectData.charts.length === 0)
-          
-          let finalCharts = projectData.charts || []
-          
-          // 如果是舊專案，自動遷移到新格式
-          if (isLegacyProject) {
-            console.log('[FIRESTORE-SUBSCRIPTION] Migrating legacy project to multi-chart format:', projectData.id)
-            const migratedChart: Chart = {
-              id: `chart-${projectData.id}`,
-              name: '主織圖',
-              description: '從舊版本遷移的織圖',
-              rounds: rounds,
-              currentRound: projectData.currentRound || 1,
-              currentStitch: projectData.currentStitch || 0,
-              createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate && (projectData.createdDate as any).toDate ? (projectData.createdDate as any).toDate() : new Date()),
-              lastModified: new Date(),
-              isCompleted: projectData.isCompleted || false,
-              notes: ''
-            }
-            
-            finalCharts = [migratedChart]
-            
-            // 異步更新 Firebase 中的專案結構（但不等待，避免阻塞訂閱）
-            setTimeout(() => {
-              this.migrateProjectToNewFormat(userId, projectData.id, migratedChart)
-            }, 100)
-          }
-
-          projects.push({
-            id: projectData.id,
-            name: projectData.name,
-            source: projectData.source,
-            notes: projectData.notes || '',
-            // 向後兼容：保留舊的 pattern 欄位
-            pattern: rounds,
-            currentRound: projectData.currentRound || 1,
-            currentStitch: projectData.currentStitch || 0,
-            // 新的多織圖結構
-            charts: finalCharts,
-            currentChartId: isLegacyProject ? finalCharts[0]?.id : (projectData.currentChartId || ''),
-            yarns: projectData.yarns || [],
-            sessions: projectData.sessions ? projectData.sessions.map(session => ({
-              ...session,
-              startTime: session.startTime instanceof Date ? session.startTime : (session.startTime && (session.startTime as any).toDate ? (session.startTime as any).toDate() : new Date())
-            })) : [],
-            createdDate: projectData.createdDate instanceof Date ? projectData.createdDate : (projectData.createdDate && (projectData.createdDate as any).toDate ? (projectData.createdDate as any).toDate() : new Date()),
-            lastModified: projectData.lastModified instanceof Date ? projectData.lastModified : (projectData.lastModified && (projectData.lastModified as any).toDate ? (projectData.lastModified as any).toDate() : new Date()),
-            isCompleted: projectData.isCompleted
-          })
-        }
-        
-        callback(projects)
-      } catch (error) {
-        console.error('Error in projects subscription:', error)
-      }
-    })
+    return this.projectService.subscribeToUserProjects(userId, callback)
   }
 
-  async enableOfflineSupport(): Promise<void> {
-    try {
-      await enableNetwork(db)
-      console.log('[FIRESTORE] Network enabled successfully')
-    } catch (error) {
-      console.error('[FIRESTORE] Error enabling network:', error)
-    }
-  }
-
-  async disableOfflineSupport(): Promise<void> {
-    try {
-      await disableNetwork(db)
-      console.log('[FIRESTORE] Network disabled successfully')
-    } catch (error) {
-      console.error('[FIRESTORE] Error disabling network:', error)
-    }
-  }
-
+  /**
+   * Migrate a project from legacy format to new multi-chart format
+   * @param userId - User ID
+   * @param projectId - Project ID to migrate
+   * @param migratedChart - The migrated chart data
+   */
   async migrateProjectToNewFormat(userId: string, projectId: string, migratedChart: Chart): Promise<void> {
-    try {
-      console.log('[FIRESTORE] Starting migration for project:', projectId)
-      
-      const projectRef = doc(db, 'users', userId, 'projects', projectId)
-      
-      // Deep clean the chart data to ensure no undefined values
-      const cleanedRounds = (migratedChart.rounds || []).map(round => ({
-        id: round.id,
-        roundNumber: round.roundNumber,
-        stitches: (round.stitches || []).map(stitch => ({
-          id: stitch.id || '',
-          type: stitch.type || 'single',
-          yarnId: stitch.yarnId || '',
-          count: stitch.count || 1,
-          ...(stitch.customName && { customName: stitch.customName }),
-          ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-        })),
-        stitchGroups: (round.stitchGroups || []).map(group => ({
-          id: group.id || '',
-          name: group.name || '',
-          repeatCount: group.repeatCount || 1,
-          stitches: (group.stitches || []).map(stitch => ({
-            id: stitch.id || '',
-            type: stitch.type || 'single',
-            yarnId: stitch.yarnId || '',
-            count: stitch.count || 1,
-            ...(stitch.customName && { customName: stitch.customName }),
-            ...(stitch.customSymbol && { customSymbol: stitch.customSymbol })
-          })),
-          ...(group.completedRepeats !== undefined && { completedRepeats: group.completedRepeats })
-        })),
-        ...(round.notes && { notes: round.notes })
-      }))
+    return this.projectService.migrateProjectToNewFormat(userId, projectId, migratedChart)
+  }
 
-      const cleanedChart = {
-        id: migratedChart.id,
-        name: migratedChart.name,
-        description: migratedChart.description || '',
-        rounds: cleanedRounds,
-        currentRound: migratedChart.currentRound || 1,
-        currentStitch: migratedChart.currentStitch || 0,
-        createdDate: migratedChart.createdDate,
-        lastModified: migratedChart.lastModified,
-        isCompleted: migratedChart.isCompleted || false,
-        notes: migratedChart.notes || ''
-      }
-      
-      // 更新專案結構，添加 charts 欄位
-      await updateDoc(projectRef, {
-        charts: [cleanedChart],
-        currentChartId: cleanedChart.id
-      })
-      
-      console.log('[FIRESTORE] Project migration completed:', projectId)
-    } catch (error) {
-      console.error('[FIRESTORE] Error migrating project:', projectId, error)
+  // ===== ROUND OPERATIONS =====
+
+  /**
+   * Create a new round in Firestore
+   * @param userId - User ID
+   * @param projectId - Project ID
+   * @param round - Round data to create
+   */
+  async createRound(userId: string, projectId: string, round: Round): Promise<void> {
+    return this.roundService.createRound(userId, projectId, round)
+  }
+
+  /**
+   * Update an existing round in Firestore
+   * @param userId - User ID
+   * @param projectId - Project ID
+   * @param round - Round data to update
+   */
+  async updateRound(userId: string, projectId: string, round: Round): Promise<void> {
+    return this.roundService.updateRound(userId, projectId, round)
+  }
+
+  /**
+   * Delete a round from Firestore
+   * @param userId - User ID
+   * @param projectId - Project ID
+   * @param roundId - Round ID to delete
+   */
+  async deleteRound(userId: string, projectId: string, roundId: string): Promise<void> {
+    return this.roundService.deleteRound(userId, projectId, roundId)
+  }
+
+
+  // ===== CONNECTION MANAGEMENT =====
+
+  /**
+   * Enable Firestore network connection
+   */
+  async enableOfflineSupport(): Promise<void> {
+    return this.connectionManager.enableOfflineSupport()
+  }
+
+  /**
+   * Disable Firestore network connection (enable offline mode)
+   */
+  async disableOfflineSupport(): Promise<void> {
+    return this.connectionManager.disableOfflineSupport()
+  }
+
+  /**
+   * Test Firestore connection
+   * @returns Promise<boolean> indicating if connection is working
+   */
+  async testConnection(): Promise<boolean> {
+    return this.connectionManager.testConnection()
+  }
+
+  // ===== UTILITY METHODS =====
+
+  /**
+   * Get service statistics for debugging
+   */
+  getServiceStats(): {
+    connectionStats: unknown
+    timestamp: string
+  } {
+    return {
+      connectionStats: this.connectionManager.getConnectionStats(),
+      timestamp: new Date().toISOString()
     }
   }
 
-  async testConnection(): Promise<boolean> {
-    try {
-      // 使用更簡單的方式測試連接 - 嘗試讀取用戶的profile信息
-      // 這樣不會因為文檔不存在而失敗
-      const testRef = doc(db, 'test', 'connectivity')
-      await getDoc(testRef)
-      console.log('[FIRESTORE] Connection test completed successfully')
-      return true
-    } catch (error) {
-      console.error('[FIRESTORE] Connection test failed:', error)
-      // 只有在真正的網路錯誤時才回傳false
-      if (error instanceof Error) {
-        const isNetworkError = error.message.includes('offline') ||
-                               error.message.includes('network') ||
-                               error.message.includes('unavailable') ||
-                               error.message.includes('failed to connect')
-        return !isNetworkError
-      }
-      return false
+  /**
+   * Access to specialized services for advanced operations
+   * These are provided for cases where direct access to specialized services is needed
+   */
+  get services() {
+    return {
+      user: this.userService,
+      project: this.projectService,
+      round: this.roundService,
+      dataCleaner: this.dataCleaner,
+      connection: this.connectionManager
     }
+  }
+
+  // ===== LEGACY COMPATIBILITY METHODS =====
+  // These methods ensure backward compatibility with existing code
+
+  /**
+   * @deprecated Use projectService.getUserProjects() directly
+   * Legacy method for getting user projects - maintained for backward compatibility
+   */
+  async getProjects(userId: string): Promise<Project[]> {
+    console.warn('[FIRESTORE] getProjects() is deprecated, use getUserProjects() instead')
+    return this.getUserProjects(userId)
+  }
+
+  /**
+   * @deprecated Use projectService.createProject() directly  
+   * Legacy method for creating projects - maintained for backward compatibility
+   */
+  async saveProject(userId: string, project: Project): Promise<void> {
+    console.warn('[FIRESTORE] saveProject() is deprecated, use createProject() or updateProject() instead')
+    
+    // Check if project exists to determine if this should be create or update
+    const exists = await this.projectService.projectExists(userId, project.id)
+    
+    if (exists) {
+      return this.updateProject(userId, project)
+    } else {
+      return this.createProject(userId, project)
+    }
+  }
+
+  /**
+   * @deprecated Direct round manipulation is handled internally
+   * Legacy method - maintained for backward compatibility but delegates to project updates
+   */
+  async updateRounds(userId: string, projectId: string, rounds: Round[]): Promise<void> {
+    console.warn('[FIRESTORE] updateRounds() is deprecated, rounds are updated via project updates')
+    return this.roundService.syncRounds(userId, projectId, rounds)
   }
 }
 
+// Export singleton instance to maintain backward compatibility
 export const firestoreService = new FirestoreService()
+
+// Also export the class for dependency injection or testing
+export { FirestoreService }
+
+// Export specialized services for direct access when needed
+export {
+  firestoreUserService,
+  firestoreProjectService, 
+  firestoreRoundService,
+  firestoreDataCleaner,
+  firestoreConnectionManager
+}

@@ -2,7 +2,7 @@
  * 遷移和清理舊的 localStorage 數據
  */
 
-import { useAuthStore } from '../store/authStore'
+import { useAuthStore } from '../stores/useAuthStore'
 
 // 清理舊的共享 localStorage 數據
 export const cleanupLegacyData = (): void => {
