@@ -97,6 +97,15 @@ export default function PatternEditorContainer() {
     }
   }, [currentProject, searchParams])
 
+  // 新增: 當 currentChart 更新時，同步更新 chartPattern
+  useEffect(() => {
+    if (currentChart && currentChart.pattern) {
+      // 強制創建新的對象引用來觸發 React 重新渲染
+      const newPattern = JSON.parse(JSON.stringify(currentChart.pattern))
+      setChartPattern(newPattern)
+    }
+  }, [currentChart])
+
   if (!currentProject) {
     return (
       <div className="min-h-screen bg-background-primary flex items-center justify-center">
@@ -454,9 +463,11 @@ export default function PatternEditorContainer() {
                   }
                   
                   await updateChart(currentChart.id, {
+                    ...currentChart,
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
-                    )
+                    ),
+                    lastModified: new Date()
                   })
                 }
               } else {

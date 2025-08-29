@@ -110,9 +110,11 @@ export function usePatternOperations() {
           const updatedRound = addStitchToPatternItems(targetRound, newStitch)
           
           await updateChart(currentChart.id, {
+            ...currentChart,
             rounds: currentChart.rounds.map((r: Round) =>
               r.roundNumber === roundNumber ? updatedRound : r
-            )
+            ),
+            lastModified: new Date()
           })
         }
       } else {
