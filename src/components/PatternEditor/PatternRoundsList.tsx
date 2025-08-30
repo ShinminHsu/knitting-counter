@@ -170,6 +170,16 @@ export default function PatternRoundsList({
             onMoveRoundDown={onMoveRoundDown}
           />
         ))}
+      
+      {/* Add Round button at the bottom */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={onAddRoundClick}
+          className="btn btn-primary"
+        >
+          新增圈數
+        </button>
+      </div>
     </div>
   )
 }

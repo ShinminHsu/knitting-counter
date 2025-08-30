@@ -21,7 +21,6 @@ import PatternEditorToolbar from './PatternEditorToolbar'
 import PatternRoundsList from './PatternRoundsList'
 import CustomGroupCreationModal from './CustomGroupCreationModal'
 import PatternPreview from './PatternPreview'
-import AddRoundForm from './AddRoundForm'
 import StitchSelectionModal from '../StitchSelectionModal'
 import StitchGroupTemplateModal from '../StitchGroupTemplateModal'
 import CopyRoundModal from '../CopyRoundModal'
@@ -116,17 +115,27 @@ export default function PatternEditorContainer() {
     )
   }
 
-  const handleAddRound = async () => {
+  const handleAddRound = async (scrollToNew: boolean = false) => {
+    const initialRoundsCount = chartPattern.length
+    
     await patternOperations.handleAddRound(
       currentChart,
       chartPattern,
-      patternEditorState.newRoundNotes,
+      '', // 不需要備註，直接傳空字串
       patternEditorState.isLoading,
       patternEditorState.setIsLoading
     )
     
-    patternEditorState.setNewRoundNotes('')
-    modalStates.setShowAddRoundForm(false)
+    // 如果需要跳轉到新圈數，等待一小段時間讓新圈數渲染完成後再跳轉
+    if (scrollToNew) {
+      setTimeout(() => {
+        const newRoundNumber = initialRoundsCount + 1
+        const newRoundElement = document.querySelector(`[data-round-card="${newRoundNumber}"]`)
+        if (newRoundElement) {
+          newRoundElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 100)
+    }
   }
 
   const handleStitchModalConfirm = async (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => {
@@ -558,7 +567,7 @@ export default function PatternEditorContainer() {
         projectId={projectId!}
         currentChart={currentChart}
         isLoading={patternEditorState.isLoading}
-        onAddRound={() => modalStates.setShowAddRoundForm(true)}
+        onAddRound={() => handleAddRound(true)} // 右上角按鈕會跳轉到新圈數
       />
 
       <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
@@ -584,7 +593,7 @@ export default function PatternEditorContainer() {
           currentChart={currentChart}
           chartPattern={chartPattern}
           currentProject={currentProject}
-          onAddRound={() => modalStates.setShowAddRoundForm(true)}
+          onAddRound={() => handleAddRound(false)} // Preview 中的按鈕不跳轉
           onEditChart={() => modalStates.setShowEditChartModal(true)}
         />
 
@@ -873,19 +882,10 @@ export default function PatternEditorContainer() {
           onMoveGroupStitchDown={handleMoveGroupStitchDown}
           onMoveRoundUp={handleMoveRoundUp}
           onMoveRoundDown={handleMoveRoundDown}
-          onAddRoundClick={() => modalStates.setShowAddRoundForm(true)}
+          onAddRoundClick={() => handleAddRound(false)} // 底部按鈕不跳轉
         />
       </div>
 
-      {/* AddRoundForm Modal - using extracted component */}
-      <AddRoundForm
-        isOpen={modalStates.showAddRoundForm}
-        isLoading={patternEditorState.isLoading}
-        newRoundNotes={patternEditorState.newRoundNotes}
-        onNotesChange={patternEditorState.setNewRoundNotes}
-        onCancel={() => modalStates.setShowAddRoundForm(false)}
-        onConfirm={handleAddRound}
-      />
 
       {/* Stitch Selection Modal */}
       <StitchSelectionModal
