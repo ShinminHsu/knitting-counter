@@ -62,15 +62,6 @@ export default function PatternPreview({
             </div>
           )}
         </div>
-        {currentChart && (
-          <button
-            onClick={onEditChart}
-            className="ml-4 text-text-secondary hover:text-text-primary p-2 transition-colors"
-            title="編輯織圖資訊"
-          >
-            <FiEdit3 className="w-5 h-5" />
-          </button>
-        )}
       </div>
       
       <div className="space-y-4">
