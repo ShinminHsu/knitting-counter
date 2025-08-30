@@ -6,7 +6,7 @@ interface ActionControlsProps {
   currentProject: Project | null
   currentChart: Chart | null
   isViewMode: boolean
-  currentStitchInRound: number
+  currentStitchDisplayInRound: number
   totalStitchesInCurrentRound: number
   displayRoundNumber: number
   onNextStitch: () => void
@@ -25,7 +25,7 @@ export const ActionControls = memo<ActionControlsProps>(({
   currentProject,
   currentChart,
   isViewMode,
-  currentStitchInRound,
+  currentStitchDisplayInRound,
   totalStitchesInCurrentRound,
   displayRoundNumber,
   onNextStitch,
@@ -45,7 +45,7 @@ export const ActionControls = memo<ActionControlsProps>(({
       currentChart={currentChart}
       isViewMode={isViewMode}
       isCompleted={currentChart?.isCompleted || false}
-      currentStitchInRound={currentStitchInRound}
+      currentStitchDisplayInRound={currentStitchDisplayInRound}
       totalStitchesInCurrentRound={totalStitchesInCurrentRound}
       displayRoundNumber={displayRoundNumber}
       onNextStitch={onNextStitch}
