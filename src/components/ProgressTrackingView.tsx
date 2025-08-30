@@ -54,6 +54,7 @@ export default function ProgressTrackingView() {
   const {
     currentRound,
     currentStitchInRound,
+    currentStitchDisplayInRound,
     totalStitchesInCurrentRound,
     displayRound,
     roundDescription,
@@ -311,7 +312,7 @@ export default function ProgressTrackingView() {
               currentProject={currentProject}
               currentChart={currentChart}
               isViewMode={isViewMode}
-              currentStitchInRound={currentStitchInRound}
+              currentStitchDisplayInRound={currentStitchDisplayInRound}
               totalStitchesInCurrentRound={totalStitchesInCurrentRound}
               displayRoundNumber={displayRoundNumber}
               onNextStitch={handleNextStitch}

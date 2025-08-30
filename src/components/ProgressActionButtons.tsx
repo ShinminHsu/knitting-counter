@@ -6,7 +6,7 @@ interface ProgressActionButtonsProps {
   currentChart: Chart | null
   isViewMode: boolean
   isCompleted: boolean
-  currentStitchInRound: number
+  currentStitchDisplayInRound: number
   totalStitchesInCurrentRound: number
   displayRoundNumber: number
   onNextStitch: () => void
@@ -26,7 +26,7 @@ export const ProgressActionButtons = memo<ProgressActionButtonsProps>(({
   currentChart,
   isViewMode,
   isCompleted,
-  currentStitchInRound,
+  currentStitchDisplayInRound,
   totalStitchesInCurrentRound,
   displayRoundNumber,
   onNextStitch,
@@ -107,7 +107,7 @@ export const ProgressActionButtons = memo<ProgressActionButtonsProps>(({
         
         <div className="flex items-baseline px-6">
           <span className="text-4xl font-bold text-primary">
-            {currentStitchInRound}
+            {currentStitchDisplayInRound}
           </span>
           <span className="text-xl text-text-secondary">
             /{totalStitchesInCurrentRound}

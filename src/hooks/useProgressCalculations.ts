@@ -14,6 +14,7 @@ import {
   getChartProgressPercentage,
   getChartCompletedStitches,
 } from '../utils'
+import { calculateStitchDisplayNumber } from '../utils/chart/singleStitchNavigation'
 
 interface UseProgressCalculationsProps {
   currentProject: Project | null
@@ -35,6 +36,7 @@ interface UseProgressCalculationsReturn {
   displayRoundNumber: number
   displayRound: Round | undefined
   currentStitchInRound: number
+  currentStitchDisplayInRound: number
   totalStitchesInCurrentRound: number
   isViewMode: boolean
   
@@ -111,6 +113,7 @@ export function useProgressCalculations({
         displayRoundNumber: 1,
         displayRound: undefined,
         currentStitchInRound: 0,
+        currentStitchDisplayInRound: 0,
         totalStitchesInCurrentRound: 0,
         isViewMode: false
       }
@@ -128,6 +131,7 @@ export function useProgressCalculations({
     const displayRound = pattern.find((r: Round) => r.roundNumber === displayRoundNumber)
     
     const currentStitchInRound = isViewMode ? 0 : currentStitch
+    const currentStitchDisplayInRound = calculateStitchDisplayNumber(currentStitch, displayRound, isViewMode)
     const totalStitchesInCurrentRound = displayRound ? getRoundTotalStitches(displayRound) : 0
     
     
@@ -135,6 +139,7 @@ export function useProgressCalculations({
       displayRoundNumber,
       displayRound,
       currentStitchInRound,
+      currentStitchDisplayInRound,
       totalStitchesInCurrentRound,
       isViewMode
     }
