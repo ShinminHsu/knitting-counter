@@ -54,7 +54,6 @@ interface RoundCardProps {
 
 export default function RoundCard({
   round,
-  currentProject,
   currentChart,
   chartPattern,
   editingRound,
@@ -67,7 +66,6 @@ export default function RoundCard({
   editGroupStitchCount,
   editGroupName,
   editGroupRepeatCount,
-  isDraggedOver,
   onEditRound,
   onUpdateRoundNotes,
   onAddStitch,

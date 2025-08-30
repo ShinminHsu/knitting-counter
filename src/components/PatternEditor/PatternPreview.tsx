@@ -14,7 +14,6 @@ export default function PatternPreview({
   currentChart,
   chartPattern,
   currentProject,
-  onEditChart,
   onAddRound
 }: PatternPreviewProps) {
   if (chartPattern.length === 0) {
@@ -71,7 +70,7 @@ export default function PatternPreview({
             .sort((a, b) => a.roundNumber - b.roundNumber)
             .map((round) => {
               const roundStitches = getRoundTotalStitches(round)
-              const roundDescription = currentProject ? describeRound(round, currentProject.yarns) : '載入中...'
+              const roundDescription = currentProject ? describeRound(round) : '載入中...'
               
               return (
                 <div key={round.id} className="flex gap-3 p-3 bg-background-secondary rounded-lg">
@@ -111,10 +110,6 @@ export default function PatternPreview({
                 {chartPattern.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)}
               </span>
             </div>
-            {/* <div>
-              <span className="text-text-secondary">使用毛線: </span>
-              <span className="font-medium text-text-primary">{currentProject?.yarns.length || 0} 種</span>
-            </div> */}
           </div>
         </div>
       </div>

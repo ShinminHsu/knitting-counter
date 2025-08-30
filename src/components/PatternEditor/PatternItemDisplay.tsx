@@ -48,8 +48,6 @@ export default function PatternItemDisplay({
   patternItem,
   roundNumber,
   index,
-  currentChart,
-  chartPattern,
   editingStitch,
   editingGroup,
   editingGroupStitch,

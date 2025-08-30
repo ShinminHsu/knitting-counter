@@ -1,4 +1,4 @@
-import { Round, StitchGroup, StitchInfo, PatternItemType, StitchType, StitchTypeInfo, Yarn, PatternItem } from '../../types'
+import { Round, StitchGroup, StitchInfo, PatternItemType, StitchType, StitchTypeInfo, PatternItem } from '../../types'
 import { getSortedPatternItems } from './rendering'
 
 // Interface for expanded stitch items
@@ -123,7 +123,7 @@ export function getExpandedStitches(round: Round): ExpandedStitch[] {
 }
 
 // 根據圈數描述織圖
-export function describeRound(round: Round, yarns: Yarn[]): string {
+export function describeRound(round: Round): string {
   const allDescriptions: string[] = []
   
   // 使用 getSortedPatternItems 獲取正確順序的針法項目
@@ -139,7 +139,7 @@ export function describeRound(round: Round, yarns: Yarn[]): string {
         allDescriptions.push(`${displayInfo.rawValue} × ${count}`)
       } else if (item.type === PatternItemType.GROUP) {
         const group = item.data as StitchGroup
-        allDescriptions.push(describeStitchGroup(group, yarns))
+        allDescriptions.push(describeStitchGroup(group))
       }
     })
   } else {
@@ -154,7 +154,7 @@ export function describeRound(round: Round, yarns: Yarn[]): string {
     
     // 群組針法
     const groupDescriptions = round.stitchGroups.map(group => {
-      return describeStitchGroup(group, yarns)
+      return describeStitchGroup(group)
     })
     allDescriptions.push(...groupDescriptions)
   }
@@ -163,7 +163,7 @@ export function describeRound(round: Round, yarns: Yarn[]): string {
 }
 
 // 描述針目群組
-export function describeStitchGroup(group: StitchGroup, yarns: Yarn[]): string {
+export function describeStitchGroup(group: StitchGroup): string {
   const stitchDescriptions = group.stitches.map(stitch => {
     const count = stitch.count
     const displayInfo = getStitchDisplayInfo(stitch)

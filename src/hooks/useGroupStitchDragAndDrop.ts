@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useChartStore } from '../stores/useChartStore'
 import { usePatternStore } from '../stores/usePatternStore'
-import { Round, Chart, StitchInfo, StitchGroup, PatternItemType } from '../types'
+import { Round, Chart, StitchInfo, PatternItemType } from '../types'
 import { useDragState, DragType } from './useDragState'
 
 interface DraggedGroupStitch {
