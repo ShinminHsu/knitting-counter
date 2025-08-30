@@ -76,33 +76,35 @@ export default function PatternPreview({
       <div className="space-y-4">
         {/* 織圖列表 */}
         <div className="max-h-96 overflow-y-auto space-y-3">
-          {chartPattern.map((round) => {
-            const roundStitches = getRoundTotalStitches(round)
-            const roundDescription = currentProject ? describeRound(round, currentProject.yarns) : '載入中...'
-            
-            return (
-              <div key={round.id} className="flex gap-3 p-3 bg-background-secondary rounded-lg">
-                <div className="text-sm font-semibold flex-shrink-0 leading-relaxed" style={{ color: '#d96699' }}>
-                  R{round.roundNumber}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-text-primary font-medium text-sm leading-relaxed m-0">
-                    {roundDescription}
-                  </p>
-                  {round.notes && (
-                    <p className="text-xs text-text-tertiary mt-1">
-                      {round.notes}
+          {chartPattern
+            .sort((a, b) => a.roundNumber - b.roundNumber)
+            .map((round) => {
+              const roundStitches = getRoundTotalStitches(round)
+              const roundDescription = currentProject ? describeRound(round, currentProject.yarns) : '載入中...'
+              
+              return (
+                <div key={round.id} className="flex gap-3 p-3 bg-background-secondary rounded-lg">
+                  <div className="text-sm font-semibold flex-shrink-0 leading-relaxed" style={{ color: '#d96699' }}>
+                    R{round.roundNumber}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-text-primary font-medium text-sm leading-relaxed m-0">
+                      {roundDescription}
                     </p>
-                  )}
+                    {round.notes && (
+                      <p className="text-xs text-text-tertiary mt-1">
+                        {round.notes}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-semibold text-text-primary leading-relaxed m-0">
+                      {roundStitches} 針
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-text-primary leading-relaxed m-0">
-                    {roundStitches} 針
-                  </p>
-                </div>
-              </div>
-            )
-          })}
+              )
+            })}
         </div>
 
         {/* 總計資訊 */}
