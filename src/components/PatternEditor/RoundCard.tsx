@@ -1,11 +1,13 @@
-import { BsTrash } from 'react-icons/bs'
-import { Round, Project, StitchInfo, StitchGroup, StitchType } from '../../types'
+import { BsTrash, BsChevronUp, BsChevronDown } from 'react-icons/bs'
+import { Round, Project, StitchInfo, StitchGroup, StitchType, Chart } from '../../types'
 import { getSortedPatternItems, getRoundTotalStitches } from '../../utils'
 import PatternItemDisplay from './PatternItemDisplay'
 
 interface RoundCardProps {
   round: Round
   currentProject: Project | null
+  currentChart: Chart | null
+  chartPattern: Round[]
   editingRound: Round | null
   editingStitch: { roundNumber: number, stitchId: string } | null
   editingGroup: { roundNumber: number, groupId: string } | null
@@ -16,6 +18,7 @@ interface RoundCardProps {
   editGroupStitchCount: string
   editGroupName: string
   editGroupRepeatCount: string
+  isDraggedOver?: boolean
   onEditRound: (round: Round) => void
   onUpdateRoundNotes: (round: Round, notes: string) => void
   onAddStitch: (roundNumber: number) => void
@@ -40,13 +43,19 @@ interface RoundCardProps {
   onGroupRepeatCountChange: (newCount: string) => void
   onSaveAsTemplate: (group: StitchGroup) => void
   onCancelEdit: () => void
-  onDragStart: (e: React.DragEvent, index: number, roundNumber: number) => void
-  onDragOver: (e: React.DragEvent) => void
-  onDrop: (e: React.DragEvent, index: number, roundNumber: number) => void
+  onMoveUp: (index: number, roundNumber: number) => void
+  onMoveDown: (index: number, roundNumber: number) => void
+  onMoveGroupStitchUp: (roundNumber: number, groupId: string, stitchIndex: number) => void
+  onMoveGroupStitchDown: (roundNumber: number, groupId: string, stitchIndex: number) => void
+  // Round movement handlers
+  onMoveRoundUp?: (roundNumber: number) => void
+  onMoveRoundDown?: (roundNumber: number) => void
 }
 
 export default function RoundCard({
   round,
+  currentChart,
+  chartPattern,
   editingRound,
   editingStitch,
   editingGroup,
@@ -81,21 +90,51 @@ export default function RoundCard({
   onGroupStitchCountChange,
   onGroupNameChange,
   onGroupRepeatCountChange,
-  onDragStart,
-  onDragOver,
-  onDrop
+  onMoveUp,
+  onMoveDown,
+  onMoveGroupStitchUp,
+  onMoveGroupStitchDown,
+  onMoveRoundUp,
+  onMoveRoundDown
 }: RoundCardProps) {
   const sortedPatternItems = getSortedPatternItems(round)
 
   return (
-    <div className="card" data-round-card={round.roundNumber}>
+    <div 
+      className="card" 
+      data-round-card={round.roundNumber}
+    >
       <div className="mb-4">
         {/* 手機版：兩行佈局 */}
         <div className="block sm:hidden">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold text-text-primary">
-              第 {round.roundNumber} 圈
-            </h3>
+            <div className="flex items-center">
+              {(onMoveRoundUp || onMoveRoundDown) && (
+                <div className="flex flex-col">
+                  {onMoveRoundUp && (
+                    <button
+                      onClick={() => onMoveRoundUp(round.roundNumber)}
+                      className="text-text-tertiary hover:text-primary p-1 w-3 h-3 flex items-center justify-center"
+                      title="上移圈數"
+                    >
+                      <BsChevronUp className="w-3 h-3" />
+                    </button>
+                  )}
+                  {onMoveRoundDown && (
+                    <button
+                      onClick={() => onMoveRoundDown(round.roundNumber)}
+                      className="text-text-tertiary hover:text-primary p-1 w-3 h-3 flex items-center justify-center"
+                      title="下移圈數"
+                    >
+                      <BsChevronDown className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )}
+              <h3 className="text-lg font-semibold text-text-primary">
+                第 {round.roundNumber} 圈
+              </h3>
+            </div>
             <button
               onClick={() => onDeleteRound(round.roundNumber)}
               className="text-text-tertiary hover:text-red-500 transition-colors p-2"
@@ -127,7 +166,29 @@ export default function RoundCard({
 
         {/* 電腦版：原本佈局 */}
         <div className="hidden sm:flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-3">
+            {(onMoveRoundUp || onMoveRoundDown) && (
+              <div className="flex flex-col gap-1">
+                {onMoveRoundUp && (
+                  <button
+                    onClick={() => onMoveRoundUp(round.roundNumber)}
+                    className="text-text-tertiary hover:text-primary p-1 w-6 h-6 flex items-center justify-center"
+                    title="上移圈數"
+                  >
+                    <BsChevronUp className="w-3 h-3" />
+                  </button>
+                )}
+                {onMoveRoundDown && (
+                  <button
+                    onClick={() => onMoveRoundDown(round.roundNumber)}
+                    className="text-text-tertiary hover:text-primary p-1 w-6 h-6 flex items-center justify-center"
+                    title="下移圈數"
+                  >
+                    <BsChevronDown className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
             <h3 className="text-lg font-semibold text-text-primary">
               第 {round.roundNumber} 圈
             </h3>
@@ -212,6 +273,8 @@ export default function RoundCard({
                 patternItem={patternItem}
                 roundNumber={round.roundNumber}
                 index={index}
+                currentChart={currentChart}
+                chartPattern={chartPattern}
                 editingStitch={editingStitch}
                 editingGroup={editingGroup}
                 editingGroupStitch={editingGroupStitch}
@@ -239,9 +302,10 @@ export default function RoundCard({
                 onGroupStitchCountChange={onGroupStitchCountChange}
                 onGroupNameChange={onGroupNameChange}
                 onGroupRepeatCountChange={onGroupRepeatCountChange}
-                onDragStart={onDragStart}
-                onDragOver={onDragOver}
-                onDrop={onDrop}
+                onMoveUp={onMoveUp}
+                onMoveDown={onMoveDown}
+                onMoveGroupStitchUp={onMoveGroupStitchUp}
+                onMoveGroupStitchDown={onMoveGroupStitchDown}
               />
             ))}
           </div>

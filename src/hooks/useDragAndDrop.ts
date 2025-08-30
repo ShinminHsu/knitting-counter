@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { usePatternStore } from '../stores/usePatternStore'
+import { useDragState, DragType } from './useDragState'
 
 interface DraggedItem {
   index: number
@@ -9,18 +10,46 @@ interface DraggedItem {
 export function useDragAndDrop() {
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null)
   const { reorderPatternItemsInRound } = usePatternStore()
+  const { setDragState, isDragging, clearDragState } = useDragState()
 
-  const handleDragStart = (_e: React.DragEvent, index: number, roundNumber: number) => {
+  const handleDragStart = (e: React.DragEvent, index: number, roundNumber: number) => {
     console.log('[DRAG] Starting drag for PatternItem:', { index, roundNumber })
+    
+    // Reset any existing drag state first
+    setDraggedItem(null)
+    
+    // Set new drag state
     setDraggedItem({ index, roundNumber })
+    setDragState(DragType.PATTERN_ITEM, { index, roundNumber })
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('application/x-pattern-item-drag', `${index}-${roundNumber}`)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
+    
+    // Only allow pattern item drags
+    if (!isDragging(DragType.PATTERN_ITEM)) {
+      return
+    }
+    
+    e.dataTransfer.dropEffect = 'move'
   }
 
   const handleDrop = async (e: React.DragEvent, targetIndex: number, roundNumber: number) => {
     e.preventDefault()
+    
+    // Check if this is a pattern item drag
+    if (!isDragging(DragType.PATTERN_ITEM)) {
+      console.log('[DRAG] Not a pattern item drag, ignoring')
+      return
+    }
+    
+    console.log('[DRAG] Drop event:', {
+      draggedItem,
+      targetIndex,
+      roundNumber
+    })
     
     if (draggedItem && draggedItem.roundNumber === roundNumber) {
       console.log('[DRAG] Dropping PatternItem:', {
@@ -30,16 +59,29 @@ export function useDragAndDrop() {
       })
       
       if (draggedItem.index !== targetIndex) {
-        await reorderPatternItemsInRound(roundNumber, draggedItem.index, targetIndex)
+        try {
+          await reorderPatternItemsInRound(roundNumber, draggedItem.index, targetIndex)
+          console.log('[DRAG] Reorder successful')
+        } catch (error) {
+          console.error('Error reordering pattern items:', error)
+          alert('調整針法順序時發生錯誤')
+        }
       }
-      setDraggedItem(null)
     } else {
-      console.log('[DRAG] Invalid drop - different rounds or no dragged item')
+      console.log('[DRAG] Invalid drop - different rounds or no dragged item:', {
+        hasDraggedItem: !!draggedItem,
+        sameRound: draggedItem?.roundNumber === roundNumber
+      })
     }
+    
+    // Always reset drag state
+    setDraggedItem(null)
+    clearDragState()
   }
 
   const resetDrag = () => {
     setDraggedItem(null)
+    clearDragState()
   }
 
   return {

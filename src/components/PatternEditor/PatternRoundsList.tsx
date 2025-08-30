@@ -1,10 +1,11 @@
-import { Round, Project, StitchType, StitchInfo, StitchGroup } from '../../types'
+import { Round, Project, StitchType, StitchInfo, StitchGroup, Chart } from '../../types'
 import { FiEdit3 } from "react-icons/fi"
 import RoundCard from './RoundCard'
 
 interface PatternRoundsListProps {
   chartPattern: Round[]
   currentProject: Project
+  currentChart: Chart | null
   editingRound: Round | null
   editingStitch: { roundNumber: number, stitchId: string } | null
   editingGroup: { roundNumber: number, groupId: string } | null
@@ -39,15 +40,19 @@ interface PatternRoundsListProps {
   onGroupNameChange: (newName: string) => void
   onGroupRepeatCountChange: (newCount: string) => void
   onCancelEdit: () => void
-  onDragStart: (e: React.DragEvent, index: number, roundNumber: number) => void
-  onDragOver: (e: React.DragEvent) => void
-  onDrop: (e: React.DragEvent, targetIndex: number, roundNumber: number) => Promise<void>
+  onMoveUp: (index: number, roundNumber: number) => void
+  onMoveDown: (index: number, roundNumber: number) => void
+  onMoveGroupStitchUp: (roundNumber: number, groupId: string, stitchIndex: number) => void
+  onMoveGroupStitchDown: (roundNumber: number, groupId: string, stitchIndex: number) => void
+  onMoveRoundUp: (roundNumber: number) => void
+  onMoveRoundDown: (roundNumber: number) => void
   onAddRoundClick: () => void
 }
 
 export default function PatternRoundsList({
   chartPattern,
   currentProject,
+  currentChart,
   editingRound,
   editingStitch,
   editingGroup,
@@ -82,9 +87,12 @@ export default function PatternRoundsList({
   onGroupNameChange,
   onGroupRepeatCountChange,
   onCancelEdit,
-  onDragStart,
-  onDragOver,
-  onDrop,
+  onMoveUp,
+  onMoveDown,
+  onMoveGroupStitchUp,
+  onMoveGroupStitchDown,
+  onMoveRoundUp,
+  onMoveRoundDown,
   onAddRoundClick
 }: PatternRoundsListProps) {
   if (chartPattern.length === 0) {
@@ -118,6 +126,8 @@ export default function PatternRoundsList({
             key={round.id}
             round={round}
             currentProject={currentProject}
+            currentChart={currentChart}
+            chartPattern={chartPattern}
             editingRound={editingRound}
             editingStitch={editingStitch}
             editingGroup={editingGroup}
@@ -152,11 +162,24 @@ export default function PatternRoundsList({
             onGroupNameChange={onGroupNameChange}
             onGroupRepeatCountChange={onGroupRepeatCountChange}
             onCancelEdit={onCancelEdit}
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+            onMoveGroupStitchUp={onMoveGroupStitchUp}
+            onMoveGroupStitchDown={onMoveGroupStitchDown}
+            onMoveRoundUp={onMoveRoundUp}
+            onMoveRoundDown={onMoveRoundDown}
           />
         ))}
+      
+      {/* Add Round button at the bottom */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={onAddRoundClick}
+          className="btn btn-primary"
+        >
+          新增圈數
+        </button>
+      </div>
     </div>
   )
 }

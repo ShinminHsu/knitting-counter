@@ -311,10 +311,12 @@ export const usePatternStore = create<PatternStore>(() => ({
         ...stitchData
       }
 
+      // Use the new PatternItem adding utility
+      const { addStitchToPatternItems } = await import('../utils/pattern/rendering')
+      const updatedRound = addStitchToPatternItems(targetRound, newStitch)
+
       const updatedPattern = pattern.map(round =>
-        round.roundNumber === roundNumber
-          ? { ...round, stitches: [...round.stitches, newStitch] }
-          : round
+        round.roundNumber === roundNumber ? updatedRound : round
       )
 
       // Update the current chart with new pattern
@@ -496,10 +498,12 @@ export const usePatternStore = create<PatternStore>(() => ({
         ...groupData
       }
 
+      // Use the new PatternItem adding utility
+      const { addGroupToPatternItems } = await import('../utils/pattern/rendering')
+      const updatedRound = addGroupToPatternItems(targetRound, newGroup)
+
       const updatedPattern = pattern.map(round =>
-        round.roundNumber === roundNumber
-          ? { ...round, stitchGroups: [...round.stitchGroups, newGroup] }
-          : round
+        round.roundNumber === roundNumber ? updatedRound : round
       )
 
       // Update the current chart with new pattern
@@ -677,38 +681,12 @@ export const usePatternStore = create<PatternStore>(() => ({
         return
       }
 
-      // Create a combined array of pattern items (stitches and groups)
-      const patternItems = [
-        ...targetRound.stitches.map((stitch, index) => ({ type: 'stitch' as const, item: stitch, originalIndex: index })),
-        ...targetRound.stitchGroups.map((group, index) => ({ type: 'group' as const, item: group, originalIndex: index }))
-      ]
-
-      if (fromIndex < 0 || fromIndex >= patternItems.length || toIndex < 0 || toIndex >= patternItems.length) {
-        console.error('[PATTERN] reorderPatternItemsInRound: Invalid indices', fromIndex, toIndex)
-        return
-      }
-
-      // Reorder the items
-      const reorderedItems = [...patternItems]
-      const [movedItem] = reorderedItems.splice(fromIndex, 1)
-      reorderedItems.splice(toIndex, 0, movedItem)
-
-      // Separate back into stitches and groups
-      const newStitches: StitchInfo[] = []
-      const newGroups: StitchGroup[] = []
-
-      reorderedItems.forEach(({ type, item }) => {
-        if (type === 'stitch') {
-          newStitches.push(item as StitchInfo)
-        } else {
-          newGroups.push(item as StitchGroup)
-        }
-      })
+      // Use the new PatternItem reordering utility
+      const { reorderPatternItems } = await import('../utils/pattern/rendering')
+      const updatedRound = reorderPatternItems(targetRound, fromIndex, toIndex)
 
       const updatedPattern = pattern.map(round =>
-        round.roundNumber === roundNumber
-          ? { ...round, stitches: newStitches, stitchGroups: newGroups }
-          : round
+        round.roundNumber === roundNumber ? updatedRound : round
       )
 
       // Update the current chart with new pattern

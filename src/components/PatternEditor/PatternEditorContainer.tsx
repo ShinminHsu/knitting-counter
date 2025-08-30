@@ -7,7 +7,6 @@ import { usePatternStore } from '../../stores/usePatternStore'
 import { useModalStates } from '../../hooks/useModalStates'
 import { usePatternEditorState } from '../../hooks/usePatternEditorState'
 import { usePatternOperations } from '../../hooks/usePatternOperations'
-import { useDragAndDrop } from '../../hooks/useDragAndDrop'
 import ChartSelectorHeader from '../ChartSelectorHeader'
 import { Round, StitchType, StitchInfo, StitchGroup } from '../../types'
 import {
@@ -15,13 +14,13 @@ import {
   getCurrentChart,
   getProjectPattern
 } from '../../utils'
+import { reorderPatternItems, getSortedPatternItems } from '../../utils/pattern/rendering'
 
 // Components
 import PatternEditorToolbar from './PatternEditorToolbar'
 import PatternRoundsList from './PatternRoundsList'
 import CustomGroupCreationModal from './CustomGroupCreationModal'
 import PatternPreview from './PatternPreview'
-import AddRoundForm from './AddRoundForm'
 import StitchSelectionModal from '../StitchSelectionModal'
 import StitchGroupTemplateModal from '../StitchGroupTemplateModal'
 import CopyRoundModal from '../CopyRoundModal'
@@ -49,7 +48,6 @@ export default function PatternEditorContainer() {
 
   // Use extracted hooks
   const modalStates = useModalStates()
-  const { handleDragStart, handleDragOver, handleDrop } = useDragAndDrop()
   const patternEditorState = usePatternEditorState()
   const patternOperations = usePatternOperations()
 
@@ -117,17 +115,27 @@ export default function PatternEditorContainer() {
     )
   }
 
-  const handleAddRound = async () => {
+  const handleAddRound = async (scrollToNew: boolean = false) => {
+    const initialRoundsCount = chartPattern.length
+    
     await patternOperations.handleAddRound(
       currentChart,
       chartPattern,
-      patternEditorState.newRoundNotes,
+      '', // 不需要備註，直接傳空字串
       patternEditorState.isLoading,
       patternEditorState.setIsLoading
     )
     
-    patternEditorState.setNewRoundNotes('')
-    modalStates.setShowAddRoundForm(false)
+    // 如果需要跳轉到新圈數，等待一小段時間讓新圈數渲染完成後再跳轉
+    if (scrollToNew) {
+      setTimeout(() => {
+        const newRoundNumber = initialRoundsCount + 1
+        const newRoundElement = document.querySelector(`[data-round-card="${newRoundNumber}"]`)
+        if (newRoundElement) {
+          newRoundElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 100)
+    }
   }
 
   const handleStitchModalConfirm = async (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => {
@@ -353,6 +361,189 @@ export default function PatternEditorContainer() {
     patternEditorState.setShowEditNewGroupStitchModal(null)
   }
 
+  // Movement handlers for pattern items
+  const handleMoveUp = async (index: number, roundNumber: number) => {
+    if (index === 0) return // Already at top
+    
+    try {
+      if (currentChart) {
+        // Use imported reorderPatternItems
+        const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+        if (targetRound) {
+          const updatedRound = reorderPatternItems(targetRound, index, index - 1)
+          await updateChart(currentChart.id, {
+            ...currentChart,
+            rounds: currentChart.rounds.map((r: Round) =>
+              r.roundNumber === roundNumber ? updatedRound : r
+            ),
+            lastModified: new Date()
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error moving item up:', error)
+      alert('上移時發生錯誤')
+    }
+  }
+
+  const handleMoveDown = async (index: number, roundNumber: number) => {
+    try {
+      if (currentChart) {
+        // Use imported reorderPatternItems and getSortedPatternItems
+        const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+        if (targetRound) {
+          const sortedItems = getSortedPatternItems(targetRound)
+          if (index >= sortedItems.length - 1) return // Already at bottom
+          
+          const updatedRound = reorderPatternItems(targetRound, index, index + 1)
+          await updateChart(currentChart.id, {
+            ...currentChart,
+            rounds: currentChart.rounds.map((r: Round) =>
+              r.roundNumber === roundNumber ? updatedRound : r
+            ),
+            lastModified: new Date()
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error moving item down:', error)
+      alert('下移時發生錯誤')
+    }
+  }
+
+  // Movement handlers for group stitches
+  const handleMoveGroupStitchUp = async (roundNumber: number, groupId: string, stitchIndex: number) => {
+    if (stitchIndex === 0) return // Already at top
+    
+    try {
+      if (currentChart) {
+        const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+        if (targetRound) {
+          const updatedRound = {
+            ...targetRound,
+            stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) => {
+              if (g.id === groupId) {
+                const newStitches = [...g.stitches]
+                const [movedStitch] = newStitches.splice(stitchIndex, 1)
+                newStitches.splice(stitchIndex - 1, 0, movedStitch)
+                return { ...g, stitches: newStitches }
+              }
+              return g
+            })
+          }
+          
+          await updateChart(currentChart.id, {
+            ...currentChart,
+            rounds: currentChart.rounds.map((r: Round) =>
+              r.roundNumber === roundNumber ? updatedRound : r
+            ),
+            lastModified: new Date()
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error moving group stitch up:', error)
+      alert('上移群組針法時發生錯誤')
+    }
+  }
+
+  const handleMoveGroupStitchDown = async (roundNumber: number, groupId: string, stitchIndex: number) => {
+    try {
+      if (currentChart) {
+        const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+        if (targetRound) {
+          const targetGroup = targetRound.stitchGroups.find((g: StitchGroup) => g.id === groupId)
+          if (!targetGroup || stitchIndex >= targetGroup.stitches.length - 1) return // Already at bottom
+          
+          const updatedRound = {
+            ...targetRound,
+            stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) => {
+              if (g.id === groupId) {
+                const newStitches = [...g.stitches]
+                const [movedStitch] = newStitches.splice(stitchIndex, 1)
+                newStitches.splice(stitchIndex + 1, 0, movedStitch)
+                return { ...g, stitches: newStitches }
+              }
+              return g
+            })
+          }
+          
+          await updateChart(currentChart.id, {
+            ...currentChart,
+            rounds: currentChart.rounds.map((r: Round) =>
+              r.roundNumber === roundNumber ? updatedRound : r
+            ),
+            lastModified: new Date()
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error moving group stitch down:', error)
+      alert('下移群組針法時發生錯誤')
+    }
+  }
+
+  // Movement handlers for rounds
+  const handleMoveRoundUp = async (roundNumber: number) => {
+    if (roundNumber === 1) return // Already at top
+    
+    try {
+      if (currentChart) {
+        const rounds = [...currentChart.rounds].sort((a, b) => a.roundNumber - b.roundNumber)
+        const currentIndex = rounds.findIndex(r => r.roundNumber === roundNumber)
+        if (currentIndex > 0) {
+          // Swap round numbers
+          const updatedRounds = rounds.map((round, index) => {
+            if (index === currentIndex) {
+              return { ...round, roundNumber: roundNumber - 1 }
+            } else if (index === currentIndex - 1) {
+              return { ...round, roundNumber: roundNumber }
+            }
+            return round
+          })
+          
+          await updateChart(currentChart.id, {
+            ...currentChart,
+            rounds: updatedRounds,
+            lastModified: new Date()
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error moving round up:', error)
+      alert('上移圈數時發生錯誤')
+    }
+  }
+
+  const handleMoveRoundDown = async (roundNumber: number) => {
+    try {
+      if (currentChart) {
+        const rounds = [...currentChart.rounds].sort((a, b) => a.roundNumber - b.roundNumber)
+        const currentIndex = rounds.findIndex(r => r.roundNumber === roundNumber)
+        if (currentIndex < rounds.length - 1) {
+          // Swap round numbers
+          const updatedRounds = rounds.map((round, index) => {
+            if (index === currentIndex) {
+              return { ...round, roundNumber: roundNumber + 1 }
+            } else if (index === currentIndex + 1) {
+              return { ...round, roundNumber: roundNumber }
+            }
+            return round
+          })
+          
+          await updateChart(currentChart.id, {
+            ...currentChart,
+            rounds: updatedRounds,
+            lastModified: new Date()
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error moving round down:', error)
+      alert('下移圈數時發生錯誤')
+    }
+  }
+
   const handleAddStitchToNewGroup = async (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => {
     const newStitch: StitchInfo = {
       id: generateId(),
@@ -376,7 +567,7 @@ export default function PatternEditorContainer() {
         projectId={projectId!}
         currentChart={currentChart}
         isLoading={patternEditorState.isLoading}
-        onAddRound={() => modalStates.setShowAddRoundForm(true)}
+        onAddRound={() => handleAddRound(true)} // 右上角按鈕會跳轉到新圈數
       />
 
       <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
@@ -402,7 +593,7 @@ export default function PatternEditorContainer() {
           currentChart={currentChart}
           chartPattern={chartPattern}
           currentProject={currentProject}
-          onAddRound={() => modalStates.setShowAddRoundForm(true)}
+          onAddRound={() => handleAddRound(false)} // Preview 中的按鈕不跳轉
           onEditChart={() => modalStates.setShowEditChartModal(true)}
         />
 
@@ -410,6 +601,7 @@ export default function PatternEditorContainer() {
         <PatternRoundsList
           chartPattern={chartPattern}
           currentProject={currentProject}
+          currentChart={currentChart}
           editingRound={patternEditorState.editingRound}
           editingStitch={patternEditorState.editingStitch}
           editingGroup={patternEditorState.editingGroup}
@@ -684,22 +876,16 @@ export default function PatternEditorContainer() {
           onGroupNameChange={patternEditorState.handleGroupNameChange}
           onGroupRepeatCountChange={patternEditorState.handleGroupRepeatCountChange}
           onCancelEdit={patternEditorState.resetEditingStates}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onAddRoundClick={() => modalStates.setShowAddRoundForm(true)}
+          onMoveUp={handleMoveUp}
+          onMoveDown={handleMoveDown}
+          onMoveGroupStitchUp={handleMoveGroupStitchUp}
+          onMoveGroupStitchDown={handleMoveGroupStitchDown}
+          onMoveRoundUp={handleMoveRoundUp}
+          onMoveRoundDown={handleMoveRoundDown}
+          onAddRoundClick={() => handleAddRound(false)} // 底部按鈕不跳轉
         />
       </div>
 
-      {/* AddRoundForm Modal - using extracted component */}
-      <AddRoundForm
-        isOpen={modalStates.showAddRoundForm}
-        isLoading={patternEditorState.isLoading}
-        newRoundNotes={patternEditorState.newRoundNotes}
-        onNotesChange={patternEditorState.setNewRoundNotes}
-        onCancel={() => modalStates.setShowAddRoundForm(false)}
-        onConfirm={handleAddRound}
-      />
 
       {/* Stitch Selection Modal */}
       <StitchSelectionModal
