@@ -248,6 +248,41 @@ export default function ProgressTrackingView() {
     }
   }, [currentProject])
 
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Only handle keyboard events when not in view mode and chart exists
+      if (isViewMode || !currentChart) {
+        return
+      }
+
+      // Prevent default behavior for arrow keys
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault()
+      }
+
+      switch (event.key) {
+        case 'ArrowLeft':
+          // Check if we can go to previous stitch
+          if (!(currentChart.currentRound === 1 && currentChart.currentStitch === 0)) {
+            handlePreviousStitch()
+          }
+          break
+        case 'ArrowRight':
+          handleNextStitch()
+          break
+      }
+    }
+
+    // Add event listener
+    window.addEventListener('keydown', handleKeyPress)
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress)
+    }
+  }, [isViewMode, currentChart, handleNextStitch, handlePreviousStitch])
+
   // Loading state
   if (!currentProject) {
     return (
