@@ -9,7 +9,6 @@ import { getCurrentChart } from '../../utils'
 // Import extracted components
 import ProjectInfo from './ProjectInfo'
 import QuickActions from './QuickActions'
-import YarnDisplay from './YarnDisplay'
 import ChartManagement from './ChartManagement'
 import EditProjectModal from './modals/EditProjectModal'
 import CreateChartModal from './modals/CreateChartModal'
@@ -172,9 +171,6 @@ export default function ProjectDetailView() {
 
         {/* Quick Actions */}
         <QuickActions projectId={currentProject.id} />
-
-        {/* Yarn Display */}
-        {/* <YarnDisplay project={currentProject} /> */}
 
         {/* Chart Management */}
         <ChartManagement
