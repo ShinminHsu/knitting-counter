@@ -174,7 +174,7 @@ export default function ProjectDetailView() {
         <QuickActions projectId={currentProject.id} />
 
         {/* Yarn Display */}
-        <YarnDisplay project={currentProject} />
+        {/* <YarnDisplay project={currentProject} /> */}
 
         {/* Chart Management */}
         <ChartManagement
