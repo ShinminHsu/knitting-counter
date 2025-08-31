@@ -86,12 +86,30 @@ export default function PatternEditorContainer() {
       targetChart = getCurrentChart(currentProject)
     }
 
-    if (targetChart) {
+    // If no chart exists, create a default one automatically
+    if (!targetChart) {
+      const createDefaultChart = async () => {
+        const { createChart } = useChartStore.getState()
+        const newChart = await createChart({
+          name: '主要織圖',
+          description: '',
+          notes: ''
+        })
+        
+        if (newChart) {
+          setCurrentChartLocal(newChart)
+          setChartPattern(newChart.rounds || [])
+        } else {
+          // Fallback to legacy pattern if chart creation fails
+          setCurrentChartLocal(null)
+          setChartPattern(getProjectPattern(currentProject))
+        }
+      }
+      
+      createDefaultChart()
+    } else {
       setCurrentChartLocal(targetChart)
       setChartPattern(targetChart.rounds || [])
-    } else {
-      setCurrentChartLocal(null)
-      setChartPattern(getProjectPattern(currentProject))
     }
   }, [currentProject, searchParams])
 
