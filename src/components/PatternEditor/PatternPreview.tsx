@@ -14,6 +14,7 @@ export default function PatternPreview({
   currentChart,
   chartPattern,
   currentProject,
+  onEditChart,
   onAddRound
 }: PatternPreviewProps) {
   if (chartPattern.length === 0) {
@@ -25,6 +26,14 @@ export default function PatternPreview({
               {currentChart ? currentChart.name : '織圖預覽'}
             </h2>
           </div>
+          {currentChart && (
+            <button
+              onClick={onEditChart}
+              className="text-text-tertiary hover:text-text-primary p-2"
+            >
+              <FiEdit3 className="w-5 h-5" />
+            </button>
+          )}
         </div>
         
         <div className="text-center py-8">
@@ -61,6 +70,14 @@ export default function PatternPreview({
             </div>
           )}
         </div>
+        {currentChart && (
+          <button
+            onClick={onEditChart}
+            className="text-text-tertiary hover:text-text-primary p-2"
+          >
+            <FiEdit3 className="w-5 h-5" />
+          </button>
+        )}
       </div>
       
       <div className="space-y-4">

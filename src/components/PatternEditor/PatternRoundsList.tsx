@@ -175,7 +175,7 @@ export default function PatternRoundsList({
       <div className="mt-6 text-center">
         <button
           onClick={onAddRoundClick}
-          className="btn btn-primary"
+          className="btn btn-primary text-sm"
         >
           新增圈數
         </button>

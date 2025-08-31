@@ -24,6 +24,7 @@ import PatternPreview from './PatternPreview'
 import StitchSelectionModal from '../StitchSelectionModal'
 import StitchGroupTemplateModal from '../StitchGroupTemplateModal'
 import CopyRoundModal from '../CopyRoundModal'
+import EditChartModal from '../ProjectDetail/modals/EditChartModal'
 
 export default function PatternEditorContainer() {
   const { projectId } = useParams()
@@ -53,6 +54,7 @@ export default function PatternEditorContainer() {
 
   const [currentChart, setCurrentChartLocal] = useState<any>(null)
   const [chartPattern, setChartPattern] = useState<Round[]>([])
+  const [editingChart, setEditingChart] = useState<any>(null)
   
   // Get chart summaries for selector
   const chartSummaries = getChartSummaries()
@@ -86,12 +88,30 @@ export default function PatternEditorContainer() {
       targetChart = getCurrentChart(currentProject)
     }
 
-    if (targetChart) {
+    // If no chart exists, create a default one automatically
+    if (!targetChart) {
+      const createDefaultChart = async () => {
+        const { createChart } = useChartStore.getState()
+        const newChart = await createChart({
+          name: '主要織圖',
+          description: '',
+          notes: ''
+        })
+        
+        if (newChart) {
+          setCurrentChartLocal(newChart)
+          setChartPattern(newChart.rounds || [])
+        } else {
+          // Fallback to legacy pattern if chart creation fails
+          setCurrentChartLocal(null)
+          setChartPattern(getProjectPattern(currentProject))
+        }
+      }
+      
+      createDefaultChart()
+    } else {
       setCurrentChartLocal(targetChart)
       setChartPattern(targetChart.rounds || [])
-    } else {
-      setCurrentChartLocal(null)
-      setChartPattern(getProjectPattern(currentProject))
     }
   }, [currentProject, searchParams])
 
@@ -257,6 +277,31 @@ export default function PatternEditorContainer() {
       lastModified: new Date()
     })
     modalStates.setShowCopyRoundModal(null)
+  }
+
+  const handleEditChart = () => {
+    if (currentChart) {
+      setEditingChart(currentChart)
+      modalStates.setShowEditChartModal(true)
+    }
+  }
+
+  const handleUpdateChart = async (name: string, description: string, notes: string) => {
+    if (!editingChart) return
+
+    await updateChart(editingChart.id, {
+      name,
+      description: description || undefined,
+      notes: notes || undefined
+    })
+    
+    setEditingChart(null)
+    modalStates.setShowEditChartModal(false)
+  }
+
+  const handleCloseEditChartModal = () => {
+    setEditingChart(null)
+    modalStates.setShowEditChartModal(false)
   }
 
   const handleSelectTemplate = async (template: any) => {
@@ -594,7 +639,7 @@ export default function PatternEditorContainer() {
           chartPattern={chartPattern}
           currentProject={currentProject}
           onAddRound={() => handleAddRound(false)} // Preview 中的按鈕不跳轉
-          onEditChart={() => modalStates.setShowEditChartModal(true)}
+          onEditChart={handleEditChart}
         />
 
         {/* Round List */}
@@ -985,6 +1030,14 @@ export default function PatternEditorContainer() {
         onEditStitch={(stitchId) => patternEditorState.setShowEditNewGroupStitchModal({ stitchId })}
         onRemoveStitch={patternEditorState.handleRemoveStitchFromGroup}
         canSaveAsTemplate={patternEditorState.newGroupStitches.length > 0}
+      />
+
+      {/* Edit Chart Modal */}
+      <EditChartModal
+        isOpen={modalStates.showEditChartModal}
+        chart={editingChart}
+        onClose={handleCloseEditChartModal}
+        onSave={handleUpdateChart}
       />
     </div>
   )

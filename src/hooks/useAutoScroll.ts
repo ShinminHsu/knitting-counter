@@ -4,6 +4,7 @@ import { getRoundTotalStitches } from '../utils'
 
 interface UseAutoScrollProps {
   currentProject: Project | null
+  currentChart: any | null
   displayRound: Round | undefined
   isViewMode: boolean
   patternContainerRef: React.RefObject<HTMLDivElement>
@@ -19,6 +20,7 @@ interface UseAutoScrollReturn {
  */
 export function useAutoScroll({
   currentProject,
+  currentChart,
   displayRound,
   isViewMode,
   patternContainerRef
@@ -110,11 +112,11 @@ export function useAutoScroll({
   
   // Main auto-scroll effect
   useEffect(() => {
-    if (!currentProject || isViewMode || !patternContainerRef.current || !displayRound) {
+    if (!currentProject || !currentChart || isViewMode || !patternContainerRef.current || !displayRound) {
       return
     }
     
-    const currentStitch = currentProject.currentStitch || 0
+    const currentStitch = currentChart.currentStitch || 0
     const container = patternContainerRef.current
     
     // Performance optimization: Only scroll if stitch position actually changed
@@ -150,9 +152,10 @@ export function useAutoScroll({
       }
     }
   }, [
-    currentProject?.currentStitch,
+    currentChart?.currentStitch,
     isViewMode,
     currentProject,
+    currentChart,
     displayRound,
     calculateScrollPosition,
     performScroll,
