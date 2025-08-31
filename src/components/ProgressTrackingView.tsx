@@ -69,6 +69,7 @@ export default function ProgressTrackingView() {
   // Auto-scroll functionality
   useAutoScroll({
     currentProject,
+    currentChart,
     displayRound,
     isViewMode,
     patternContainerRef
