@@ -30,11 +30,12 @@ interface SyncStoreActions {
   subscribeToFirestoreChanges: () => (() => void) | null
   
   // Project synchronization helpers
-  syncProjectToFirestore: (project: Project) => Promise<boolean>
+  syncProjectToFirestore: (project: Project, context?: string) => Promise<boolean>
   syncProjectWithRetry: (
     project: Project, 
     maxRetries?: number, 
-    onRetry?: (attempt: number, maxRetries: number) => void
+    onRetry?: (attempt: number, maxRetries: number) => void,
+    context?: string
   ) => Promise<boolean>
 }
 
@@ -179,7 +180,7 @@ export const useSyncStore = create<SyncStore>()(
       },
 
       // Project synchronization helpers
-      syncProjectToFirestore: async (project: Project): Promise<boolean> => {
+      syncProjectToFirestore: async (project: Project, context?: string): Promise<boolean> => {
         const { user } = useAuthStore.getState()
         if (!user) {
           console.log('[SYNC] No user found for project sync')
@@ -187,9 +188,9 @@ export const useSyncStore = create<SyncStore>()(
         }
 
         try {
-          await firestoreService.upsertProject(user.uid, project)
+          await firestoreService.upsertProject(user.uid, project, context)
           set({ lastSyncTime: new Date() })
-          console.log('[SYNC] Project synced successfully to Firestore:', project.id)
+          console.log('[SYNC] Project synced successfully to Firestore:', project.id, context ? `(context: ${context})` : '')
           return true
         } catch (error) {
           handleAsyncError(error, 'Sync Project to Firestore')
@@ -200,7 +201,8 @@ export const useSyncStore = create<SyncStore>()(
       syncProjectWithRetry: async (
         project: Project, 
         maxRetries: number = 3,
-        onRetry?: (attempt: number, maxRetries: number) => void
+        onRetry?: (attempt: number, maxRetries: number) => void,
+        context?: string
       ): Promise<boolean> => {
         const { user } = useAuthStore.getState()
         if (!user) return false
@@ -250,9 +252,9 @@ export const useSyncStore = create<SyncStore>()(
               console.log('[SYNC] Mobile device detected, skipping connection test')
             }
             
-            await firestoreService.upsertProject(user.uid, project)
+            await firestoreService.upsertProject(user.uid, project, context)
             set({ lastSyncTime: new Date() })
-            console.log('[SYNC] Project synced successfully with retry mechanism:', project.id)
+            console.log('[SYNC] Project synced successfully with retry mechanism:', project.id, context ? `(context: ${context})` : '')
             return true
             
           } catch (error) {

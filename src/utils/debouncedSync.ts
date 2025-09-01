@@ -186,7 +186,7 @@ class DebouncedSyncManager {
         const { projects } = require('../stores/useProjectStore').useProjectStore.getState()
         const project = projects.find((p: Project) => p.id === projectId)
         if (project) {
-          await syncStore.syncProjectWithRetry(project, config.strategy.maxRetries)
+          await syncStore.syncProjectWithRetry(project, config.strategy.maxRetries, undefined, 'batch')
           console.log(`[BATCH-SYNC] Successfully synced project ${projectId}`)
         }
       } catch (error) {
@@ -264,7 +264,7 @@ class DebouncedSyncManager {
     try {
       const config = getSyncConfig()
       const syncStore = useSyncStore.getState()
-      const success = await syncStore.syncProjectWithRetry(project, config.strategy.maxRetries)
+      const success = await syncStore.syncProjectWithRetry(project, config.strategy.maxRetries, undefined, context)
       
       if (success) {
         console.log(`[DEBOUNCED-SYNC] Successfully synced project ${project.id} (context: ${context})`)

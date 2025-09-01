@@ -82,8 +82,8 @@ class FirestoreService {
    * @param userId - The user's UID
    * @param project - Project data
    */
-  async upsertProject(userId: string, project: Project): Promise<void> {
-    return this.projectService.upsertProject(userId, project)
+  async upsertProject(userId: string, project: Project, context?: string): Promise<void> {
+    return this.projectService.upsertProject(userId, project, context)
   }
 
   /**

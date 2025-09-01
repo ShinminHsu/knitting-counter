@@ -43,7 +43,7 @@ const createSafeUpdateProjectLocally = () => {
   }
 
   return async (project: Project, _context: string = 'unknown') => {
-    const { updateProjectLocally } = useProjectStore.getState()
+    const { setProjects, setCurrentProject, projects, currentProject } = useProjectStore.getState()
     
 
     const cleanedProject = {
@@ -71,8 +71,11 @@ const createSafeUpdateProjectLocally = () => {
       }) || []
     }
 
-
-    await updateProjectLocally(cleanedProject)
+    // 只更新本地狀態，不同步到Firebase
+    setProjects(projects.map(p => p.id === cleanedProject.id ? cleanedProject : p))
+    if (currentProject?.id === cleanedProject.id) {
+      setCurrentProject(cleanedProject)
+    }
   }
 }
 

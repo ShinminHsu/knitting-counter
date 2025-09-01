@@ -127,13 +127,14 @@ export class FirestoreProjectService {
    * Create or update a project (upsert operation)
    * @param userId - User ID
    * @param project - Project data
+   * @param context - Update context for optimization
    */
-  async upsertProject(userId: string, project: Project): Promise<void> {
+  async upsertProject(userId: string, project: Project, context?: string): Promise<void> {
     const exists = await this.projectExists(userId, project.id)
     
     if (exists) {
       console.log('[FIRESTORE-PROJECT] Project exists, updating...')
-      await this.updateProject(userId, project)
+      await this.updateProject(userId, project, context)
     } else {
       console.log('[FIRESTORE-PROJECT] Project does not exist, creating...')
       await this.createProject(userId, project)
@@ -144,23 +145,39 @@ export class FirestoreProjectService {
    * Update an existing project
    * @param userId - User ID
    * @param project - Project data to update
+   * @param context - Update context for optimization (e.g., 'progress' for stitch updates)
    */
-  async updateProject(userId: string, project: Project): Promise<void> {
+  async updateProject(userId: string, project: Project, context?: string): Promise<void> {
     try {
       console.log('[FIRESTORE-PROJECT] Updating project:', project.id, {
         currentRound: project.currentRound,
         currentStitch: project.currentStitch,
         isCompleted: project.isCompleted,
-        patternLength: project.pattern?.length || 0
+        patternLength: project.pattern?.length || 0,
+        context: context || 'general'
       })
       
       // Validate project data with both existing and new runtime validation
       firestoreDataCleaner.validateProject(project)
       assertIsProject(project, 'updateProject')
 
-      // First sync rounds to ensure sub-collection updates succeed
-      console.log('[FIRESTORE-PROJECT] Syncing rounds first...')
-      await firestoreRoundService.syncRounds(userId, project.id, project.pattern || [])
+      // Determine if this is a progress-only update to optimize round sync
+      const isProgressUpdate = context && ['nextStitch', 'previousStitch', 'setCurrentStitch', 'setCurrentRound'].includes(context)
+      
+      if (isProgressUpdate) {
+        // For progress updates, only sync the current round if pattern exists
+        if (project.pattern && project.pattern.length > 0) {
+          const currentRound = project.pattern.find(r => r.roundNumber === project.currentRound)
+          if (currentRound) {
+            console.log('[FIRESTORE-PROJECT] Optimized sync - only syncing current round:', currentRound.roundNumber)
+            await firestoreRoundService.syncRounds(userId, project.id, project.pattern, [currentRound.id])
+          }
+        }
+      } else {
+        // For other updates, sync all rounds
+        console.log('[FIRESTORE-PROJECT] Full round sync...')
+        await firestoreRoundService.syncRounds(userId, project.id, project.pattern || [])
+      }
       console.log('[FIRESTORE-PROJECT] Rounds synced successfully')
       
       // Then update the main project document
