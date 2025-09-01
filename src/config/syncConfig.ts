@@ -40,7 +40,7 @@ export interface SyncConfig {
 // 預設配置
 export const defaultSyncConfig: SyncConfig = {
   debounceTime: {
-    progress: 3000,    // 編織計數3秒防抖
+    progress: 8000,    // 編織計數8秒防抖，避免頻繁寫入
     default: 2000,     // 一般操作2秒防抖
     critical: 1000,    // 關鍵操作1秒防抖
     urgent: 100        // 緊急操作0.1秒防抖
@@ -60,7 +60,7 @@ export const defaultSyncConfig: SyncConfig = {
 // 節約模式配置 - 更長的防抖時間以減少Firebase使用量
 export const economySyncConfig: SyncConfig = {
   debounceTime: {
-    progress: 5000,    // 編織計數5秒防抖
+    progress: 15000,   // 編織計數15秒防抖，最大化省用量
     default: 3000,     // 一般操作3秒防抖
     critical: 1500,    // 關鍵操作1.5秒防抖
     urgent: 200        // 緊急操作0.2秒防抖
@@ -80,7 +80,7 @@ export const economySyncConfig: SyncConfig = {
 // 快速模式配置 - 較短的防抖時間，適合穩定網路環境
 export const rapidSyncConfig: SyncConfig = {
   debounceTime: {
-    progress: 1500,    // 編織計數1.5秒防抖
+    progress: 5000,    // 編織計數5秒防抖，仍需控制頻率
     default: 1000,     // 一般操作1秒防抖
     critical: 500,     // 關鍵操作0.5秒防抖
     urgent: 50         // 緊急操作0.05秒防抖

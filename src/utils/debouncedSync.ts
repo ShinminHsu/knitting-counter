@@ -12,10 +12,14 @@ interface PendingSync {
   project: Project
   context: string
   timeout: NodeJS.Timeout
+  timestamp: number
+  priority: 'high' | 'medium' | 'low'
 }
 
 class DebouncedSyncManager {
   private pendingSyncs = new Map<string, PendingSync>()
+  private batchTimer: NodeJS.Timeout | null = null
+  private batchedProjects = new Set<string>()
   
   /**
    * 防抖同步項目
@@ -29,6 +33,7 @@ class DebouncedSyncManager {
     isUrgent: boolean = false
   ): Promise<void> {
     const projectId = project.id
+    const priority = this.getPriority(context, isUrgent)
     
     // 清除之前的防抖計時器
     const existingSync = this.pendingSyncs.get(projectId)
@@ -39,6 +44,12 @@ class DebouncedSyncManager {
     // 決定防抖時間
     const debounceTime = this.getDebounceTime(context, isUrgent)
     
+    // 對於低優先級操作（如編織進度），考慮批次處理
+    if (priority === 'low' && this.shouldUseBatching(context)) {
+      this.addToBatch(project, context, priority)
+      return
+    }
+    
     // 設置新的防抖計時器
     const timeout = setTimeout(async () => {
       await this.performSync(project, context)
@@ -48,10 +59,12 @@ class DebouncedSyncManager {
     this.pendingSyncs.set(projectId, {
       project,
       context,
-      timeout
+      timeout,
+      timestamp: Date.now(),
+      priority
     })
     
-    console.log(`[DEBOUNCED-SYNC] Scheduled sync for project ${projectId} in ${debounceTime}ms (context: ${context})`)
+    console.log(`[DEBOUNCED-SYNC] Scheduled sync for project ${projectId} in ${debounceTime}ms (context: ${context}, priority: ${priority})`)
   }
   
   /**
@@ -60,14 +73,23 @@ class DebouncedSyncManager {
   async flushAll(): Promise<void> {
     const promises: Promise<void>[] = []
     
+    // 處理防抖同步
     for (const [, pendingSync] of this.pendingSyncs.entries()) {
       clearTimeout(pendingSync.timeout)
       promises.push(this.performSync(pendingSync.project, pendingSync.context))
     }
     
     this.pendingSyncs.clear()
+    
+    // 處理批次同步
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer)
+      this.batchTimer = null
+      promises.push(this.processBatch())
+    }
+    
     await Promise.all(promises)
-    console.log('[DEBOUNCED-SYNC] Flushed all pending syncs')
+    console.log('[DEBOUNCED-SYNC] Flushed all pending syncs and batches')
   }
   
   /**
@@ -81,20 +103,155 @@ class DebouncedSyncManager {
       this.pendingSyncs.delete(projectId)
       console.log(`[DEBOUNCED-SYNC] Flushed sync for project ${projectId}`)
     }
+    
+    // 檢查批次中是否有這個項目
+    if (this.batchedProjects.has(projectId)) {
+      this.batchedProjects.delete(projectId)
+      
+      const { projects } = require('../stores/useProjectStore').useProjectStore.getState()
+      const project = projects.find((p: Project) => p.id === projectId)
+      if (project) {
+        await this.performSync(project, 'flushProject')
+        console.log(`[BATCH-SYNC] Flushed batched project ${projectId}`)
+      }
+    }
   }
   
   /**
    * 檢查項目是否有待處理的同步
    */
   hasPendingSync(projectId: string): boolean {
-    return this.pendingSyncs.has(projectId)
+    return this.pendingSyncs.has(projectId) || this.batchedProjects.has(projectId)
   }
   
   /**
    * 獲取待處理同步數量
    */
   getPendingCount(): number {
-    return this.pendingSyncs.size
+    return this.pendingSyncs.size + this.batchedProjects.size
+  }
+  
+  /**
+   * 添加項目到批次處理
+   */
+  private addToBatch(project: Project, context: string, _priority: 'high' | 'medium' | 'low'): void {
+    const projectId = project.id
+    this.batchedProjects.add(projectId)
+    
+    // 更新項目在記憶體中（因為是批次處理，我們仍需要立即更新本地狀態）
+    const { updateProjectLocally } = require('../stores/useProjectStore').useProjectStore.getState()
+    updateProjectLocally(project)
+    
+    // 如果還沒有批次計時器，設置一個
+    if (!this.batchTimer) {
+      const batchDelay = this.getBatchDelay(context)
+      this.batchTimer = setTimeout(() => {
+        this.processBatch()
+      }, batchDelay)
+      
+      console.log(`[BATCH-SYNC] Added project ${projectId} to batch, will process in ${batchDelay}ms`)
+    } else {
+      console.log(`[BATCH-SYNC] Added project ${projectId} to existing batch`)
+    }
+  }
+  
+  /**
+   * 處理批次同步
+   */
+  private async processBatch(): Promise<void> {
+    if (this.batchedProjects.size === 0) {
+      this.batchTimer = null
+      return
+    }
+    
+    const projectIds = Array.from(this.batchedProjects)
+    this.batchedProjects.clear()
+    this.batchTimer = null
+    
+    console.log(`[BATCH-SYNC] Processing batch with ${projectIds.length} projects:`, projectIds)
+    
+    // 批次同步所有項目（可以考慮進一步優化，比如使用 Firestore batch writes）
+    const { user } = useAuthStore.getState()
+    if (!user) {
+      console.log('[BATCH-SYNC] No user found, skipping batch sync')
+      return
+    }
+    
+    const config = getSyncConfig()
+    const syncStore = useSyncStore.getState()
+    
+    // 並行同步所有項目
+    const syncPromises = projectIds.map(async (projectId) => {
+      try {
+        const { projects } = require('../stores/useProjectStore').useProjectStore.getState()
+        const project = projects.find((p: Project) => p.id === projectId)
+        if (project) {
+          await syncStore.syncProjectWithRetry(project, config.strategy.maxRetries)
+          console.log(`[BATCH-SYNC] Successfully synced project ${projectId}`)
+        }
+      } catch (error) {
+        console.error(`[BATCH-SYNC] Error syncing project ${projectId}:`, error)
+      }
+    })
+    
+    await Promise.allSettled(syncPromises)
+    console.log(`[BATCH-SYNC] Completed batch processing`)
+  }
+  
+  /**
+   * 判斷是否應該使用批次處理
+   */
+  private shouldUseBatching(context: string): boolean {
+    const progressContexts = [
+      'nextStitch',
+      'previousStitch',
+      'setCurrentStitch',
+      'setCurrentRound'
+    ]
+    
+    return progressContexts.includes(context)
+  }
+  
+  /**
+   * 獲取操作優先級
+   */
+  private getPriority(context: string, isUrgent: boolean): 'high' | 'medium' | 'low' {
+    if (isUrgent) return 'high'
+    
+    const highPriorityContexts = [
+      'deleteProject',
+      'createProject'
+    ]
+    
+    const mediumPriorityContexts = [
+      'markProjectComplete',
+      'resetProgress',
+      'updateChart',
+      'deleteChart'
+    ]
+    
+    const lowPriorityContexts = [
+      'nextStitch',
+      'previousStitch',
+      'setCurrentStitch',
+      'setCurrentRound'
+    ]
+    
+    if (highPriorityContexts.includes(context)) return 'high'
+    if (mediumPriorityContexts.includes(context)) return 'medium'
+    if (lowPriorityContexts.includes(context)) return 'low'
+    
+    return 'medium' // 預設為中等優先級
+  }
+  
+  /**
+   * 獲取批次處理延遲時間
+   */
+  private getBatchDelay(_context: string): number {
+    const config = getSyncConfig()
+    
+    // 批次處理使用較長的延遲時間，進一步減少寫入頻率
+    return Math.max(config.debounceTime.progress * 1.5, 10000) // 至少10秒
   }
   
   private async performSync(project: Project, context: string): Promise<void> {
