@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { WorkSession, Project } from '../types'
 import { generateId, getProjectPattern, getProjectCurrentRound, getProjectCurrentStitch, getRoundTotalStitches } from '../utils'
 import { useProjectStore } from './useProjectStore'
-import { safeUpdateProjectLocally } from './useChartStore'
+import { debouncedUpdateProjectLocally } from './useChartStore'
 
 interface ProgressStoreState {
   // No persistent state needed - progress is managed in projects
@@ -55,7 +55,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
         currentStitch: 0,
         lastModified: new Date()
       }
-      await safeUpdateProjectLocally(updatedProject, 'nextStitch')
+      await debouncedUpdateProjectLocally(updatedProject, 'nextStitch')
       return
     }
 
@@ -95,7 +95,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'nextStitch')
+    await debouncedUpdateProjectLocally(updatedProject, 'nextStitch')
   },
 
   previousStitch: async () => {
@@ -149,7 +149,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'previousStitch')
+    await debouncedUpdateProjectLocally(updatedProject, 'previousStitch')
   },
 
   setCurrentRound: async (roundNumber) => {
@@ -177,7 +177,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'setCurrentRound')
+    await debouncedUpdateProjectLocally(updatedProject, 'setCurrentRound')
   },
 
   setCurrentStitch: async (stitchNumber) => {
@@ -190,7 +190,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'setCurrentStitch')
+    await debouncedUpdateProjectLocally(updatedProject, 'setCurrentStitch')
   },
 
   // Session management
@@ -212,7 +212,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'startSession')
+    await debouncedUpdateProjectLocally(updatedProject, 'startSession')
     console.log('[PROGRESS] Started new session:', newSession.id)
   },
 
@@ -240,7 +240,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'endSession')
+    await debouncedUpdateProjectLocally(updatedProject, 'endSession')
     console.log('[PROGRESS] Ended session:', lastSession.id, 'Duration:', duration, 'seconds')
   },
 
@@ -265,7 +265,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'goToRoundStart')
+    await debouncedUpdateProjectLocally(updatedProject, 'goToRoundStart')
     console.log('[PROGRESS] Moved to start of round', roundNumber)
   },
 
@@ -289,7 +289,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'goToRoundEnd')
+    await debouncedUpdateProjectLocally(updatedProject, 'goToRoundEnd')
     console.log('[PROGRESS] Moved to end of round', roundNumber)
   },
 
@@ -312,7 +312,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'markProjectComplete')
+    await debouncedUpdateProjectLocally(updatedProject, 'markProjectComplete', true)
     console.log('[PROGRESS] Project marked as complete:', currentProject.name)
   },
 
@@ -331,7 +331,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
       lastModified: new Date()
     }
 
-    await safeUpdateProjectLocally(updatedProject, 'resetProgress')
+    await debouncedUpdateProjectLocally(updatedProject, 'resetProgress', true)
     console.log('[PROGRESS] Progress reset for project:', currentProject.name)
   }
 }))

@@ -3,6 +3,7 @@ import { Chart, CreateChartRequest, ChartSummary, Project } from '../types'
 import { generateId, createChart, getCurrentChart, getProjectChartSummaries, setCurrentChart, addChartToProject, removeChartFromProject, updateChartInProject, migrateProjectToMultiChart } from '../utils'
 import { useProjectStore } from './useProjectStore'
 import { handleAsyncError } from './useBaseStore'
+import { debouncedSyncManager } from '../utils/debouncedSync'
 
 // Common utility function for safe project updates with Timestamp cleaning
 const createSafeUpdateProjectLocally = () => {
@@ -75,8 +76,95 @@ const createSafeUpdateProjectLocally = () => {
   }
 }
 
-// Export the safe update function for use in other stores
+// Export the safe update function for use in other stores (with immediate sync)
 export const safeUpdateProjectLocally = createSafeUpdateProjectLocally()
+
+// Create debounced version with reduced Firebase writes
+const createDebouncedUpdateProjectLocally = () => {
+  const safeCreateDate = (dateValue: any, fallback: Date = new Date()): Date => {
+    if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+      return new Date(dateValue)
+    }
+    if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+      const parsed = new Date(dateValue)
+      if (!isNaN(parsed.getTime())) {
+        return parsed
+      }
+    }
+    // Handle Firestore Timestamp objects
+    if (dateValue && typeof dateValue === 'object' && 'seconds' in dateValue && 'nanoseconds' in dateValue) {
+      try {
+        // Convert Firestore Timestamp to Date
+        const timestamp = dateValue.seconds * 1000 + dateValue.nanoseconds / 1000000
+        const date = new Date(timestamp)
+        if (!isNaN(date.getTime())) {
+          return date
+        }
+      } catch (e) {
+      }
+    }
+    // Handle Firestore Timestamp objects with toDate method
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      try {
+        const date = dateValue.toDate()
+        if (date instanceof Date && !isNaN(date.getTime())) {
+          return date
+        }
+      } catch (e) {
+      }
+    }
+    return fallback
+  }
+
+  return async (project: Project, context: string = 'unknown', isUrgent: boolean = false) => {
+    const { setCurrentProject, setProjects, projects } = useProjectStore.getState()
+    
+    const cleanedProject = {
+      ...project,
+      lastModified: new Date(),
+      createdDate: safeCreateDate(project.createdDate, new Date()),
+      sessions: project.sessions?.map(session => ({
+        ...session,
+        startTime: safeCreateDate(session.startTime)
+      })) || [],
+      charts: project.charts?.map((chart) => {
+        return {
+          ...chart,
+          createdDate: safeCreateDate(chart.createdDate, project.createdDate),
+          lastModified: safeCreateDate(chart.lastModified, new Date()),
+          rounds: chart.rounds?.map(round => ({
+            ...round,
+            stitches: [...round.stitches],
+            stitchGroups: round.stitchGroups?.map(group => ({
+              ...group,
+              stitches: [...group.stitches]
+            })) || []
+          })) || []
+        }
+      }) || []
+    }
+
+    // 立即更新本地狀態
+    const updatedProjects = projects.map(p =>
+      p.id === cleanedProject.id ? cleanedProject : p
+    )
+    setProjects(updatedProjects)
+    
+    // 如果是當前項目，也更新當前項目狀態
+    const currentProject = useProjectStore.getState().currentProject
+    if (currentProject?.id === cleanedProject.id) {
+      setCurrentProject(cleanedProject)
+    }
+
+    // 使用防抖同步到Firebase
+    await debouncedSyncManager.debouncedSync(cleanedProject, context, isUrgent)
+    
+    console.log(`[DEBOUNCED-UPDATE] Local state updated immediately, Firebase sync scheduled (context: ${context})`)
+  }
+}
+
+// Export the debounced version for high-frequency operations
+export const debouncedUpdateProjectLocally = createDebouncedUpdateProjectLocally()
 
 interface ChartStoreState {
   // No persistent state needed - charts are managed in projects

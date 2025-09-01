@@ -6,6 +6,7 @@ import { firestoreService, UserProfile } from '../services/firestoreService'
 import { networkStatus } from '../utils/networkStatus'
 import { useBaseStore, handleAsyncError } from './useBaseStore'
 import { User } from 'firebase/auth'
+import { getSyncConfig } from '../config/syncConfig'
 
 interface SyncStoreState {
   isSyncing: boolean
@@ -148,12 +149,13 @@ export const useSyncStore = create<SyncStore>()(
           const timeSinceLastLocalUpdate = baseStore.lastLocalUpdateTime ? 
             Date.now() - baseStore.lastLocalUpdateTime.getTime() : Infinity
           
+          const config = getSyncConfig()
           const canUpdate = !currentState.isSyncing && 
                            !baseStore.isLocallyUpdating && 
                            !baseStore.error &&
                            currentState.lastSyncTime &&
-                           timeSinceLastSync > 15000 && // 15 seconds
-                           timeSinceLastLocalUpdate > 20000 // 20 seconds
+                           timeSinceLastSync > config.subscription.updateCheckInterval &&
+                           timeSinceLastLocalUpdate > config.subscription.localUpdateCooldown
           
           if (canUpdate) {
             console.log('[FIRESTORE-SUBSCRIPTION] Updating local data from Firestore')
