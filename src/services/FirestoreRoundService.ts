@@ -165,45 +165,53 @@ export class FirestoreRoundService {
     try {
       console.log('[FIRESTORE-ROUND-SYNC] Starting sync for project:', projectId, {
         localRoundsCount: localRounds.length,
-        modifiedRoundsCount: modifiedRoundIds?.length || 'all',
-        roundIds: localRounds.map(r => ({ id: r.id, roundNumber: r.roundNumber }))
+        modifiedRoundsCount: modifiedRoundIds?.length || 'all'
       })
 
-      // Get existing rounds from Firestore
+      // Optimized path: if only specific rounds are modified, skip collection scanning
+      if (modifiedRoundIds && modifiedRoundIds.length > 0) {
+        const roundsToProcess = localRounds.filter(round => modifiedRoundIds.includes(round.id))
+        console.log('[FIRESTORE-ROUND-SYNC] Optimized sync - only processing modified rounds:', modifiedRoundIds)
+        
+        // Direct update without collection scanning
+        for (const round of roundsToProcess) {
+          console.log('[FIRESTORE-ROUND-SYNC] Directly updating round:', round.id, {
+            roundNumber: round.roundNumber,
+            stitchCount: round.stitches?.length || 0,
+            groupCount: round.stitchGroups?.length || 0
+          })
+          await this.updateRound(userId, projectId, round)
+        }
+        
+        console.log('[FIRESTORE-ROUND-SYNC] Optimized sync completed')
+        return
+      }
+
+      // Full sync path: Get existing rounds from Firestore
       const roundsRef = collection(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, projectId, this.ROUNDS_COLLECTION)
       const existingRoundsSnap = await getDocs(roundsRef)
       const existingRoundIds = new Set(existingRoundsSnap.docs.map(doc => doc.id))
       const currentRoundIds = new Set(localRounds.map(round => round.id))
 
-      // If modifiedRoundIds is provided, only sync those rounds (optimization for progress updates)
-      let roundsToProcess = localRounds
-      if (modifiedRoundIds && modifiedRoundIds.length > 0) {
-        roundsToProcess = localRounds.filter(round => modifiedRoundIds.includes(round.id))
-        console.log('[FIRESTORE-ROUND-SYNC] Optimized sync - only processing modified rounds:', modifiedRoundIds)
-      }
-
-      console.log('[FIRESTORE-ROUND-SYNC] Round comparison:', {
+      console.log('[FIRESTORE-ROUND-SYNC] Full sync - Round comparison:', {
         existingCount: existingRoundIds.size,
         currentCount: currentRoundIds.size,
-        processingCount: roundsToProcess.length,
-        toDelete: modifiedRoundIds ? [] : Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id)),
-        toCreateOrUpdate: roundsToProcess.map(r => ({ 
+        toDelete: Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id)),
+        toCreateOrUpdate: localRounds.map(r => ({ 
           id: r.id, 
           action: existingRoundIds.has(r.id) ? 'update' : 'create' 
         }))
       })
 
-      // Only delete rounds if doing a full sync (not optimized)
-      if (!modifiedRoundIds) {
-        const roundsToDelete = Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id))
-        for (const roundId of roundsToDelete) {
-          console.log('[FIRESTORE-ROUND-SYNC] Deleting round:', roundId)
-          await this.deleteRound(userId, projectId, roundId)
-        }
+      // Delete rounds that no longer exist locally
+      const roundsToDelete = Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id))
+      for (const roundId of roundsToDelete) {
+        console.log('[FIRESTORE-ROUND-SYNC] Deleting round:', roundId)
+        await this.deleteRound(userId, projectId, roundId)
       }
 
-      // Create or update only the rounds that need processing
-      for (const round of roundsToProcess) {
+      // Create or update all local rounds
+      for (const round of localRounds) {
         if (existingRoundIds.has(round.id)) {
           console.log('[FIRESTORE-ROUND-SYNC] Updating round:', round.id, {
             roundNumber: round.roundNumber,
