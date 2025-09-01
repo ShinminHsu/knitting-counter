@@ -19,7 +19,7 @@ interface PendingSync {
 class DebouncedSyncManager {
   private pendingSyncs = new Map<string, PendingSync>()
   private batchTimer: NodeJS.Timeout | null = null
-  private batchedProjects = new Set<string>()
+  private batchedProjects = new Map<string, string>() // projectId -> context
   
   /**
    * 防抖同步項目
@@ -35,6 +35,14 @@ class DebouncedSyncManager {
     const projectId = project.id
     const priority = this.getPriority(context, isUrgent)
     
+    console.log(`[DEBOUNCED-SYNC] debouncedSync called:`, {
+      projectId,
+      context,
+      priority,
+      isUrgent,
+      shouldUseBatching: this.shouldUseBatching(context)
+    })
+    
     // 清除之前的防抖計時器
     const existingSync = this.pendingSyncs.get(projectId)
     if (existingSync) {
@@ -46,7 +54,7 @@ class DebouncedSyncManager {
     
     // 對於低優先級操作（如編織進度），考慮批次處理
     if (priority === 'low' && this.shouldUseBatching(context)) {
-      this.addToBatch(project, context, priority)
+      await this.addToBatch(project, context, priority)
       return
     }
     
@@ -118,13 +126,16 @@ class DebouncedSyncManager {
     
     // 檢查批次中是否有這個項目
     if (this.batchedProjects.has(projectId)) {
+      const originalContext = this.batchedProjects.get(projectId)
       this.batchedProjects.delete(projectId)
       
-      const { projects } = require('../stores/useProjectStore').useProjectStore.getState()
+      const { useProjectStore } = await import('../stores/useProjectStore')
+      const { projects } = useProjectStore.getState()
       const project = projects.find((p: Project) => p.id === projectId)
       if (project) {
-        await this.performSync(project, 'flushProject')
-        console.log(`[BATCH-SYNC] Flushed batched project ${projectId}`)
+        // 使用原始context進行同步
+        await this.performSync(project, originalContext || 'flushProject')
+        console.log(`[BATCH-SYNC] Flushed batched project ${projectId} with context ${originalContext}`)
       }
     }
   }
@@ -146,14 +157,15 @@ class DebouncedSyncManager {
   /**
    * 添加項目到批次處理
    */
-  private addToBatch(project: Project, context: string, _priority: 'high' | 'medium' | 'low'): void {
+  private async addToBatch(project: Project, context: string, _priority: 'high' | 'medium' | 'low'): Promise<void> {
     const projectId = project.id
     console.log(`[BATCH-SYNC] Adding project ${projectId} to batch (context: ${context})`)
     
-    this.batchedProjects.add(projectId)
+    this.batchedProjects.set(projectId, context)
     
     // 只更新本地狀態，不觸發Firebase同步
-    const { setProjects, setCurrentProject, projects, currentProject } = require('../stores/useProjectStore').useProjectStore.getState()
+    const { useProjectStore } = await import('../stores/useProjectStore')
+    const { setProjects, setCurrentProject, projects, currentProject } = useProjectStore.getState()
     setProjects(projects.map((p: Project) => p.id === projectId ? project : p))
     if (currentProject?.id === projectId) {
       setCurrentProject(project)
@@ -184,11 +196,11 @@ class DebouncedSyncManager {
       return
     }
     
-    const projectIds = Array.from(this.batchedProjects)
+    const projectEntries = Array.from(this.batchedProjects.entries())
     this.batchedProjects.clear()
     this.batchTimer = null
     
-    console.log(`[BATCH-SYNC] Processing batch with ${projectIds.length} projects:`, projectIds)
+    console.log(`[BATCH-SYNC] Processing batch with ${projectEntries.length} projects:`, projectEntries.map(([id, context]) => ({ id, context })))
     
     // 批次同步所有項目（可以考慮進一步優化，比如使用 Firestore batch writes）
     const { user } = useAuthStore.getState()
@@ -200,14 +212,16 @@ class DebouncedSyncManager {
     const config = getSyncConfig()
     const syncStore = useSyncStore.getState()
     
-    // 並行同步所有項目
-    const syncPromises = projectIds.map(async (projectId) => {
+    // 並行同步所有項目，保留原始context
+    const syncPromises = projectEntries.map(async ([projectId, originalContext]) => {
       try {
-        const { projects } = require('../stores/useProjectStore').useProjectStore.getState()
+        const { useProjectStore } = await import('../stores/useProjectStore')
+        const { projects } = useProjectStore.getState()
         const project = projects.find((p: Project) => p.id === projectId)
         if (project) {
-          await syncStore.syncProjectWithRetry(project, config.strategy.maxRetries, undefined, 'batch')
-          console.log(`[BATCH-SYNC] Successfully synced project ${projectId}`)
+          // 使用原始context以保持智能圈數同步
+          await syncStore.syncProjectWithRetry(project, config.strategy.maxRetries, undefined, originalContext)
+          console.log(`[BATCH-SYNC] Successfully synced project ${projectId} with context ${originalContext}`)
         }
       } catch (error) {
         console.error(`[BATCH-SYNC] Error syncing project ${projectId}:`, error)
@@ -226,7 +240,8 @@ class DebouncedSyncManager {
       'nextStitch',
       'previousStitch',
       'setCurrentStitch',
-      'setCurrentRound'
+      'setCurrentRound',
+      'updateChartProgress' // 新增：圖表進度更新也使用批次處理
     ]
     
     return progressContexts.includes(context)
@@ -254,7 +269,8 @@ class DebouncedSyncManager {
       'nextStitch',
       'previousStitch',
       'setCurrentStitch',
-      'setCurrentRound'
+      'setCurrentRound',
+      'updateChartProgress' // 新增：圖表進度更新
     ]
     
     if (highPriorityContexts.includes(context)) return 'high'

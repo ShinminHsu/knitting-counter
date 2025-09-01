@@ -120,6 +120,12 @@ const createDebouncedUpdateProjectLocally = () => {
   }
 
   return async (project: Project, context: string = 'unknown', isUrgent: boolean = false) => {
+    console.log(`[DEBOUNCED-UPDATE] debouncedUpdateProjectLocally called:`, {
+      projectId: project.id,
+      context,
+      isUrgent
+    })
+    
     const { setCurrentProject, setProjects, projects } = useProjectStore.getState()
     
     const cleanedProject = {
@@ -178,6 +184,7 @@ interface ChartStoreActions {
   createChart: (chartData: CreateChartRequest) => Promise<Chart | null>
   duplicateChart: (chartId: string) => Promise<Chart | null>
   updateChart: (chartId: string, updates: Partial<Chart>) => Promise<void>
+  updateChartProgress: (chartId: string, updates: Partial<Chart>) => Promise<void> // 新增：專門用於進度更新
   deleteChart: (chartId: string) => Promise<void>
   setCurrentChart: (chartId: string) => Promise<void>
   
@@ -349,12 +356,60 @@ export const useChartStore = create<ChartStore>(() => ({
         return
       }
 
-      await safeUpdateProjectLocally(updatedProject, 'updateChart')
+      await debouncedUpdateProjectLocally(updatedProject, 'updateChart')
 
       console.log('[CHART] Updated chart:', chartId)
     } catch (error) {
       console.error('[CHART] Error in updateChart:', error)
       handleAsyncError(error, 'Failed to update chart')
+    }
+  },
+
+  // 專門用於進度更新的函數，使用批次處理
+  updateChartProgress: async (chartId: string, updates: Partial<Chart>) => {
+    const { currentProject } = useProjectStore.getState()
+    if (!currentProject) {
+      console.error('[CHART] updateChartProgress: No current project')
+      return
+    }
+
+    try {
+      // Ensure project is migrated to multi-chart format
+      migrateProjectToMultiChart(currentProject)
+      
+      if (!currentProject.charts) {
+        console.error('[CHART] updateChartProgress: No charts found after migration')
+        return
+      }
+
+      const existingChart = currentProject.charts.find(c => c.id === chartId)
+      if (!existingChart) {
+        console.error('[CHART] updateChartProgress: Chart not found:', chartId)
+        return
+      }
+
+      // Create updated chart with proper Date handling
+      const updatedChart = {
+        ...existingChart,
+        ...updates,
+        lastModified: new Date()
+      }
+
+      // Optimized: Only create shallow copy and update the specific chart
+      const updatedProject = {
+        ...currentProject,
+        charts: currentProject.charts.map(chart =>
+          chart.id === chartId ? updatedChart : chart
+        ),
+        lastModified: new Date()
+      }
+
+      await debouncedUpdateProjectLocally(updatedProject, 'updateChartProgress')
+
+      console.log('[CHART] Updated chart progress:', chartId)
+    } catch (error) {
+      console.error('[CHART] Error in updateChartProgress:', error)
+      handleAsyncError(error, 'Failed to update chart progress')
     }
   },
 
@@ -520,7 +575,7 @@ export const useChartStore = create<ChartStore>(() => ({
         )
       })
 
-      await safeUpdateProjectLocally(updatedProject, 'setCurrentChart')
+      await debouncedUpdateProjectLocally(updatedProject, 'setCurrentChart')
 
       console.log('[CHART] Set current chart to:', chartId)
     } catch (error) {

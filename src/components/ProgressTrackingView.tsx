@@ -25,7 +25,7 @@ export default function ProgressTrackingView() {
     getChartSummaries,
     setCurrentChart,
     getCurrentChart,
-    updateChart
+    updateChartProgress
   } = useChartStore()
   
   // Get current chart
@@ -131,12 +131,12 @@ export default function ProgressTrackingView() {
       }
     }
 
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: newRound,
       currentStitch: newStitch,
       isCompleted
     })
-  }, [currentProject, currentChart, updateChart])
+  }, [currentProject, currentChart, updateChartProgress])
 
   // Handle previous stitch using direct store operations
   const handlePreviousStitch = useCallback(async () => {
@@ -170,12 +170,12 @@ export default function ProgressTrackingView() {
       newStitch = 0
     }
 
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: newRound,
       currentStitch: newStitch,
       isCompleted: false
     })
-  }, [currentProject, currentChart, updateChart])
+  }, [currentProject, currentChart, updateChartProgress])
 
   // Handle complete round using direct store operations
   const handleCompleteRound = useCallback(async () => {
@@ -196,13 +196,13 @@ export default function ProgressTrackingView() {
           return sum + (groupStitches * group.repeatCount)
         }, 0) : 0
       
-      await updateChart(currentChart.id, {
+      await updateChartProgress(currentChart.id, {
         currentStitch: totalStitches,
         isCompleted: true
       })
     } else {
       // Move to next round
-      await updateChart(currentChart.id, {
+      await updateChartProgress(currentChart.id, {
         currentRound: currentChart.currentRound + 1,
         currentStitch: 0,
         isCompleted: false
@@ -210,7 +210,7 @@ export default function ProgressTrackingView() {
     }
     
     setViewingRound(null) // Exit view mode
-  }, [currentProject, currentChart, updateChart])
+  }, [currentProject, currentChart, updateChartProgress])
 
   // Handle exit view mode
   const handleExitViewMode = useCallback(() => {
@@ -224,12 +224,12 @@ export default function ProgressTrackingView() {
     }
     
     // Reset chart progress to beginning
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: 1,
       currentStitch: 0,
       isCompleted: false
     })
-  }, [currentProject, currentChart, updateChart])
+  }, [currentProject, currentChart, updateChartProgress])
 
   // Handle share success
   const handleShareSuccess = useCallback(() => {

@@ -162,21 +162,51 @@ export class FirestoreProjectService {
       assertIsProject(project, 'updateProject')
 
       // Determine if this is a progress-only update to optimize round sync
-      const isProgressUpdate = context && ['nextStitch', 'previousStitch', 'setCurrentStitch', 'setCurrentRound'].includes(context)
+      const isProgressUpdate = context && ['nextStitch', 'previousStitch', 'setCurrentStitch', 'setCurrentRound', 'updateChartProgress'].includes(context)
+      
+      console.log('[FIRESTORE-PROJECT] Update context analysis:', {
+        context,
+        isProgressUpdate,
+        hasCharts: !!(project.charts && project.charts.length > 0),
+        currentChartId: project.currentChartId,
+        hasPattern: !!(project.pattern && project.pattern.length > 0)
+      })
       
       if (isProgressUpdate) {
-        // For progress updates, only sync the current round if pattern exists
-        if (project.pattern && project.pattern.length > 0) {
-          const currentRound = project.pattern.find(r => r.roundNumber === project.currentRound)
-          if (currentRound) {
-            console.log('[FIRESTORE-PROJECT] Optimized sync - only syncing current round:', currentRound.roundNumber)
-            await firestoreRoundService.syncRounds(userId, project.id, project.pattern, [currentRound.id])
+        // For progress updates, only sync the current round
+        if (context === 'updateChartProgress') {
+          // For chart progress updates, find the current chart and its current round
+          if (project.charts && project.charts.length > 0) {
+            const currentChart = project.charts.find(c => c.id === project.currentChartId)
+            if (currentChart && currentChart.rounds && currentChart.rounds.length > 0) {
+              const currentRound = currentChart.rounds.find(r => r.roundNumber === currentChart.currentRound)
+              if (currentRound) {
+                console.log('[FIRESTORE-PROJECT] Optimized sync - only syncing current chart round:', currentChart.currentRound)
+                await firestoreRoundService.syncRounds(userId, project.id, currentChart.rounds, [currentRound.id])
+              }
+            }
+          }
+        } else {
+          // For legacy pattern progress updates
+          if (project.pattern && project.pattern.length > 0) {
+            const currentRound = project.pattern.find(r => r.roundNumber === project.currentRound)
+            if (currentRound) {
+              console.log('[FIRESTORE-PROJECT] Optimized sync - only syncing current pattern round:', currentRound.roundNumber)
+              await firestoreRoundService.syncRounds(userId, project.id, project.pattern, [currentRound.id])
+            }
           }
         }
       } else {
         // For other updates, sync all rounds
         console.log('[FIRESTORE-PROJECT] Full round sync...')
-        await firestoreRoundService.syncRounds(userId, project.id, project.pattern || [])
+        if (project.charts && project.charts.length > 0) {
+          // For multi-chart projects, sync all rounds from all charts
+          const allRounds = project.charts.flatMap(chart => chart.rounds || [])
+          await firestoreRoundService.syncRounds(userId, project.id, allRounds)
+        } else {
+          // For legacy pattern projects
+          await firestoreRoundService.syncRounds(userId, project.id, project.pattern || [])
+        }
       }
       console.log('[FIRESTORE-PROJECT] Rounds synced successfully')
       
