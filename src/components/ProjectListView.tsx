@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useProjectStore } from '../stores/useProjectStore'
 import UserProfile from './UserProfile'
 import SyncStatusIndicator from './SyncStatusIndicator'
-import { formatDate, getProjectProgressPercentage, getProjectTotalRounds, getProjectTotalStitches, getProjectCompletedStitches } from '../utils'
+import { formatDate, getProjectProgressPercentage, getProjectTotalStitchesAllCharts } from '../utils'
+import { useChartStore } from '../stores/useChartStore'
 
 export default function ProjectListView() {
   const { projects, createProject, deleteProject } = useProjectStore()
@@ -12,6 +13,8 @@ export default function ProjectListView() {
   const [newProjectSource, setNewProjectSource] = useState('')
   
   console.log('ProjectListView 渲染，專案數量:', projects.length)
+
+  const { getChartSummaries } = useChartStore()
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,7 +93,7 @@ export default function ProjectListView() {
                 
                 <div className="space-y-2 mb-4">
                   <div className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-text-secondary">進度</span>
+                    <span className="text-text-secondary">當前織圖進度</span>
                     <span className="text-text-primary">
                       {project.isCompleted ? '100' : Math.round(getProjectProgressPercentage(project) * 100)}%
                     </span>
@@ -104,9 +107,9 @@ export default function ProjectListView() {
                 </div>
 
                 <div className="space-y-1 mb-4 text-xs sm:text-sm text-text-secondary">
-                  <div>圈數: {project.currentRound}/{getProjectTotalRounds(project)}</div>
-                  <div>針數: {getProjectCompletedStitches(project)}/{getProjectTotalStitches(project)}</div>
-                  <div>更新: {formatDate(project.lastModified)}</div>
+                  <div>織圖數量：{getChartSummaries().length}</div>
+                  <div>總針數：{getProjectTotalStitchesAllCharts(project)}</div>
+                  <div>更新時間：{formatDate(project.lastModified)}</div>
                 </div>
 
                 <div className="flex gap-2">
