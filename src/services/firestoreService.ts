@@ -78,6 +78,15 @@ class FirestoreService {
   }
 
   /**
+   * Create or update a project (upsert operation)
+   * @param userId - The user's UID
+   * @param project - Project data
+   */
+  async upsertProject(userId: string, project: Project): Promise<void> {
+    return this.projectService.upsertProject(userId, project)
+  }
+
+  /**
    * Delete a project and all its rounds
    * @param userId - User ID
    * @param projectId - Project ID to delete

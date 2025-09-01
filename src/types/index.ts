@@ -205,14 +205,21 @@ export interface ProjectExportData {
     id: string
     name: string
     source?: string
+    notes?: string
     createdDate: Date
     lastModified: Date
+    isCompleted?: boolean
   }
   yarns: Yarn[]
-  pattern: Round[]
+  // 新的多織圖格式
+  charts?: Chart[]
+  currentChartId?: string
+  // 向後兼容的舊格式
+  pattern?: Round[]
   progress?: {
     currentRound: number
     currentStitch: number
+    currentChartId?: string
   }
   sessions?: WorkSession[]
 }

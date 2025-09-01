@@ -1,20 +1,120 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useProjectStore } from '../stores/useProjectStore'
 import UserProfile from './UserProfile'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { formatDate, getProjectProgressPercentage, getProjectTotalStitchesAllCharts } from '../utils'
 import { useChartStore } from '../stores/useChartStore'
+import { ImportExportService } from '../services/importExportService'
+import { ImportMode } from '../types'
 
 export default function ProjectListView() {
-  const { projects, createProject, deleteProject } = useProjectStore()
+  const { projects, createProject, deleteProject, setProjects, setCurrentProject, updateProjectLocally } = useProjectStore()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectSource, setNewProjectSource] = useState('')
   
+  // 匯入相關狀態
+  const [isImporting, setIsImporting] = useState(false)
+  const [showNameInput, setShowNameInput] = useState(false)
+  const [importProjectName, setImportProjectName] = useState('')
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning', text: string } | null>(null)
+  
   console.log('ProjectListView 渲染，專案數量:', projects.length)
 
   const { getChartSummaries } = useChartStore()
+
+  const showMessage = (type: 'success' | 'error' | 'warning', text: string) => {
+    setMessage({ type, text })
+    setTimeout(() => setMessage(null), 5000)
+  }
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!ImportExportService.isValidExportFile(file)) {
+      showMessage('error', '請選擇有效的JSON檔案')
+      return
+    }
+
+    // 彈出名稱輸入對話框
+    setPendingImportFile(file)
+    setShowNameInput(true)
+    
+    // 清除檔案選擇
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const executeImport = async (file: File, customName: string) => {
+    try {
+      setIsImporting(true)
+      const result = await ImportExportService.importProjectFromFile(file, ImportMode.CREATE_NEW)
+      
+      if (result.success && result.project) {
+        // 使用自定義名稱
+        const projectToCreate = {
+          ...result.project,
+          name: customName.trim()
+        }
+        
+        // 直接添加到本地專案列表
+        const updatedProjects = [...projects, projectToCreate]
+        setProjects(updatedProjects)
+        setCurrentProject(projectToCreate)
+        
+        // 使用本地更新方法來處理同步
+        await updateProjectLocally(projectToCreate)
+        
+        let successMessage = '專案匯入成功'
+        if (result.warnings.length > 0) {
+          successMessage += `，${result.warnings.join('，')}`
+        }
+        showMessage('success', successMessage)
+      } else {
+        showMessage('error', `匯入失敗：${result.errors.join('，')}`)
+      }
+    } catch (error) {
+      console.error('Import error:', error)
+      showMessage('error', '匯入失敗，請檢查檔案格式')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const handleNameInputConfirm = async () => {
+    if (!importProjectName.trim()) {
+      showMessage('error', '請輸入專案名稱')
+      return
+    }
+
+    if (!pendingImportFile) {
+      showMessage('error', '找不到要匯入的檔案')
+      return
+    }
+
+    setShowNameInput(false)
+    await executeImport(pendingImportFile, importProjectName.trim())
+    
+    // 清除狀態
+    setPendingImportFile(null)
+    setImportProjectName('')
+  }
+
+  const handleNameInputCancel = () => {
+    setShowNameInput(false)
+    setPendingImportFile(null)
+    setImportProjectName('')
+  }
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click()
+  }
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,17 +141,46 @@ export default function ProjectListView() {
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">編織專案</h1>
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
               <UserProfile />
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="btn btn-primary text-xs sm:text-sm"
-              >
-                新增專案
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="btn btn-primary text-xs sm:text-sm"
+                >
+                  新增專案
+                </button>
+                <button
+                  onClick={triggerFileSelect}
+                  disabled={isImporting}
+                  className="btn btn-secondary text-xs sm:text-sm"
+                >
+                  {isImporting ? '匯入中...' : '匯入專案'}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleImport}
+                  className="hidden"
+                />
+              </div>
               <SyncStatusIndicator />
             </div>
           </div>
         </div>
       </div>
+
+      {/* 訊息顯示 */}
+      {message && (
+        <div className="w-full px-4 sm:px-6 lg:px-8 pt-4">
+          <div className={`p-4 rounded-lg ${
+            message.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+            message.type === 'warning' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+            'bg-red-100 text-red-800 border border-red-200'
+          }`}>
+            {message.text}
+          </div>
+        </div>
+      )}
 
       {/* 專案列表 */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -185,6 +314,50 @@ export default function ProjectListView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 專案名稱輸入對話框 */}
+      {showNameInput && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background-secondary rounded-lg p-6 max-w-md w-full border border-border">
+            <h3 className="text-lg font-semibold text-text-primary mb-4">設定專案名稱</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                新專案名稱
+              </label>
+              <input
+                type="text"
+                value={importProjectName}
+                onChange={(e) => setImportProjectName(e.target.value)}
+                placeholder="請輸入專案名稱"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background-primary text-text-primary focus:outline-none focus:border-accent"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleNameInputConfirm()
+                  } else if (e.key === 'Escape') {
+                    handleNameInputCancel()
+                  }
+                }}
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleNameInputCancel}
+                className="px-4 py-2 text-text-secondary hover:text-text-primary transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleNameInputConfirm}
+                disabled={!importProjectName.trim() || isImporting}
+                className="px-4 py-2 bg-accent text-background rounded-lg hover:bg-accent-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                {isImporting ? '匯入中...' : '確認'}
+              </button>
+            </div>
           </div>
         </div>
       )}

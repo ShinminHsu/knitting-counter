@@ -124,6 +124,23 @@ export class FirestoreProjectService {
   }
 
   /**
+   * Create or update a project (upsert operation)
+   * @param userId - User ID
+   * @param project - Project data
+   */
+  async upsertProject(userId: string, project: Project): Promise<void> {
+    const exists = await this.projectExists(userId, project.id)
+    
+    if (exists) {
+      console.log('[FIRESTORE-PROJECT] Project exists, updating...')
+      await this.updateProject(userId, project)
+    } else {
+      console.log('[FIRESTORE-PROJECT] Project does not exist, creating...')
+      await this.createProject(userId, project)
+    }
+  }
+
+  /**
    * Update an existing project
    * @param userId - User ID
    * @param project - Project data to update

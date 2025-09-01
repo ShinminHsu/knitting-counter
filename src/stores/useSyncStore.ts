@@ -185,7 +185,7 @@ export const useSyncStore = create<SyncStore>()(
         }
 
         try {
-          await firestoreService.updateProject(user.uid, project)
+          await firestoreService.upsertProject(user.uid, project)
           set({ lastSyncTime: new Date() })
           console.log('[SYNC] Project synced successfully to Firestore:', project.id)
           return true
@@ -248,7 +248,7 @@ export const useSyncStore = create<SyncStore>()(
               console.log('[SYNC] Mobile device detected, skipping connection test')
             }
             
-            await firestoreService.updateProject(user.uid, project)
+            await firestoreService.upsertProject(user.uid, project)
             set({ lastSyncTime: new Date() })
             console.log('[SYNC] Project synced successfully with retry mechanism:', project.id)
             return true
