@@ -6,6 +6,7 @@ import { useYarnStore } from '../stores/useYarnStore'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { Yarn, YarnColor } from '../types'
 import { generateId } from '../utils'
+import { LiaVolleyballBallSolid } from 'react-icons/lia'
 
 const presetColors: YarnColor[] = [
   { name: '白色', hex: '#FFFFFF' },
@@ -157,7 +158,9 @@ export default function YarnManagerView() {
         {/* 毛線列表 */}
         {currentProject.yarns.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">🧶</div>
+            <div className="w-30 h-30 mx-auto mb-4 flex items-center justify-center">
+              <LiaVolleyballBallSolid className="w-20 h-20 text-text-secondary" />
+            </div>
             <h2 className="text-xl font-semibold text-text-primary mb-2">
               還沒有毛線
             </h2>
