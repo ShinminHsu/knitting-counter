@@ -22,6 +22,8 @@ declare global {
       flushProject: (projectId: string) => Promise<void>
       // 檢查項目是否有待處理同步
       hasPendingSync: (projectId: string) => boolean
+      // 檢查同步狀態
+      checkSyncStatus: () => any
       // 自定義防抖時間（臨時調整）
       setDebounceTime: (context: string, time: number) => void
       // 啟用/禁用防抖
@@ -37,10 +39,12 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
       const config = getSyncConfig()
       console.group('🔧 Firebase Sync Configuration')
       console.log('Current Mode:', 
-        config.debounceTime.progress === 5000 ? 'economy' :
-        config.debounceTime.progress === 1500 ? 'rapid' : 'default'
+        config.debounceTime.progress === 15000 ? 'economy' :
+        config.debounceTime.progress === 8000 ? 'default' :
+        config.debounceTime.progress === 5000 ? 'rapid' : 'custom'
       )
       console.log('Debounce Times:', config.debounceTime)
+      console.log('Batch Delay (progress):', Math.max(config.debounceTime.progress * 1.5, 10000) + 'ms')
       console.log('Subscription Settings:', config.subscription)
       console.log('Strategy Settings:', config.strategy)
       console.groupEnd()
@@ -75,6 +79,43 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
       const hasPending = debouncedSyncManager.hasPendingSync(projectId)
       console.log(`🔍 Project ${projectId} has pending sync: ${hasPending}`)
       return hasPending
+    },
+
+    // 檢查同步狀態
+    checkSyncStatus: () => {
+      console.group('📊 Firebase Sync Status')
+      
+      // 獲取同步 store 狀態
+      const { useSyncStore } = require('../stores/useSyncStore')
+      const syncStore = useSyncStore.getState()
+      console.log('Last Sync Time:', syncStore.lastSyncTime)
+      console.log('Is Currently Syncing:', syncStore.isSyncing)
+      
+      // 獲取網路狀態
+      const { networkStatus } = require('../utils/networkStatus')
+      console.log('Network Status:', networkStatus.getIsOnline() ? 'Online' : 'Offline')
+      
+      // 獲取認證狀態
+      const { useAuthStore } = require('../stores/useAuthStore')
+      const authStore = useAuthStore.getState()
+      console.log('User Authenticated:', !!authStore.user)
+      if (authStore.user) {
+        console.log('User ID:', authStore.user.uid)
+      }
+      
+      // 待處理同步
+      const pendingCount = debouncedSyncManager.getPendingCount()
+      console.log('Pending Syncs:', pendingCount)
+      
+      console.groupEnd()
+      
+      return {
+        lastSync: syncStore.lastSyncTime,
+        isSyncing: syncStore.isSyncing,
+        isOnline: networkStatus.getIsOnline(),
+        isAuthenticated: !!authStore.user,
+        pendingCount
+      }
     },
 
     setDebounceTime: (context: string, time: number) => {
