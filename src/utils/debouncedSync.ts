@@ -73,8 +73,15 @@ class DebouncedSyncManager {
   async flushAll(): Promise<void> {
     const promises: Promise<void>[] = []
     
+    console.log('[DEBOUNCED-SYNC] Starting flushAll...', {
+      pendingSyncsCount: this.pendingSyncs.size,
+      batchedProjectsCount: this.batchedProjects.size,
+      hasBatchTimer: !!this.batchTimer
+    })
+    
     // 處理防抖同步
-    for (const [, pendingSync] of this.pendingSyncs.entries()) {
+    for (const [projectId, pendingSync] of this.pendingSyncs.entries()) {
+      console.log(`[DEBOUNCED-SYNC] Flushing pending sync for project: ${projectId} (context: ${pendingSync.context})`)
       clearTimeout(pendingSync.timeout)
       promises.push(this.performSync(pendingSync.project, pendingSync.context))
     }
@@ -83,9 +90,14 @@ class DebouncedSyncManager {
     
     // 處理批次同步
     if (this.batchTimer) {
+      console.log('[DEBOUNCED-SYNC] Flushing batch timer with projects:', Array.from(this.batchedProjects))
       clearTimeout(this.batchTimer)
       this.batchTimer = null
       promises.push(this.processBatch())
+    }
+    
+    if (promises.length === 0) {
+      console.log('[DEBOUNCED-SYNC] No pending syncs or batches to flush')
     }
     
     await Promise.all(promises)
@@ -136,11 +148,16 @@ class DebouncedSyncManager {
    */
   private addToBatch(project: Project, context: string, _priority: 'high' | 'medium' | 'low'): void {
     const projectId = project.id
+    console.log(`[BATCH-SYNC] Adding project ${projectId} to batch (context: ${context})`)
+    
     this.batchedProjects.add(projectId)
     
-    // 更新項目在記憶體中（因為是批次處理，我們仍需要立即更新本地狀態）
-    const { updateProjectLocally } = require('../stores/useProjectStore').useProjectStore.getState()
-    updateProjectLocally(project)
+    // 只更新本地狀態，不觸發Firebase同步
+    const { setProjects, setCurrentProject, projects, currentProject } = require('../stores/useProjectStore').useProjectStore.getState()
+    setProjects(projects.map((p: Project) => p.id === projectId ? project : p))
+    if (currentProject?.id === projectId) {
+      setCurrentProject(project)
+    }
     
     // 如果還沒有批次計時器，設置一個
     if (!this.batchTimer) {
@@ -149,9 +166,9 @@ class DebouncedSyncManager {
         this.processBatch()
       }, batchDelay)
       
-      console.log(`[BATCH-SYNC] Added project ${projectId} to batch, will process in ${batchDelay}ms`)
+      console.log(`[BATCH-SYNC] Added project ${projectId} to batch, will process in ${batchDelay}ms (batchedProjects.size: ${this.batchedProjects.size})`)
     } else {
-      console.log(`[BATCH-SYNC] Added project ${projectId} to existing batch`)
+      console.log(`[BATCH-SYNC] Added project ${projectId} to existing batch (batchedProjects.size: ${this.batchedProjects.size})`)
     }
   }
   
@@ -159,7 +176,10 @@ class DebouncedSyncManager {
    * 處理批次同步
    */
   private async processBatch(): Promise<void> {
+    console.log(`[BATCH-SYNC] processBatch called, batchedProjects.size: ${this.batchedProjects.size}`)
+    
     if (this.batchedProjects.size === 0) {
+      console.log('[BATCH-SYNC] No projects in batch, exiting')
       this.batchTimer = null
       return
     }
