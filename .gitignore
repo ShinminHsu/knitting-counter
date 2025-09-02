@@ -8,7 +8,8 @@ firebase-debug.log*
 firebase-debug.*.log*
 
 .DS_Store
-local_files/*
+local_files/
+admin/node_modules/
 
 # Firebase cache
 .firebase/
@@ -73,3 +74,5 @@ dist/
 
 # dataconnect generated files
 .dataconnect
+
+admin/service-account-key.json
