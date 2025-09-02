@@ -13,7 +13,7 @@ import ProgressTrackingView from './components/ProgressTrackingView'
 import YarnManagerView from './components/YarnManagerView'
 import ImportExportView from './components/ImportExportView'
 import NotFoundView from './components/NotFoundView'
-import GoogleSignIn from './components/GoogleSignIn'
+import { GuestModeLogin } from './components/GuestModeLogin'
 import LoadingPage from './components/LoadingPage'
 
 function AppWithSync() {
@@ -25,7 +25,7 @@ function AppWithSync() {
   
   const { isSyncing } = useSyncStore()
   
-  const { user, isLoading: authLoading, initialize } = useAuthStore()
+  const { user, userType, isLoading: authLoading, isInitialized, initialize } = useAuthStore()
 
   useEffect(() => {
     const unsubscribe = initialize()
@@ -57,23 +57,27 @@ function AppWithSync() {
         console.error('處理用戶登入錯誤:', err)
         setError('登入處理失敗')
       })
+    } else if (userType === 'guest') {
+      console.log('訪客模式，使用本地數據...')
+      // 訪客模式需要載入本地項目
+      authListener.handleUserLogout()
     } else {
       console.log('使用者已登出，清空數據...')
       authListener.handleUserLogout()
     }
-  }, [user, setError])
+  }, [user, userType, setError])
 
   // 載入中狀態
-  if (authLoading || appLoading) {
+  if (authLoading || appLoading || !isInitialized) {
     const message = authLoading ? '驗證中...' : '載入數據中...';
     const submessage = isSyncing ? '正在同步跨裝置數據...' : undefined;
     
     return <LoadingPage message={message} submessage={submessage} />
   }
 
-  // 未登入狀態
-  if (!user) {
-    return <GoogleSignIn />
+  // 未初始化狀態 - 顯示選擇登入方式
+  if (!user && userType === 'uninitialized') {
+    return <GuestModeLogin />
   }
 
   return (

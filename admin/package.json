@@ -1,0 +1,13 @@
+{
+  "name": "knittingcounter-admin",
+  "version": "1.0.0",
+  "description": "Admin tools for KnittingCounter whitelist management",
+  "main": "whitelist-manager.js",
+  "scripts": {
+    "whitelist": "node whitelist-manager.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  },
+  "private": true
+}

@@ -48,6 +48,28 @@ class AuthListener {
     }
   }
   
+  async handleGuestMode() {
+    console.log('Entering guest mode')
+    
+    try {
+      // 停止任何Firebase監聽
+      if (this.unsubscribeFirestore) {
+        this.unsubscribeFirestore()
+        this.unsubscribeFirestore = null
+      }
+      
+      // 載入本地項目數據（訊客模式）
+      const projectStore = useProjectStore.getState()
+      await projectStore.loadUserProjects()
+      
+      console.log('Guest mode handling completed')
+    } catch (error) {
+      console.error('Error handling guest mode:', error)
+      const baseStore = useBaseStore.getState()
+      baseStore.setError('載入本地數據失敗')
+    }
+  }
+  
   async handleUserSwitch(newUser: User, oldUser: User | null) {
     console.log('User switched:', { 
       from: oldUser?.uid || 'none', 

@@ -70,8 +70,9 @@ export const useProjectStore = create<ProjectStore>()(
           currentProject: newProject
         }))
         
-        // Sync to Firestore
-        if (user) {
+        // Sync to Firestore (only if user can use Firebase)
+        const { canUseFirebase } = useAuthStore.getState()
+        if (user && canUseFirebase()) {
           try {
             await firestoreService.createProject(user.uid, newProject)
             useSyncStore.getState().setLastSyncTime(new Date())
@@ -79,6 +80,8 @@ export const useProjectStore = create<ProjectStore>()(
           } catch (error) {
             handleAsyncError(error, 'Create Project')
           }
+        } else if (user) {
+          console.log('[PROJECT] Project created locally (user not in whitelist):', newProject.name)
         }
       },
 
@@ -100,8 +103,9 @@ export const useProjectStore = create<ProjectStore>()(
             : state.currentProject
         }))
         
-        // Sync to Firestore
-        if (user) {
+        // Sync to Firestore (only if user can use Firebase)
+        const { canUseFirebase } = useAuthStore.getState()
+        if (user && canUseFirebase()) {
           try {
             await firestoreService.updateProject(user.uid, updatedProjectWithTimestamp)
             useSyncStore.getState().setLastSyncTime(new Date())
@@ -109,6 +113,8 @@ export const useProjectStore = create<ProjectStore>()(
           } catch (error) {
             handleAsyncError(error, 'Update Project')
           }
+        } else if (user) {
+          console.log('[PROJECT] Project updated locally (user not in whitelist):', updatedProjectWithTimestamp.name)
         }
       },
 
@@ -175,8 +181,9 @@ export const useProjectStore = create<ProjectStore>()(
           currentProject: state.currentProject?.id === id ? null : state.currentProject
         }))
         
-        // Sync to Firestore
-        if (user) {
+        // Sync to Firestore (only if user can use Firebase)
+        const { canUseFirebase } = useAuthStore.getState()
+        if (user && canUseFirebase()) {
           try {
             await firestoreService.deleteProject(user.uid, id)
             useSyncStore.getState().setLastSyncTime(new Date())
@@ -184,6 +191,8 @@ export const useProjectStore = create<ProjectStore>()(
           } catch (error) {
             handleAsyncError(error, 'Delete Project')
           }
+        } else if (user) {
+          console.log('[PROJECT] Project deleted locally (user not in whitelist):', id)
         }
       },
 
@@ -201,8 +210,9 @@ export const useProjectStore = create<ProjectStore>()(
         const user = useAuthStore.getState().user
         
         if (projects.length === 0) {
-          // If user is logged in, try to load from Firestore first
-          if (user) {
+          // If user is logged in and can use Firebase, try to load from Firestore first
+          const { canUseFirebase } = useAuthStore.getState()
+          if (user && canUseFirebase()) {
             try {
               const firestoreProjects = await firestoreService.getUserProjects(user.uid)
               if (firestoreProjects.length > 0) {
@@ -228,7 +238,7 @@ export const useProjectStore = create<ProjectStore>()(
 
       // Load user projects from Firestore
       loadUserProjects: async () => {
-        const { user } = useAuthStore.getState()
+        const { user, canUseFirebase } = useAuthStore.getState()
         if (!user) {
           get().clearUserDataSilently()
           return
@@ -238,10 +248,11 @@ export const useProjectStore = create<ProjectStore>()(
           useBaseStore.getState().setLoading(true)
           useBaseStore.getState().setError(null)
           
-          // Try to load from Firestore first
-          const firestoreProjects = await firestoreService.getUserProjects(user.uid)
+          // Try to load from Firestore first (only if user can use Firebase)
+          if (canUseFirebase()) {
+            const firestoreProjects = await firestoreService.getUserProjects(user.uid)
           
-          if (firestoreProjects.length > 0) {
+            if (firestoreProjects.length > 0) {
             console.log('Loaded projects from Firestore:', firestoreProjects.length)
             
             // Ensure backward compatibility with migrated data
@@ -271,6 +282,7 @@ export const useProjectStore = create<ProjectStore>()(
             })
             useSyncStore.getState().setLastSyncTime(new Date())
             return
+            }
           }
           
           // If Firestore has no data, try to migrate from localStorage
@@ -363,9 +375,13 @@ export const useProjectStore = create<ProjectStore>()(
                 
                 console.log('Migrating local projects to Firestore:', localProjects.length)
                 
-                // Upload to Firestore
-                for (const project of localProjects) {
-                  await firestoreService.createProject(user.uid, project)
+                // Upload to Firestore (only if user can use Firebase)
+                if (canUseFirebase()) {
+                  for (const project of localProjects) {
+                    await firestoreService.createProject(user.uid, project)
+                  }
+                } else {
+                  console.log('User not in whitelist, keeping projects local only')
                 }
                 
                 set({
@@ -381,26 +397,36 @@ export const useProjectStore = create<ProjectStore>()(
           }
           
           // If no data exists, check if sample project already exists to avoid duplicates
-          const existingProjects = await firestoreService.getUserProjects(user.uid)
-          const hasSampleProject = existingProjects.some(p => p.name === '範例杯墊')
-          
-          if (!hasSampleProject) {
-            console.log('No data found, creating sample project')
-            const sampleProject = createSampleProject()
-            await firestoreService.createProject(user.uid, sampleProject)
+          if (canUseFirebase()) {
+            const existingProjects = await firestoreService.getUserProjects(user.uid)
+            const hasSampleProject = existingProjects.some(p => p.name === '範例杯墊')
             
+            if (!hasSampleProject) {
+              console.log('No data found, creating sample project')
+              const sampleProject = createSampleProject()
+              await firestoreService.createProject(user.uid, sampleProject)
+              
+              set({
+                projects: [sampleProject],
+                currentProject: sampleProject
+              })
+              useSyncStore.getState().setLastSyncTime(new Date())
+            } else {
+              console.log('Sample project already exists, loading existing projects')
+              set({
+                projects: existingProjects,
+                currentProject: existingProjects[0] || null
+              })
+              useSyncStore.getState().setLastSyncTime(new Date())
+            }
+          } else {
+            // 本地模式，創建範例專案但不同步到 Firebase
+            console.log('Local mode: creating sample project locally')
+            const sampleProject = createSampleProject()
             set({
               projects: [sampleProject],
               currentProject: sampleProject
             })
-            useSyncStore.getState().setLastSyncTime(new Date())
-          } else {
-            console.log('Sample project already exists, loading existing projects')
-            set({
-              projects: existingProjects,
-              currentProject: existingProjects[0] || null
-            })
-            useSyncStore.getState().setLastSyncTime(new Date())
           }
           
         } catch (error) {

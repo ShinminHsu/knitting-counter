@@ -2,28 +2,54 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 用戶專案數據 - 只有認證用戶可以存取自己的數據
+    // 白名單集合 - 只有管理員可以修改
+    match /whitelists/{email} {
+      allow read: if request.auth != null && request.auth.token.email == email;
+      allow write: if false; // 只能通過 Admin SDK 修改
+    }
+    
+    // 檢查用戶是否在白名單中的函數
+    function isWhitelisted(email) {
+      return exists(/databases/$(database)/documents/whitelists/$(email));
+    }
+    
+    // 用戶專案數據 - 只有認證且在白名單中的用戶可以寫入
     match /users/{userId}/projects/{projectId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && 
+                      request.auth.uid == userId && 
+                      isWhitelisted(request.auth.token.email);
       
       // 專案子集合（rounds等）
       match /{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null && 
+                        request.auth.uid == userId && 
+                        isWhitelisted(request.auth.token.email);
       }
     }
     
-    // 用戶配置檔案 - 只有認證用戶可以存取自己的配置
+    // 用戶配置檔案 - 只有認證且在白名單中的用戶可以寫入
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && 
+                      request.auth.uid == userId && 
+                      isWhitelisted(request.auth.token.email);
       
       // 用戶配置檔案子集合
       match /profile/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null && 
+                        request.auth.uid == userId && 
+                        isWhitelisted(request.auth.token.email);
       }
       
       // 用戶專案集合
       match /projects/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null && 
+                        request.auth.uid == userId && 
+                        isWhitelisted(request.auth.token.email);
       }
     }
     

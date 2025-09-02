@@ -206,6 +206,13 @@ export const useSyncStore = create<SyncStore>()(
         let retryCount = 0
         
         const attemptSync = async (): Promise<boolean> => {
+          // Check if user can use Firebase (whitelist check)
+          const { canUseFirebase } = useAuthStore.getState()
+          if (!canUseFirebase()) {
+            console.log('[SYNC] User not in whitelist, skipping Firebase sync')
+            return true // Return true to indicate "successful" local-only operation
+          }
+          
           // Check network status
           if (!networkStatus.getIsOnline()) {
             console.log('[SYNC] Device is offline, waiting for connection...')

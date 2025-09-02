@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 firebase-debug.log*
 firebase-debug.*.log*
+docs
 
 .DS_Store
 local_files/*
@@ -73,3 +74,7 @@ dist/
 
 # dataconnect generated files
 .dataconnect
+
+# Admin tools - sensitive files
+admin/service-account-key.json
+admin/node_modules/
