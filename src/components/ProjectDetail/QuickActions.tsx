@@ -64,7 +64,7 @@ export default function QuickActions({ projectId }: QuickActionsProps) {
             <FiUploadCloud className="w-7 h-7 text-text-secondary" />
           </div>
           <div>
-            <h3 className="font-semibold text-text-primary">匯入匯出</h3>
+            <h3 className="font-semibold text-text-primary">匯出專案</h3>
             <p className="text-sm text-text-secondary">備份和分享</p>
           </div>
         </div>

@@ -8,7 +8,7 @@ import { getRoundTotalStitches } from '../utils'
  * Provides operations that work with the currently selected chart
  */
 export const useChartProgressOperations = () => {
-  const { getCurrentChart: getStoreCurrentChart, updateChart } = useChartStore()
+  const { getCurrentChart: getStoreCurrentChart, updateChart, updateChartProgress } = useChartStore()
   const { currentProject } = useProjectStore()
 
   // Get current chart
@@ -33,7 +33,7 @@ export const useChartProgressOperations = () => {
       console.log('[CHART_PROGRESS] nextStitch: Current round not found', currentChart.currentRound)
       // Try to adjust to valid round
       const minRoundNumber = Math.min(...pattern.map(r => r.roundNumber))
-      await updateChart(currentChart.id, {
+      await updateChartProgress(currentChart.id, {
         currentRound: minRoundNumber,
         currentStitch: 0
       })
@@ -68,7 +68,7 @@ export const useChartProgressOperations = () => {
       }
     }
 
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: newRound,
       currentStitch: newStitch,
       isCompleted
@@ -121,7 +121,7 @@ export const useChartProgressOperations = () => {
       newStitch = 0
     }
 
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: newRound,
       currentStitch: newStitch,
       isCompleted: false // Reset completion status when going back
@@ -151,7 +151,7 @@ export const useChartProgressOperations = () => {
     
     if (targetRoundNumber >= maxRoundNumber) {
       // If it's the last round, mark chart as completed
-      await updateChart(currentChart.id, {
+      await updateChartProgress(currentChart.id, {
         currentRound: targetRoundNumber,
         currentStitch: getRoundTotalStitches(targetRound),
         isCompleted: true
@@ -160,7 +160,7 @@ export const useChartProgressOperations = () => {
     } else {
       // Move to next round
       const nextRoundNumber = targetRoundNumber + 1
-      await updateChart(currentChart.id, {
+      await updateChartProgress(currentChart.id, {
         currentRound: nextRoundNumber,
         currentStitch: 0,
         isCompleted: false
@@ -176,7 +176,7 @@ export const useChartProgressOperations = () => {
     const pattern = currentChart.rounds || []
     const minRoundNumber = pattern.length > 0 ? Math.min(...pattern.map(r => r.roundNumber)) : 1
 
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: minRoundNumber,
       currentStitch: 0,
       isCompleted: false
@@ -201,7 +201,7 @@ export const useChartProgressOperations = () => {
 
     console.log('[CHART_PROGRESS] setCurrentRound: Updating from round', currentChart.currentRound, 'to', roundNumber)
 
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: roundNumber,
       currentStitch: 0,
       isCompleted: false

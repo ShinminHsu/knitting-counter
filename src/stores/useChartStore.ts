@@ -3,6 +3,7 @@ import { Chart, CreateChartRequest, ChartSummary, Project } from '../types'
 import { generateId, createChart, getCurrentChart, getProjectChartSummaries, setCurrentChart, addChartToProject, removeChartFromProject, updateChartInProject, migrateProjectToMultiChart } from '../utils'
 import { useProjectStore } from './useProjectStore'
 import { handleAsyncError } from './useBaseStore'
+import { debouncedSyncManager } from '../utils/debouncedSync'
 
 // Common utility function for safe project updates with Timestamp cleaning
 const createSafeUpdateProjectLocally = () => {
@@ -42,7 +43,7 @@ const createSafeUpdateProjectLocally = () => {
   }
 
   return async (project: Project, _context: string = 'unknown') => {
-    const { updateProjectLocally } = useProjectStore.getState()
+    const { setProjects, setCurrentProject, projects, currentProject } = useProjectStore.getState()
     
 
     const cleanedProject = {
@@ -70,13 +71,109 @@ const createSafeUpdateProjectLocally = () => {
       }) || []
     }
 
-
-    await updateProjectLocally(cleanedProject)
+    // 只更新本地狀態，不同步到Firebase
+    setProjects(projects.map(p => p.id === cleanedProject.id ? cleanedProject : p))
+    if (currentProject?.id === cleanedProject.id) {
+      setCurrentProject(cleanedProject)
+    }
   }
 }
 
-// Export the safe update function for use in other stores
+// Export the safe update function for use in other stores (with immediate sync)
 export const safeUpdateProjectLocally = createSafeUpdateProjectLocally()
+
+// Create debounced version with reduced Firebase writes
+const createDebouncedUpdateProjectLocally = () => {
+  const safeCreateDate = (dateValue: any, fallback: Date = new Date()): Date => {
+    if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+      return new Date(dateValue)
+    }
+    if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+      const parsed = new Date(dateValue)
+      if (!isNaN(parsed.getTime())) {
+        return parsed
+      }
+    }
+    // Handle Firestore Timestamp objects
+    if (dateValue && typeof dateValue === 'object' && 'seconds' in dateValue && 'nanoseconds' in dateValue) {
+      try {
+        // Convert Firestore Timestamp to Date
+        const timestamp = dateValue.seconds * 1000 + dateValue.nanoseconds / 1000000
+        const date = new Date(timestamp)
+        if (!isNaN(date.getTime())) {
+          return date
+        }
+      } catch (e) {
+      }
+    }
+    // Handle Firestore Timestamp objects with toDate method
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      try {
+        const date = dateValue.toDate()
+        if (date instanceof Date && !isNaN(date.getTime())) {
+          return date
+        }
+      } catch (e) {
+      }
+    }
+    return fallback
+  }
+
+  return async (project: Project, context: string = 'unknown', isUrgent: boolean = false) => {
+    console.log(`[DEBOUNCED-UPDATE] debouncedUpdateProjectLocally called:`, {
+      projectId: project.id,
+      context,
+      isUrgent
+    })
+    
+    const { setCurrentProject, setProjects, projects } = useProjectStore.getState()
+    
+    const cleanedProject = {
+      ...project,
+      lastModified: new Date(),
+      createdDate: safeCreateDate(project.createdDate, new Date()),
+      sessions: project.sessions?.map(session => ({
+        ...session,
+        startTime: safeCreateDate(session.startTime)
+      })) || [],
+      charts: project.charts?.map((chart) => {
+        return {
+          ...chart,
+          createdDate: safeCreateDate(chart.createdDate, project.createdDate),
+          lastModified: safeCreateDate(chart.lastModified, new Date()),
+          rounds: chart.rounds?.map(round => ({
+            ...round,
+            stitches: [...round.stitches],
+            stitchGroups: round.stitchGroups?.map(group => ({
+              ...group,
+              stitches: [...group.stitches]
+            })) || []
+          })) || []
+        }
+      }) || []
+    }
+
+    // 立即更新本地狀態
+    const updatedProjects = projects.map(p =>
+      p.id === cleanedProject.id ? cleanedProject : p
+    )
+    setProjects(updatedProjects)
+    
+    // 如果是當前項目，也更新當前項目狀態
+    const currentProject = useProjectStore.getState().currentProject
+    if (currentProject?.id === cleanedProject.id) {
+      setCurrentProject(cleanedProject)
+    }
+
+    // 使用防抖同步到Firebase
+    await debouncedSyncManager.debouncedSync(cleanedProject, context, isUrgent)
+    
+    console.log(`[DEBOUNCED-UPDATE] Local state updated immediately, Firebase sync scheduled (context: ${context})`)
+  }
+}
+
+// Export the debounced version for high-frequency operations
+export const debouncedUpdateProjectLocally = createDebouncedUpdateProjectLocally()
 
 interface ChartStoreState {
   // No persistent state needed - charts are managed in projects
@@ -87,6 +184,7 @@ interface ChartStoreActions {
   createChart: (chartData: CreateChartRequest) => Promise<Chart | null>
   duplicateChart: (chartId: string) => Promise<Chart | null>
   updateChart: (chartId: string, updates: Partial<Chart>) => Promise<void>
+  updateChartProgress: (chartId: string, updates: Partial<Chart>) => Promise<void> // 新增：專門用於進度更新
   deleteChart: (chartId: string) => Promise<void>
   setCurrentChart: (chartId: string) => Promise<void>
   
@@ -258,12 +356,60 @@ export const useChartStore = create<ChartStore>(() => ({
         return
       }
 
-      await safeUpdateProjectLocally(updatedProject, 'updateChart')
+      await debouncedUpdateProjectLocally(updatedProject, 'updateChart')
 
       console.log('[CHART] Updated chart:', chartId)
     } catch (error) {
       console.error('[CHART] Error in updateChart:', error)
       handleAsyncError(error, 'Failed to update chart')
+    }
+  },
+
+  // 專門用於進度更新的函數，使用批次處理
+  updateChartProgress: async (chartId: string, updates: Partial<Chart>) => {
+    const { currentProject } = useProjectStore.getState()
+    if (!currentProject) {
+      console.error('[CHART] updateChartProgress: No current project')
+      return
+    }
+
+    try {
+      // Ensure project is migrated to multi-chart format
+      migrateProjectToMultiChart(currentProject)
+      
+      if (!currentProject.charts) {
+        console.error('[CHART] updateChartProgress: No charts found after migration')
+        return
+      }
+
+      const existingChart = currentProject.charts.find(c => c.id === chartId)
+      if (!existingChart) {
+        console.error('[CHART] updateChartProgress: Chart not found:', chartId)
+        return
+      }
+
+      // Create updated chart with proper Date handling
+      const updatedChart = {
+        ...existingChart,
+        ...updates,
+        lastModified: new Date()
+      }
+
+      // Optimized: Only create shallow copy and update the specific chart
+      const updatedProject = {
+        ...currentProject,
+        charts: currentProject.charts.map(chart =>
+          chart.id === chartId ? updatedChart : chart
+        ),
+        lastModified: new Date()
+      }
+
+      await debouncedUpdateProjectLocally(updatedProject, 'updateChartProgress')
+
+      console.log('[CHART] Updated chart progress:', chartId)
+    } catch (error) {
+      console.error('[CHART] Error in updateChartProgress:', error)
+      handleAsyncError(error, 'Failed to update chart progress')
     }
   },
 
@@ -429,7 +575,7 @@ export const useChartStore = create<ChartStore>(() => ({
         )
       })
 
-      await safeUpdateProjectLocally(updatedProject, 'setCurrentChart')
+      await debouncedUpdateProjectLocally(updatedProject, 'setCurrentChart')
 
       console.log('[CHART] Set current chart to:', chartId)
     } catch (error) {
