@@ -283,10 +283,15 @@ class DebouncedSyncManager {
   /**
    * 獲取批次處理延遲時間
    */
-  private getBatchDelay(_context: string): number {
+  private getBatchDelay(context: string): number {
     const config = getSyncConfig()
     
-    // 批次處理使用較長的延遲時間，進一步減少寫入頻率
+    // 對於編織進度操作，使用更長的批次延遲來最大化減少寫入頻率
+    if (context === 'updateChartProgress' || ['nextStitch', 'previousStitch'].includes(context)) {
+      return Math.max(config.debounceTime.progress * 2, 15000) // 至少15秒
+    }
+    
+    // 其他批次操作使用較短的延遲
     return Math.max(config.debounceTime.progress * 1.5, 10000) // 至少10秒
   }
   

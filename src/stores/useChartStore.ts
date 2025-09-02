@@ -128,6 +128,9 @@ const createDebouncedUpdateProjectLocally = () => {
     
     const { setCurrentProject, setProjects, projects } = useProjectStore.getState()
     
+    // 針對進度更新操作，避免不必要的深度複製
+    const isProgressUpdate = context === 'updateChartProgress'
+    
     const cleanedProject = {
       ...project,
       lastModified: new Date(),
@@ -137,6 +140,17 @@ const createDebouncedUpdateProjectLocally = () => {
         startTime: safeCreateDate(session.startTime)
       })) || [],
       charts: project.charts?.map((chart) => {
+        // 對於進度更新，避免複製 rounds 陣列，因為進度更新不會改變織圖結構
+        if (isProgressUpdate) {
+          return {
+            ...chart,
+            createdDate: safeCreateDate(chart.createdDate, project.createdDate),
+            lastModified: safeCreateDate(chart.lastModified, new Date())
+            // 不複製 rounds，使用原始引用
+          }
+        }
+        
+        // 只有在非進度更新時才進行深度複製
         return {
           ...chart,
           createdDate: safeCreateDate(chart.createdDate, project.createdDate),
@@ -388,14 +402,16 @@ export const useChartStore = create<ChartStore>(() => ({
         return
       }
 
-      // Create updated chart with proper Date handling
+      // 僅複製必要的進度欄位，避免深度複製整個 chart
       const updatedChart = {
         ...existingChart,
-        ...updates,
+        currentRound: updates.currentRound ?? existingChart.currentRound,
+        currentStitch: updates.currentStitch ?? existingChart.currentStitch,
+        isCompleted: updates.isCompleted ?? existingChart.isCompleted,
         lastModified: new Date()
       }
 
-      // Optimized: Only create shallow copy and update the specific chart
+      // 最小化項目複製，只更新必要的欄位
       const updatedProject = {
         ...currentProject,
         charts: currentProject.charts.map(chart =>
