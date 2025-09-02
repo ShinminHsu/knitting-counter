@@ -1,0 +1,208 @@
+/**
+ * 訪客模式數據備份服務
+ * 使用 IndexedDB 提供更穩定的數據持久化
+ */
+
+import { Project } from '../types'
+
+interface GuestData {
+  projects: Project[]
+  currentProject: Project | null
+  lastBackup: number
+}
+
+class GuestDataBackupService {
+  private dbName = 'knitting-counter-guest'
+  private version = 1
+  private storeName = 'guest-data'
+  private db: IDBDatabase | null = null
+
+  /**
+   * 初始化 IndexedDB
+   */
+  async init(): Promise<void> {
+    if (this.db) return
+
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version)
+
+      request.onerror = () => {
+        console.error('[GUEST-BACKUP] Failed to open IndexedDB:', request.error)
+        reject(request.error)
+      }
+
+      request.onsuccess = () => {
+        this.db = request.result
+        console.log('[GUEST-BACKUP] IndexedDB initialized successfully')
+        resolve()
+      }
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+        
+        // 創建對象存儲
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          const store = db.createObjectStore(this.storeName, { keyPath: 'id' })
+          store.createIndex('lastBackup', 'lastBackup', { unique: false })
+          console.log('[GUEST-BACKUP] Object store created')
+        }
+      }
+    })
+  }
+
+  /**
+   * 備份訪客數據到 IndexedDB
+   */
+  async backupGuestData(projects: Project[], currentProject: Project | null): Promise<boolean> {
+    try {
+      console.log('[GUEST-BACKUP] Starting backup with data:', {
+        projectCount: projects.length,
+        currentProjectId: currentProject?.id,
+        currentProjectName: currentProject?.name,
+        projectNames: projects.map(p => p.name)
+      })
+      
+      await this.init()
+      
+      if (!this.db) {
+        console.error('[GUEST-BACKUP] Database not initialized')
+        return false
+      }
+
+      const data: GuestData = {
+        projects,
+        currentProject,
+        lastBackup: Date.now()
+      }
+
+      return new Promise((resolve) => {
+        const transaction = this.db!.transaction([this.storeName], 'readwrite')
+        const store = transaction.objectStore(this.storeName)
+        
+        // 使用固定的 key 存儲訪客數據
+        const request = store.put({ id: 'guest-data', ...data })
+
+        request.onsuccess = () => {
+          console.log('[GUEST-BACKUP] Data backed up successfully')
+          resolve(true)
+        }
+
+        request.onerror = () => {
+          console.error('[GUEST-BACKUP] Failed to backup data:', request.error)
+          resolve(false)
+        }
+      })
+    } catch (error) {
+      console.error('[GUEST-BACKUP] Error backing up data:', error)
+      return false
+    }
+  }
+
+  /**
+   * 從 IndexedDB 恢復訪客數據
+   */
+  async restoreGuestData(): Promise<GuestData | null> {
+    try {
+      await this.init()
+      
+      if (!this.db) {
+        console.error('[GUEST-BACKUP] Database not initialized')
+        return null
+      }
+
+      return new Promise((resolve) => {
+        const transaction = this.db!.transaction([this.storeName], 'readonly')
+        const store = transaction.objectStore(this.storeName)
+        const request = store.get('guest-data')
+
+        request.onsuccess = () => {
+          const result = request.result
+          if (result) {
+            console.log('[GUEST-BACKUP] Data restored successfully', {
+              projectCount: result.projects?.length || 0,
+              projectNames: result.projects?.map((p: Project) => p.name) || [],
+              currentProjectName: result.currentProject?.name || 'none',
+              lastBackup: new Date(result.lastBackup).toLocaleString()
+            })
+            resolve({
+              projects: result.projects || [],
+              currentProject: result.currentProject || null,
+              lastBackup: result.lastBackup || 0
+            })
+          } else {
+            console.log('[GUEST-BACKUP] No backup data found')
+            resolve(null)
+          }
+        }
+
+        request.onerror = () => {
+          console.error('[GUEST-BACKUP] Failed to restore data:', request.error)
+          resolve(null)
+        }
+      })
+    } catch (error) {
+      console.error('[GUEST-BACKUP] Error restoring data:', error)
+      return null
+    }
+  }
+
+  /**
+   * 清除訪客備份數據
+   */
+  async clearGuestData(): Promise<boolean> {
+    try {
+      await this.init()
+      
+      if (!this.db) {
+        console.error('[GUEST-BACKUP] Database not initialized')
+        return false
+      }
+
+      return new Promise((resolve) => {
+        const transaction = this.db!.transaction([this.storeName], 'readwrite')
+        const store = transaction.objectStore(this.storeName)
+        const request = store.delete('guest-data')
+
+        request.onsuccess = () => {
+          console.log('[GUEST-BACKUP] Backup data cleared')
+          resolve(true)
+        }
+
+        request.onerror = () => {
+          console.error('[GUEST-BACKUP] Failed to clear data:', request.error)
+          resolve(false)
+        }
+      })
+    } catch (error) {
+      console.error('[GUEST-BACKUP] Error clearing data:', error)
+      return false
+    }
+  }
+
+  /**
+   * 檢查是否有可用的備份數據
+   */
+  async hasBackupData(): Promise<boolean> {
+    const data = await this.restoreGuestData()
+    return data !== null && data.projects.length > 0
+  }
+
+  /**
+   * 獲取備份數據的詳細信息
+   */
+  async getBackupInfo(): Promise<{ projectCount: number; lastBackup: Date | null } | null> {
+    const data = await this.restoreGuestData()
+    if (!data) return null
+
+    return {
+      projectCount: data.projects.length,
+      lastBackup: data.lastBackup ? new Date(data.lastBackup) : null
+    }
+  }
+}
+
+// 導出單例實例
+export const guestDataBackup = new GuestDataBackupService()
+
+// 也導出類型供其他地方使用
+export type { GuestData }

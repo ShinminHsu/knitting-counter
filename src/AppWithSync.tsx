@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useBaseStore } from './stores/useBaseStore'
 import { useSyncStore } from './stores/useSyncStore'
@@ -14,6 +14,7 @@ import YarnManagerView from './components/YarnManagerView'
 import ImportExportView from './components/ImportExportView'
 import NotFoundView from './components/NotFoundView'
 import { GuestModeLogin } from './components/GuestModeLogin'
+import { GuestDataRecovery } from './components/GuestDataRecovery'
 import LoadingPage from './components/LoadingPage'
 
 function AppWithSync() {
@@ -26,6 +27,10 @@ function AppWithSync() {
   const { isSyncing } = useSyncStore()
   
   const { user, userType, isLoading: authLoading, isInitialized, initialize } = useAuthStore()
+  
+  // 恢復流程狀態
+  const [showRecovery, setShowRecovery] = useState(false)
+  const [recoveryCompleted, setRecoveryCompleted] = useState(false)
 
   useEffect(() => {
     const unsubscribe = initialize()
@@ -66,6 +71,30 @@ function AppWithSync() {
       authListener.handleUserLogout()
     }
   }, [user, userType, setError])
+
+  // 檢查是否需要顯示數據恢復界面
+  useEffect(() => {
+    const { canUseFirebase } = useAuthStore.getState()
+    const shouldShowRecovery = isInitialized && 
+      (userType === 'guest' || (user && !canUseFirebase())) && 
+      !recoveryCompleted
+    
+    if (shouldShowRecovery) {
+      setShowRecovery(true)
+    }
+  }, [isInitialized, userType, user, recoveryCompleted])
+
+  // 數據恢復完成回調
+  const handleRecoveryComplete = () => {
+    setShowRecovery(false)
+    setRecoveryCompleted(true)
+  }
+
+  // 顯示數據恢復界面（訪客用戶或非白名單用戶）
+  const { canUseFirebase } = useAuthStore.getState()
+  if (showRecovery && (userType === 'guest' || (user && !canUseFirebase()))) {
+    return <GuestDataRecovery onRecoveryComplete={handleRecoveryComplete} />
+  }
 
   // 載入中狀態
   if (authLoading || appLoading || !isInitialized) {

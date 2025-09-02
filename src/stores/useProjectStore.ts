@@ -7,6 +7,7 @@ import { useAuthStore } from './useAuthStore'
 import { firestoreService } from '../services/firestoreService'
 import { useSyncStore } from './useSyncStore'
 import { useBaseStore, handleAsyncError } from './useBaseStore'
+import { guestDataBackup } from '../services/guestDataBackup'
 
 interface ProjectStoreState {
   projects: Project[]
@@ -35,6 +36,33 @@ interface ProjectStoreActions {
 }
 
 interface ProjectStore extends ProjectStoreState, ProjectStoreActions {}
+
+// 輔助函數：為訪客用戶自動備份數據到 IndexedDB
+const backupGuestDataIfNeeded = async (projects: Project[], currentProject: Project | null) => {
+  const { user, userType } = useAuthStore.getState()
+  
+  console.log('[PROJECT-BACKUP] Checking if backup needed:', {
+    userType,
+    hasUser: !!user,
+    userEmail: user?.email,
+    canUseFirebase: user ? useAuthStore.getState().canUseFirebase() : false,
+    projectCount: projects.length,
+    currentProjectName: currentProject?.name
+  })
+  
+  // 只有訪客用戶或非白名單用戶需要備份
+  if (userType === 'guest' || (user && !useAuthStore.getState().canUseFirebase())) {
+    try {
+      console.log('[PROJECT-BACKUP] Triggering backup for guest/non-whitelist user')
+      await guestDataBackup.backupGuestData(projects, currentProject)
+      console.log('[PROJECT-BACKUP] Guest data backed up to IndexedDB')
+    } catch (error) {
+      console.error('[PROJECT-BACKUP] Failed to backup guest data:', error)
+    }
+  } else {
+    console.log('[PROJECT-BACKUP] Backup not needed - user can use Firebase')
+  }
+}
 
 export const useProjectStore = create<ProjectStore>()(
   persist(
@@ -65,10 +93,15 @@ export const useProjectStore = create<ProjectStore>()(
           isCompleted: false
         }
         
-        set(state => ({
-          projects: [...state.projects, newProject],
+        const newState = {
+          projects: [...get().projects, newProject],
           currentProject: newProject
-        }))
+        }
+        
+        set(newState)
+        
+        // 自動備份訪客數據
+        backupGuestDataIfNeeded(newState.projects, newState.currentProject)
         
         // Sync to Firestore (only if user can use Firebase)
         const { canUseFirebase } = useAuthStore.getState()
@@ -94,14 +127,19 @@ export const useProjectStore = create<ProjectStore>()(
           lastModified: new Date()
         }
         
-        set(state => ({
-          projects: state.projects.map(p => 
+        const newState = {
+          projects: get().projects.map(p => 
             p.id === updatedProject.id ? updatedProjectWithTimestamp : p
           ),
-          currentProject: state.currentProject?.id === updatedProject.id 
+          currentProject: get().currentProject?.id === updatedProject.id 
             ? updatedProjectWithTimestamp 
-            : state.currentProject
-        }))
+            : get().currentProject
+        }
+        
+        set(newState)
+        
+        // 自動備份訪客數據
+        backupGuestDataIfNeeded(newState.projects, newState.currentProject)
         
         // Sync to Firestore (only if user can use Firebase)
         const { canUseFirebase } = useAuthStore.getState()
@@ -122,18 +160,24 @@ export const useProjectStore = create<ProjectStore>()(
       updateProjectLocally: async (updatedProject: Project) => {
         console.log('[PROJECT] Starting local project update:', {
           projectId: updatedProject.id,
-          lastModified: updatedProject.lastModified
+          lastModified: updatedProject.lastModified,
+          projectName: updatedProject.name
         })
         
         // Update local state immediately - this should be instant
-        set(state => ({
-          projects: state.projects.map(p =>
+        const newState = {
+          projects: get().projects.map(p =>
             p.id === updatedProject.id ? updatedProject : p
           ),
-          currentProject: state.currentProject?.id === updatedProject.id
+          currentProject: get().currentProject?.id === updatedProject.id
             ? updatedProject
-            : state.currentProject
-        }))
+            : get().currentProject
+        }
+        
+        set(newState)
+
+        // 自動備份訪客數據
+        await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
 
         // Use base store for local update tracking
         const baseStore = useBaseStore.getState()
@@ -176,10 +220,15 @@ export const useProjectStore = create<ProjectStore>()(
       deleteProject: async (id) => {
         const { user } = useAuthStore.getState()
         
-        set(state => ({
-          projects: state.projects.filter(p => p.id !== id),
-          currentProject: state.currentProject?.id === id ? null : state.currentProject
-        }))
+        const newState = {
+          projects: get().projects.filter(p => p.id !== id),
+          currentProject: get().currentProject?.id === id ? null : get().currentProject
+        }
+        
+        set(newState)
+        
+        // 自動備份訪客數據
+        backupGuestDataIfNeeded(newState.projects, newState.currentProject)
         
         // Sync to Firestore (only if user can use Firebase)
         const { canUseFirebase } = useAuthStore.getState()
@@ -228,11 +277,23 @@ export const useProjectStore = create<ProjectStore>()(
           }
           
           // Create sample project only if no data exists
-          const sampleProject = createSampleProject()
-          set({
-            projects: [sampleProject],
-            currentProject: sampleProject
-          })
+          const { projects: currentProjects } = get()
+          if (!currentProjects || currentProjects.length === 0) {
+            console.log('loadProjects: creating sample project (no existing projects)')
+            const sampleProject = createSampleProject()
+            const newState = {
+              projects: [sampleProject],
+              currentProject: sampleProject
+            }
+            set(newState)
+            
+            // 自動備份訪客數據
+            await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+          } else {
+            console.log('loadProjects: keeping existing projects, not creating sample project')
+            // 只備份現有數據，不創建新項目
+            await backupGuestDataIfNeeded(currentProjects, get().currentProject)
+          }
         }
       },
 
@@ -420,13 +481,25 @@ export const useProjectStore = create<ProjectStore>()(
               useSyncStore.getState().setLastSyncTime(new Date())
             }
           } else {
-            // 本地模式，創建範例專案但不同步到 Firebase
-            console.log('Local mode: creating sample project locally')
-            const sampleProject = createSampleProject()
-            set({
-              projects: [sampleProject],
-              currentProject: sampleProject
-            })
+            // 本地模式，檢查是否已有項目，避免覆蓋現有數據
+            const { projects: currentProjects } = get()
+            
+            if (!currentProjects || currentProjects.length === 0) {
+              console.log('Local mode: creating sample project locally (no existing projects)')
+              const sampleProject = createSampleProject()
+              const newState = {
+                projects: [sampleProject],
+                currentProject: sampleProject
+              }
+              set(newState)
+              
+              // 自動備份訪客數據
+              await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+            } else {
+              console.log('Local mode: keeping existing projects, not creating sample project')
+              // 只備份現有數據，不創建新項目
+              await backupGuestDataIfNeeded(currentProjects, get().currentProject)
+            }
           }
           
         } catch (error) {
@@ -480,10 +553,14 @@ export const useProjectStore = create<ProjectStore>()(
               const { projects } = get()
               if (!projects || projects.length === 0) {
                 const sampleProject = createSampleProject()
-                set({
+                const newState = {
                   projects: [sampleProject],
                   currentProject: sampleProject
-                })
+                }
+                set(newState)
+                
+                // 自動備份訪客數據
+                await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
               }
             }
           }

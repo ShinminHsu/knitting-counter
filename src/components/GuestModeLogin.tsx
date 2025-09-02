@@ -83,9 +83,13 @@ export const GuestModeLogin: React.FC = () => {
                   訪客模式
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  <p>
+                  <p className="mb-2">
                     目前使用本地同步模式，數據僅儲存在此裝置上。
                     如需跨裝置同步，請使用 Google 帳號登入。
+                  </p>
+                  <p className="font-semibold text-yellow-800">
+                    重要提醒：強制重新整理 (Ctrl+Shift+R) 可能會導致數據遺失。
+                    建議定期匯出專案數據作為備份。
                   </p>
                 </div>
               </div>

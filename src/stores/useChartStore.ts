@@ -41,9 +41,10 @@ const createSafeUpdateProjectLocally = () => {
     return fallback
   }
 
-  return async (project: Project, _context: string = 'unknown') => {
+  return async (project: Project, context: string = 'unknown') => {
     const { updateProjectLocally } = useProjectStore.getState()
     
+    console.log(`[SAFE-UPDATE] ${context} - About to update project:`, project.id)
 
     const cleanedProject = {
       ...project,
