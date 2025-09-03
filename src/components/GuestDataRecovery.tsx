@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { guestDataBackup } from '../services/guestDataBackup'
 import { useProjectStore } from '../stores/useProjectStore'
+import { useAuthStore } from '../stores/useAuthStore'
 
 interface GuestDataRecoveryProps {
   onRecoveryComplete: () => void
@@ -13,6 +14,7 @@ export const GuestDataRecovery: React.FC<GuestDataRecoveryProps> = ({ onRecovery
   const [showRecovery, setShowRecovery] = useState(false)
 
   const { setProjects, setCurrentProject } = useProjectStore()
+  const { user, userType } = useAuthStore()
 
   useEffect(() => {
     checkForBackup()
@@ -20,9 +22,10 @@ export const GuestDataRecovery: React.FC<GuestDataRecoveryProps> = ({ onRecovery
 
   const checkForBackup = async () => {
     try {
-      const hasData = await guestDataBackup.hasBackupData()
+      const userIdentity = userType === 'guest' ? 'guest' : user?.email || 'unknown'
+      const hasData = await guestDataBackup.hasBackupData(userIdentity)
       if (hasData) {
-        const info = await guestDataBackup.getBackupInfo()
+        const info = await guestDataBackup.getBackupInfo(userIdentity)
         setHasBackup(true)
         setBackupInfo(info)
         setShowRecovery(true)
@@ -38,7 +41,8 @@ export const GuestDataRecovery: React.FC<GuestDataRecoveryProps> = ({ onRecovery
   const handleRestore = async () => {
     setIsRestoring(true)
     try {
-      const backupData = await guestDataBackup.restoreGuestData()
+      const userIdentity = userType === 'guest' ? 'guest' : user?.email || 'unknown'
+      const backupData = await guestDataBackup.restoreGuestData(userIdentity)
       if (backupData) {
         // 獲取當前本地項目
         const { projects: currentProjects } = useProjectStore.getState()
@@ -108,31 +112,31 @@ export const GuestDataRecovery: React.FC<GuestDataRecoveryProps> = ({ onRecovery
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+    <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-6 border w-96 shadow-lg rounded-xl bg-background-secondary border-border">
         <div className="mt-3">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div className="ml-3">
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-lg font-medium text-text-primary">
                 發現備份資料
               </h3>
             </div>
           </div>
           
-          <div className="mt-4 text-sm text-gray-600">
+          <div className="mt-4 text-sm text-text-secondary">
             <p className="mb-3">
               我們發現了您之前的訪客模式資料備份：
             </p>
-            <ul className="bg-gray-50 rounded-md p-3 space-y-1">
+            <ul className="bg-background-tertiary rounded-lg p-3 space-y-1 border border-border">
               <li>• 專案數量: {backupInfo.projectCount} 個</li>
               <li>• 備份時間: {backupInfo.lastBackup?.toLocaleString('zh-TW') || '未知'}</li>
             </ul>
-            <p className="mt-3 text-gray-700">
+            <p className="mt-3 text-text-primary">
               是否要恢復這些資料？
             </p>
           </div>
@@ -141,20 +145,20 @@ export const GuestDataRecovery: React.FC<GuestDataRecoveryProps> = ({ onRecovery
             <button
               onClick={handleRestore}
               disabled={isRestoring}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn btn-primary flex-1"
             >
               {isRestoring ? '恢復中...' : '恢復資料'}
             </button>
             <button
               onClick={handleSkip}
               disabled={isRestoring}
-              className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
+              className="btn btn-secondary flex-1"
             >
               跳過
             </button>
           </div>
           
-          <div className="mt-3 text-xs text-gray-500">
+          <div className="mt-3 text-xs text-text-tertiary">
             選擇「跳過」會開始使用空白的專案列表，但備份資料不會被刪除。
           </div>
         </div>

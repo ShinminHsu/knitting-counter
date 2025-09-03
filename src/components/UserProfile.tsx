@@ -28,7 +28,7 @@ export default function UserProfile() {
         <button
           onClick={signInWithGoogle}
           disabled={isLoading}
-          className="text-xs sm:text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+          className="btn btn-primary text-xs sm:text-sm"
         >
           {isLoading ? '登入中...' : '登入'}
         </button>

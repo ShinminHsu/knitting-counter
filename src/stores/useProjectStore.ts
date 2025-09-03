@@ -53,9 +53,12 @@ const backupGuestDataIfNeeded = async (projects: Project[], currentProject: Proj
   // 只有訪客用戶或非白名單用戶需要備份
   if (userType === 'guest' || (user && !useAuthStore.getState().canUseFirebase())) {
     try {
-      console.log('[PROJECT-BACKUP] Triggering backup for guest/non-whitelist user')
-      await guestDataBackup.backupGuestData(projects, currentProject)
-      console.log('[PROJECT-BACKUP] Guest data backed up to IndexedDB')
+      // 為非 Firebase 用戶（訪客或非白名單用戶）生成用戶身份標識
+      const userIdentity = userType === 'guest' ? 'guest' : user?.email || 'unknown'
+      
+      console.log('[PROJECT-BACKUP] Triggering backup for guest/non-whitelist user:', userIdentity)
+      await guestDataBackup.backupGuestData(projects, currentProject, userIdentity)
+      console.log('[PROJECT-BACKUP] Guest data backed up to IndexedDB with identity:', userIdentity)
     } catch (error) {
       console.error('[PROJECT-BACKUP] Failed to backup guest data:', error)
     }

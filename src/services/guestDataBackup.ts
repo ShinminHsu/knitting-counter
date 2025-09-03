@@ -9,6 +9,7 @@ interface GuestData {
   projects: Project[]
   currentProject: Project | null
   lastBackup: number
+  userIdentity?: string // 用戶身份標識，用於區分不同用戶的備份數據
 }
 
 class GuestDataBackupService {
@@ -53,7 +54,7 @@ class GuestDataBackupService {
   /**
    * 備份訪客數據到 IndexedDB
    */
-  async backupGuestData(projects: Project[], currentProject: Project | null): Promise<boolean> {
+  async backupGuestData(projects: Project[], currentProject: Project | null, userIdentity?: string): Promise<boolean> {
     try {
       console.log('[GUEST-BACKUP] Starting backup with data:', {
         projectCount: projects.length,
@@ -72,15 +73,19 @@ class GuestDataBackupService {
       const data: GuestData = {
         projects,
         currentProject,
-        lastBackup: Date.now()
+        lastBackup: Date.now(),
+        userIdentity
       }
+
+      // 使用用戶身份作為 key，如果沒有則使用 'guest-data'
+      const backupKey = userIdentity ? `guest-data-${userIdentity}` : 'guest-data'
 
       return new Promise((resolve) => {
         const transaction = this.db!.transaction([this.storeName], 'readwrite')
         const store = transaction.objectStore(this.storeName)
         
-        // 使用固定的 key 存儲訪客數據
-        const request = store.put({ id: 'guest-data', ...data })
+        // 使用用戶特定的 key 存儲訪客數據
+        const request = store.put({ id: backupKey, ...data })
 
         request.onsuccess = () => {
           console.log('[GUEST-BACKUP] Data backed up successfully')
@@ -101,7 +106,7 @@ class GuestDataBackupService {
   /**
    * 從 IndexedDB 恢復訪客數據
    */
-  async restoreGuestData(): Promise<GuestData | null> {
+  async restoreGuestData(userIdentity?: string): Promise<GuestData | null> {
     try {
       await this.init()
       
@@ -110,10 +115,13 @@ class GuestDataBackupService {
         return null
       }
 
+      // 使用用戶身份作為 key，如果沒有則使用 'guest-data'
+      const backupKey = userIdentity ? `guest-data-${userIdentity}` : 'guest-data'
+
       return new Promise((resolve) => {
         const transaction = this.db!.transaction([this.storeName], 'readonly')
         const store = transaction.objectStore(this.storeName)
-        const request = store.get('guest-data')
+        const request = store.get(backupKey)
 
         request.onsuccess = () => {
           const result = request.result
@@ -127,7 +135,8 @@ class GuestDataBackupService {
             resolve({
               projects: result.projects || [],
               currentProject: result.currentProject || null,
-              lastBackup: result.lastBackup || 0
+              lastBackup: result.lastBackup || 0,
+              userIdentity: result.userIdentity
             })
           } else {
             console.log('[GUEST-BACKUP] No backup data found')
@@ -149,7 +158,7 @@ class GuestDataBackupService {
   /**
    * 清除訪客備份數據
    */
-  async clearGuestData(): Promise<boolean> {
+  async clearGuestData(userIdentity?: string): Promise<boolean> {
     try {
       await this.init()
       
@@ -158,10 +167,13 @@ class GuestDataBackupService {
         return false
       }
 
+      // 使用用戶身份作為 key，如果沒有則使用 'guest-data'
+      const backupKey = userIdentity ? `guest-data-${userIdentity}` : 'guest-data'
+
       return new Promise((resolve) => {
         const transaction = this.db!.transaction([this.storeName], 'readwrite')
         const store = transaction.objectStore(this.storeName)
-        const request = store.delete('guest-data')
+        const request = store.delete(backupKey)
 
         request.onsuccess = () => {
           console.log('[GUEST-BACKUP] Backup data cleared')
@@ -182,16 +194,16 @@ class GuestDataBackupService {
   /**
    * 檢查是否有可用的備份數據
    */
-  async hasBackupData(): Promise<boolean> {
-    const data = await this.restoreGuestData()
+  async hasBackupData(userIdentity?: string): Promise<boolean> {
+    const data = await this.restoreGuestData(userIdentity)
     return data !== null && data.projects.length > 0
   }
 
   /**
    * 獲取備份數據的詳細信息
    */
-  async getBackupInfo(): Promise<{ projectCount: number; lastBackup: Date | null } | null> {
-    const data = await this.restoreGuestData()
+  async getBackupInfo(userIdentity?: string): Promise<{ projectCount: number; lastBackup: Date | null } | null> {
+    const data = await this.restoreGuestData(userIdentity)
     if (!data) return null
 
     return {
@@ -200,6 +212,7 @@ class GuestDataBackupService {
     }
   }
 }
+
 
 // 導出單例實例
 export const guestDataBackup = new GuestDataBackupService()
