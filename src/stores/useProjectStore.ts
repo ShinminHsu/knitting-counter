@@ -47,7 +47,8 @@ const backupGuestDataIfNeeded = async (projects: Project[], currentProject: Proj
     userEmail: user?.email,
     canUseFirebase: user ? useAuthStore.getState().canUseFirebase() : false,
     projectCount: projects.length,
-    currentProjectName: currentProject?.name
+    currentProjectName: currentProject?.name,
+    currentProjectLastModified: currentProject?.lastModified instanceof Date ? currentProject.lastModified.toISOString() : currentProject?.lastModified
   })
   
   // 只有訪客用戶或非白名單用戶需要備份
@@ -56,7 +57,16 @@ const backupGuestDataIfNeeded = async (projects: Project[], currentProject: Proj
       // 為非 Firebase 用戶（訪客或非白名單用戶）生成用戶身份標識
       const userIdentity = userType === 'guest' ? 'guest' : user?.email || 'unknown'
       
-      console.log('[PROJECT-BACKUP] Triggering backup for guest/non-whitelist user:', userIdentity)
+      console.log('[PROJECT-BACKUP] Triggering backup for guest/non-whitelist user:', {
+        userIdentity,
+        projectsToBackup: projects.length,
+        currentProjectData: {
+          id: currentProject?.id,
+          name: currentProject?.name,
+          lastModified: currentProject?.lastModified instanceof Date ? currentProject.lastModified.toISOString() : currentProject?.lastModified,
+          chartsCount: currentProject?.charts?.length || 0
+        }
+      })
       await guestDataBackup.backupGuestData(projects, currentProject, userIdentity)
       console.log('[PROJECT-BACKUP] Guest data backed up to IndexedDB with identity:', userIdentity)
     } catch (error) {
@@ -179,8 +189,10 @@ export const useProjectStore = create<ProjectStore>()(
         
         set(newState)
 
-        // 自動備份訪客數據
-        await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+        // 自動備份訪客數據 - 延遲執行確保狀態已更新
+        setTimeout(async () => {
+          await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+        }, 100)
 
         // Use base store for local update tracking
         const baseStore = useBaseStore.getState()

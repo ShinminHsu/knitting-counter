@@ -83,6 +83,7 @@ export default function PatternItemDisplay({
   if (patternItem.type === PatternItemType.STITCH) {
     const stitch = patternItem.data as StitchInfo
     const isEditing = editingStitch?.stitchId === stitch.id
+    
 
     return (
       <div
@@ -281,8 +282,9 @@ export default function PatternItemDisplay({
         {/* Group Stitches */}
         <div className="space-y-2">
           {group.stitches.map((stitch, stitchIndex) => {
-            const isEditingGroupStitch = editingGroupStitch?.stitchId === stitch.id && 
+            const isEditingGroupStitch = editingGroupStitch?.stitchId === stitch.id &&
                                        editingGroupStitch?.groupId === group.id
+
 
             return (
               <div

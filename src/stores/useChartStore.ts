@@ -124,7 +124,8 @@ const createDebouncedUpdateProjectLocally = () => {
     console.log(`[DEBOUNCED-UPDATE] debouncedUpdateProjectLocally called:`, {
       projectId: project.id,
       context,
-      isUrgent
+      isUrgent,
+      firstStitchCountInput: project.charts?.[0]?.rounds?.[0]?.stitches?.[0]?.count || 'N/A'
     })
     
     const { setCurrentProject, setProjects, projects } = useProjectStore.getState()
@@ -182,6 +183,73 @@ const createDebouncedUpdateProjectLocally = () => {
 
     // 使用防抖同步到Firebase
     await debouncedSyncManager.debouncedSync(cleanedProject, context, isUrgent)
+    
+    // 為非白名單/訪客用戶模擬 Firebase 訂閱的額外狀態更新和 IndexedDB 備份
+    const { user, canUseFirebase } = await import('./useAuthStore').then(m => m.useAuthStore.getState())
+    if (!user || !canUseFirebase()) {
+      console.log(`[DEBOUNCED-UPDATE] Triggering additional state update and backup for non-whitelist/guest user`, {
+        context,
+        isUrgent,
+        projectId: cleanedProject.id,
+        projectName: cleanedProject.name,
+        userEmail: user?.email || 'guest',
+        canUseFirebase: canUseFirebase()
+      })
+      
+      // 修正：使用多次更新確保 UI 能夠檢測到變化
+      const performForceUpdate = async (attempt: number = 1) => {
+        console.log(`[DEBOUNCED-UPDATE] Executing delayed state update attempt ${attempt} for non-whitelist/guest user`)
+        
+        const currentState = useProjectStore.getState()
+        const forceUpdatedProject = {
+          ...cleanedProject,
+          lastModified: new Date(),
+          _forceUpdateFlag: Math.random(), // 強制觸發 React 檢測
+          _updateAttempt: attempt
+        }
+        const updatedProjects = currentState.projects.map(p =>
+          p.id === cleanedProject.id ? forceUpdatedProject : p
+        )
+        
+        console.log(`[DEBOUNCED-UPDATE] Forcing project store update attempt ${attempt}`, {
+          projectsCount: updatedProjects.length,
+          currentProjectId: currentState.currentProject?.id,
+          updatedProjectId: forceUpdatedProject.id,
+          forceUpdateFlag: forceUpdatedProject._forceUpdateFlag,
+          attempt: forceUpdatedProject._updateAttempt
+        })
+        
+        setProjects(updatedProjects)
+        if (currentState.currentProject?.id === cleanedProject.id) {
+          setCurrentProject(forceUpdatedProject)
+        }
+        
+        // 額外的狀態觸發，確保所有組件都能檢測到變化
+        if (attempt === 1) {
+          // 第一次更新後，再進行一次更強制的更新
+          setTimeout(() => performForceUpdate(2), 100)
+        }
+        
+        // 重要：為非白名單/訪客用戶手動觸發 IndexedDB 備份
+        if (attempt === 2) { // 只在最後一次更新時進行備份
+          try {
+            const { guestDataBackup } = await import('../services/guestDataBackup')
+            const { useAuthStore } = await import('./useAuthStore')
+            const { userType } = useAuthStore.getState()
+            const userIdentity = userType === 'guest' ? 'guest' : (user?.email || 'unknown')
+            
+            console.log('[DEBOUNCED-UPDATE] Manually triggering IndexedDB backup for non-whitelist/guest user:', userIdentity)
+            await guestDataBackup.backupGuestData(updatedProjects, forceUpdatedProject, userIdentity)
+            console.log('[DEBOUNCED-UPDATE] IndexedDB backup completed successfully')
+          } catch (error) {
+            console.error('[DEBOUNCED-UPDATE] Failed to backup to IndexedDB:', error)
+          }
+        }
+      }
+      
+      // 延遲一點時間，模擬 Firebase 監聽器的延遲，然後強制觸發狀態更新
+      setTimeout(() => performForceUpdate(1), 50) // 50ms 延遲，模擬網路延遲
+    }
     
     console.log(`[DEBOUNCED-UPDATE] Local state updated immediately, Firebase sync scheduled (context: ${context})`)
   }

@@ -8,7 +8,7 @@ import { useModalStates } from '../../hooks/useModalStates'
 import { usePatternEditorState } from '../../hooks/usePatternEditorState'
 import { usePatternOperations } from '../../hooks/usePatternOperations'
 import ChartSelectorHeader from '../ChartSelectorHeader'
-import { Round, StitchType, StitchInfo, StitchGroup } from '../../types'
+import { Round, StitchType, StitchInfo, StitchGroup, PatternItemType } from '../../types'
 import {
   generateId,
   getCurrentChart,
@@ -115,14 +115,100 @@ export default function PatternEditorContainer() {
     }
   }, [currentProject, searchParams])
 
-  // 新增: 當 currentChart 更新時，同步更新 chartPattern
+  // 關鍵修復：強制監聽 currentProject 的所有變化，確保狀態同步
   useEffect(() => {
-    if (currentChart && currentChart.pattern) {
-      // 強制創建新的對象引用來觸發 React 重新渲染
-      const newPattern = JSON.parse(JSON.stringify(currentChart.pattern))
-      setChartPattern(newPattern)
+    if (!currentProject || !currentChart) return
+    
+    // 從最新的 currentProject 中獲取對應的 chart
+    const updatedChart = currentProject.charts?.find(c => c.id === currentChart.id)
+    if (updatedChart) {
+      console.log('[PATTERN-EDITOR] Force sync - project updated, syncing local chart:', {
+        chartId: updatedChart.id,
+        roundsCount: updatedChart.rounds?.length || 0,
+        firstRoundStitches: updatedChart.rounds?.[0]?.stitches?.length || 0,
+        firstStitchCount: updatedChart.rounds?.[0]?.stitches?.[0]?.count || 'N/A',
+        firstRoundGroups: updatedChart.rounds?.[0]?.stitchGroups?.length || 0,
+        firstGroupRepeatCount: updatedChart.rounds?.[0]?.stitchGroups?.[0]?.repeatCount || 'N/A',
+        projectLastModified: currentProject.lastModified instanceof Date ? currentProject.lastModified.toISOString() : currentProject.lastModified,
+        chartLastModified: updatedChart.lastModified instanceof Date ? updatedChart.lastModified.toISOString() : updatedChart.lastModified,
+        currentProjectId: currentProject.id,
+        projectForceUpdateFlag: (currentProject as any)._forceUpdateFlag
+      })
+      
+      // 檢查是否有實際變化
+      const hasChanges = JSON.stringify(updatedChart) !== JSON.stringify(currentChart)
+      console.log('[PATTERN-EDITOR] Chart comparison:', {
+        hasChanges,
+        currentChartModified: currentChart.lastModified instanceof Date ? currentChart.lastModified.toISOString() : currentChart.lastModified,
+        updatedChartModified: updatedChart.lastModified instanceof Date ? updatedChart.lastModified.toISOString() : updatedChart.lastModified
+      })
+      
+      // 強制更新本地狀態，確保 React 檢測到變化
+      // 使用時間戳來強制 React 檢測差異
+      const forceUpdatedChart = {
+        ...updatedChart,
+        _forceUpdateTimestamp: Date.now(),
+        _patternEditorRenderKey: Math.random().toString(36)
+      }
+      setCurrentChartLocal(forceUpdatedChart)
+      
+      // 使用函數式更新和隨機 key 強制 React 重新渲染
+      setChartPattern(prevPattern => {
+        const newPattern = JSON.parse(JSON.stringify(updatedChart.rounds || []))
+        // 為每個 round 添加一個隨機 key 來強制重新渲染
+        const patternWithKeys = newPattern.map((round: any) => ({
+          ...round,
+          _renderKey: Math.random().toString(36),
+          _forceUpdateTimestamp: Date.now(),
+          stitches: round.stitches?.map((stitch: any) => ({
+            ...stitch,
+            _renderKey: Math.random().toString(36),
+            _forceUpdateTimestamp: Date.now()
+          })) || [],
+          stitchGroups: round.stitchGroups?.map((group: any) => ({
+            ...group,
+            _renderKey: Math.random().toString(36),
+            _forceUpdateTimestamp: Date.now(),
+            stitches: group.stitches?.map((stitch: any) => ({
+              ...stitch,
+              _renderKey: Math.random().toString(36),
+              _forceUpdateTimestamp: Date.now()
+            })) || []
+          })) || [],
+          // 為 PatternItems 也添加強制更新標記
+          patternItems: round.patternItems?.map((patternItem: any) => ({
+            ...patternItem,
+            _renderKey: Math.random().toString(36),
+            _forceUpdateTimestamp: Date.now(),
+            data: patternItem.type === 'GROUP' ? {
+              ...patternItem.data,
+              _renderKey: Math.random().toString(36),
+              _forceUpdateTimestamp: Date.now(),
+              stitches: patternItem.data.stitches?.map((stitch: any) => ({
+                ...stitch,
+                _renderKey: Math.random().toString(36),
+                _forceUpdateTimestamp: Date.now()
+              })) || []
+            } : {
+              ...patternItem.data,
+              _renderKey: Math.random().toString(36),
+              _forceUpdateTimestamp: Date.now()
+            }
+          })) || []
+        }))
+        console.log('[PATTERN-EDITOR] Forcing pattern re-render with enhanced keys:', {
+          prevLength: prevPattern?.length || 0,
+          newLength: patternWithKeys?.length || 0,
+          hasNewKeys: patternWithKeys?.[0]?._renderKey ? 'yes' : 'no',
+          hasPatternItemKeys: patternWithKeys?.[0]?.patternItems?.[0]?._renderKey ? 'yes' : 'no',
+          forceRenderKey: forceUpdatedChart._patternEditorRenderKey,
+          firstRoundFirstStitchForceTimestamp: patternWithKeys?.[0]?.stitches?.[0]?._forceUpdateTimestamp || 'N/A',
+          firstRoundFirstGroupFirstStitchForceTimestamp: patternWithKeys?.[0]?.stitchGroups?.[0]?.stitches?.[0]?._forceUpdateTimestamp || 'N/A'
+        })
+        return patternWithKeys
+      })
     }
-  }, [currentChart])
+  }, [currentProject, currentChart?.id]) // 監聽整個 currentProject，不只是 charts
 
   if (!currentProject) {
     return (
@@ -644,6 +730,7 @@ export default function PatternEditorContainer() {
 
         {/* Round List */}
         <PatternRoundsList
+          key={`${currentChart?.id}-${(chartPattern?.[0] as any)?._renderKey || Date.now()}`}
           chartPattern={chartPattern}
           currentProject={currentProject}
           currentChart={currentChart}
@@ -690,14 +777,31 @@ export default function PatternEditorContainer() {
               if (currentChart) {
                 const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
                 if (targetRound) {
+                  // 更新針法 - 需要同時更新 stitches (舊格式) 和 patternItems (新格式)
                   const updatedRound = {
                     ...targetRound,
+                    // 更新舊格式的 stitches 陣列
                     stitches: targetRound.stitches.map((s: StitchInfo) =>
                       s.id === stitchId
                         ? { ...s, type: patternEditorState.editStitchType, count }
                         : s
-                    )
+                    ),
+                    // 更新新格式的 patternItems 陣列
+                    patternItems: targetRound.patternItems?.map((item: any) => {
+                      if (item.type === PatternItemType.STITCH && item.data.id === stitchId) {
+                        return {
+                          ...item,
+                          data: {
+                            ...item.data,
+                            type: patternEditorState.editStitchType,
+                            count
+                          }
+                        }
+                      }
+                      return item
+                    }) || []
                   }
+                  
                   
                   await updateChart(currentChart.id, {
                     ...currentChart,
@@ -728,21 +832,34 @@ export default function PatternEditorContainer() {
               alert('更新針法時發生錯誤')
             }
             
-            patternEditorState.setEditingStitch(null)
+            // 延遲重置編輯狀態，確保數據更新完成
+            setTimeout(() => {
+              patternEditorState.setEditingStitch(null)
+            }, 100)
           }}
           onDeleteStitch={async (roundNumber, stitchId) => {
             if (confirm('確定要刪除這個針法嗎？')) {
               if (currentChart) {
                 const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
                 if (targetRound) {
+                  // 刪除針法 - 需要同時更新 stitches (舊格式) 和 patternItems (新格式)
                   const updatedRound = {
                     ...targetRound,
-                    stitches: targetRound.stitches.filter((s: StitchInfo) => s.id !== stitchId)
+                    // 更新舊格式的 stitches 陣列
+                    stitches: targetRound.stitches.filter((s: StitchInfo) => s.id !== stitchId),
+                    // 更新新格式的 patternItems 陣列
+                    patternItems: targetRound.patternItems?.filter((item: any) =>
+                      !(item.type === PatternItemType.STITCH && item.data.id === stitchId)
+                    ) || []
                   }
+                  
+                  
                   await updateChart(currentChart.id, {
+                    ...currentChart,
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
-                    )
+                    ),
+                    lastModified: new Date()
                   })
                 }
               } else {
@@ -770,14 +887,31 @@ export default function PatternEditorContainer() {
               if (currentChart) {
                 const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
                 if (targetRound) {
+                  // 更新群組重複次數 - 需要同時更新 stitchGroups (舊格式) 和 patternItems (新格式)
                   const updatedRound = {
                     ...targetRound,
+                    // 更新舊格式的 stitchGroups 陣列
                     stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) =>
                       g.id === groupId
                         ? { ...g, name: trimmedName, repeatCount }
                         : g
-                    )
+                    ),
+                    // 更新新格式的 patternItems 陣列中的群組
+                    patternItems: targetRound.patternItems?.map((item: any) => {
+                      if (item.type === PatternItemType.GROUP && item.data.id === groupId) {
+                        return {
+                          ...item,
+                          data: {
+                            ...item.data,
+                            name: trimmedName,
+                            repeatCount
+                          }
+                        }
+                      }
+                      return item
+                    }) || []
                   }
+                  
                   await updateChart(currentChart.id, {
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
@@ -810,14 +944,24 @@ export default function PatternEditorContainer() {
               if (currentChart) {
                 const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
                 if (targetRound) {
+                  // 刪除群組 - 需要同時更新 stitchGroups (舊格式) 和 patternItems (新格式)
                   const updatedRound = {
                     ...targetRound,
-                    stitchGroups: targetRound.stitchGroups.filter((g: StitchGroup) => g.id !== groupId)
+                    // 更新舊格式的 stitchGroups 陣列
+                    stitchGroups: targetRound.stitchGroups.filter((g: StitchGroup) => g.id !== groupId),
+                    // 更新新格式的 patternItems 陣列
+                    patternItems: targetRound.patternItems?.filter((item: any) =>
+                      !(item.type === PatternItemType.GROUP && item.data.id === groupId)
+                    ) || []
                   }
+                  
+                  
                   await updateChart(currentChart.id, {
+                    ...currentChart,
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
-                    )
+                    ),
+                    lastModified: new Date()
                   })
                 }
               }
@@ -835,19 +979,15 @@ export default function PatternEditorContainer() {
             const { roundNumber, groupId, stitchId } = patternEditorState.editingGroupStitch
             const count = parseInt(patternEditorState.editGroupStitchCount) || 1
             
-            console.log('[DEBUG] onUpdateGroupStitch called:', {
-              editingGroupStitch: patternEditorState.editingGroupStitch,
-              editGroupStitchType: patternEditorState.editGroupStitchType,
-              editGroupStitchCount: patternEditorState.editGroupStitchCount,
-              parsedCount: count
-            })
             
             try {
               if (currentChart) {
                 const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
                 if (targetRound) {
+                  // 更新群組針法 - 需要同時更新 stitchGroups (舊格式) 和 patternItems (新格式)
                   const updatedRound = {
                     ...targetRound,
+                    // 更新舊格式的 stitchGroups 陣列
                     stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) =>
                       g.id === groupId
                         ? {
@@ -859,8 +999,26 @@ export default function PatternEditorContainer() {
                             )
                           }
                         : g
-                    )
+                    ),
+                    // 更新新格式的 patternItems 陣列中的群組針法
+                    patternItems: targetRound.patternItems?.map((item: any) => {
+                      if (item.type === PatternItemType.GROUP && item.data.id === groupId) {
+                        return {
+                          ...item,
+                          data: {
+                            ...item.data,
+                            stitches: item.data.stitches.map((s: StitchInfo) =>
+                              s.id === stitchId
+                                ? { ...s, type: patternEditorState.editGroupStitchType, count }
+                                : s
+                            )
+                          }
+                        }
+                      }
+                      return item
+                    }) || []
                   }
+                  
                   await updateChart(currentChart.id, {
                     rounds: currentChart.rounds.map((r: Round) =>
                       r.roundNumber === roundNumber ? updatedRound : r
@@ -876,15 +1034,16 @@ export default function PatternEditorContainer() {
             patternEditorState.setEditingGroupStitch(null)
           }}
           onDeleteGroupStitch={async (roundNumber: number, groupId: string, stitchId: string) => {
-            console.log('[DEBUG] onDeleteGroupStitch called:', { roundNumber, groupId, stitchId })
             if (!confirm('確定要刪除這個針法嗎？')) return
             
             try {
               if (currentChart) {
                 const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
                 if (targetRound) {
+                  // 刪除群組針法 - 需要同時更新 stitchGroups (舊格式) 和 patternItems (新格式)
                   const updatedRound = {
                     ...targetRound,
+                    // 更新舊格式的 stitchGroups 陣列
                     stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) =>
                       g.id === groupId
                         ? {
@@ -892,8 +1051,23 @@ export default function PatternEditorContainer() {
                             stitches: g.stitches.filter((s: StitchInfo) => s.id !== stitchId)
                           }
                         : g
-                    )
+                    ),
+                    // 更新新格式的 patternItems 陣列中的群組針法
+                    patternItems: targetRound.patternItems?.map((item: any) => {
+                      if (item.type === PatternItemType.GROUP && item.data.id === groupId) {
+                        return {
+                          ...item,
+                          data: {
+                            ...item.data,
+                            stitches: item.data.stitches.filter((s: StitchInfo) => s.id !== stitchId)
+                          }
+                        }
+                      }
+                      return item
+                    }) || []
                   }
+                  
+                  
                   await updateChart(currentChart.id, {
                     ...currentChart,
                     rounds: currentChart.rounds.map((r: Round) =>

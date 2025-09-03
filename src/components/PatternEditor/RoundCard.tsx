@@ -269,7 +269,7 @@ export default function RoundCard({
           <div className="space-y-2">
             {sortedPatternItems.map((patternItem, index) => (
               <PatternItemDisplay
-                key={patternItem.id}
+                key={`${patternItem.id}-${(patternItem.data as any)?._forceUpdateTimestamp || Date.now()}-${(patternItem as any)?._renderKey || Math.random()}`}
                 patternItem={patternItem}
                 roundNumber={round.roundNumber}
                 index={index}
