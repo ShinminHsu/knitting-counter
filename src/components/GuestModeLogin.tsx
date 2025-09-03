@@ -1,5 +1,6 @@
 import React from 'react'
 import { useAuthStore } from '../stores/useAuthStore'
+import knittingIcon from '../assets/images/kniitingIcon.png'
 
 export const GuestModeLogin: React.FC = () => {
   const { signInWithGoogle, enterGuestMode, isLoading, error, userType, user } = useAuthStore()
@@ -13,9 +14,12 @@ export const GuestModeLogin: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-background-primary">
       <div className="max-w-md w-full space-y-8 p-6">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-text-primary">
-            編織計數器
-          </h2>
+          <div className="flex items-center justify-center mb-4">
+            <img src={knittingIcon} alt="Stitchie" className="w-12 h-12 mr-3" />
+            <h2 className="text-3xl font-extrabold text-text-primary">
+              Stitchie
+            </h2>
+          </div>
           <p className="mt-2 text-center text-sm text-text-secondary">
             選擇使用方式
           </p>
@@ -61,16 +65,10 @@ export const GuestModeLogin: React.FC = () => {
                 <h3 className="text-sm font-medium text-text-primary">
                   雲端同步模式
                 </h3>
-                <div className="mt-1 text-sm text-text-secondary">
-                  數據會同步到雲端，可在多個裝置間使用
-                </div>
                 <div className="mt-2 text-sm text-text-secondary">
                   <p className="mb-2">
                     目前雲端同步功能只開放給特定用戶使用。<br />
                     您的帳號將使用本地模式，數據不會同步到雲端。
-                  </p>
-                  <p className="font-semibold text-text-primary">
-                    如需雲端同步功能，請聯繫管理員申請權限。
                   </p>
                 </div>
               </div>

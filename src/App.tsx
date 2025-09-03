@@ -12,14 +12,14 @@ import ProgressTrackingView from './components/ProgressTrackingView'
 import YarnManagerView from './components/YarnManagerView'
 import ImportExportView from './components/ImportExportView'
 import NotFoundView from './components/NotFoundView'
-import GoogleSignIn from './components/GoogleSignIn'
+import { GuestModeLogin } from './components/GuestModeLogin'
 import WelcomeLoadingView from './components/WelcomeLoadingView'
 
 function App() {
   const { loadUserProjects, clearUserDataSilently, projects } = useProjectStore()
   const { setError, error, isLoading: appIsLoading } = useBaseStore()
   const { isSyncing } = useSyncStore()
-  const { user, isLoading: authIsLoading, initialize } = useAuthStore()
+  const { user, userType, isLoading: authIsLoading, initialize } = useAuthStore()
 
   useEffect(() => {
     const unsubscribe = initialize()
@@ -69,9 +69,17 @@ function App() {
     )
   }
 
-  // 未登入狀態
-  if (!user) {
-    return <GoogleSignIn />
+  // 用戶未選擇登入方式
+  if (userType === 'uninitialized') {
+    return <GuestModeLogin />
+  }
+
+  // 用戶已選擇模式但沒有登入（訪客模式）或已登入
+  if (userType === 'guest' || (userType === 'authenticated' && user)) {
+    // 繼續執行下面的邏輯
+  } else {
+    // 其他未預期的狀態，回到登入選擇
+    return <GuestModeLogin />
   }
 
   // 已登入但還在載入或同步中，或專案還沒準備好

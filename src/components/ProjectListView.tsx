@@ -7,6 +7,7 @@ import { formatDate, getProjectProgressPercentage, getProjectTotalStitchesAllCha
 import { useChartStore } from '../stores/useChartStore'
 import { ImportExportService } from '../services/importExportService'
 import { ImportMode } from '../types'
+import knittingIcon from '../assets/images/kniitingIcon.png'
 
 export default function ProjectListView() {
   const { projects, createProject, deleteProject, setProjects, setCurrentProject, updateProjectLocally } = useProjectStore()
@@ -138,10 +139,13 @@ export default function ProjectListView() {
       <div className="bg-background-secondary border-b border-border">
         <div className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">編織專案</h1>
+            <div className="flex items-center gap-3">
+              <img src={knittingIcon} alt="Stitchie" className="w-12 h-12" />
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">Stitchie</h1>
+            </div>
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
               <UserProfile />
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={() => setShowCreateForm(true)}
                   className="btn btn-primary text-xs sm:text-sm"

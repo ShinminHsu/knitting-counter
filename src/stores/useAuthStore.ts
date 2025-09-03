@@ -136,15 +136,15 @@ export const useAuthStore = create<AuthStore>()(
             await firebaseSignOut(auth)
           }
           
-          // 重置為訪客模式
+          // 重置為未初始化狀態，讓用戶重新選擇登入方式
           set({ 
             user: null, 
-            userType: 'guest',
+            userType: 'uninitialized',
             syncMode: 'local',
             isLoading: false 
           })
           
-          console.log('[AUTH] User signed out, switched to guest mode')
+          console.log('[AUTH] User signed out, back to login selection')
         } catch (error: unknown) {
           console.error('登出失敗:', error)
           const errorMessage = error instanceof Error ? error.message : '登出失敗'
