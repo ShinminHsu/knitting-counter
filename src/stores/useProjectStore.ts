@@ -7,6 +7,7 @@ import { useAuthStore } from './useAuthStore'
 import { firestoreService } from '../services/firestoreService'
 import { useSyncStore } from './useSyncStore'
 import { useBaseStore, handleAsyncError } from './useBaseStore'
+import { guestDataBackup } from '../services/guestDataBackup'
 
 interface ProjectStoreState {
   projects: Project[]
@@ -35,6 +36,46 @@ interface ProjectStoreActions {
 }
 
 interface ProjectStore extends ProjectStoreState, ProjectStoreActions {}
+
+// 輔助函數：為訪客用戶自動備份數據到 IndexedDB
+const backupGuestDataIfNeeded = async (projects: Project[], currentProject: Project | null) => {
+  const { user, userType } = useAuthStore.getState()
+  
+  console.log('[PROJECT-BACKUP] Checking if backup needed:', {
+    userType,
+    hasUser: !!user,
+    userEmail: user?.email,
+    canUseFirebase: user ? useAuthStore.getState().canUseFirebase() : false,
+    projectCount: projects.length,
+    currentProjectName: currentProject?.name,
+    currentProjectLastModified: currentProject?.lastModified instanceof Date ? currentProject.lastModified.toISOString() : currentProject?.lastModified
+  })
+  
+  // 只有訪客用戶或非白名單用戶需要備份
+  if (userType === 'guest' || (user && !useAuthStore.getState().canUseFirebase())) {
+    try {
+      // 為非 Firebase 用戶（訪客或非白名單用戶）生成用戶身份標識
+      const userIdentity = userType === 'guest' ? 'guest' : user?.email || 'unknown'
+      
+      console.log('[PROJECT-BACKUP] Triggering backup for guest/non-whitelist user:', {
+        userIdentity,
+        projectsToBackup: projects.length,
+        currentProjectData: {
+          id: currentProject?.id,
+          name: currentProject?.name,
+          lastModified: currentProject?.lastModified instanceof Date ? currentProject.lastModified.toISOString() : currentProject?.lastModified,
+          chartsCount: currentProject?.charts?.length || 0
+        }
+      })
+      await guestDataBackup.backupGuestData(projects, currentProject, userIdentity)
+      console.log('[PROJECT-BACKUP] Guest data backed up to IndexedDB with identity:', userIdentity)
+    } catch (error) {
+      console.error('[PROJECT-BACKUP] Failed to backup guest data:', error)
+    }
+  } else {
+    console.log('[PROJECT-BACKUP] Backup not needed - user can use Firebase')
+  }
+}
 
 export const useProjectStore = create<ProjectStore>()(
   persist(
@@ -65,13 +106,19 @@ export const useProjectStore = create<ProjectStore>()(
           isCompleted: false
         }
         
-        set(state => ({
-          projects: [...state.projects, newProject],
+        const newState = {
+          projects: [...get().projects, newProject],
           currentProject: newProject
-        }))
+        }
         
-        // Sync to Firestore
-        if (user) {
+        set(newState)
+        
+        // 自動備份訪客數據
+        backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+        
+        // Sync to Firestore (only if user can use Firebase)
+        const { canUseFirebase } = useAuthStore.getState()
+        if (user && canUseFirebase()) {
           try {
             await firestoreService.createProject(user.uid, newProject)
             useSyncStore.getState().setLastSyncTime(new Date())
@@ -79,6 +126,8 @@ export const useProjectStore = create<ProjectStore>()(
           } catch (error) {
             handleAsyncError(error, 'Create Project')
           }
+        } else if (user) {
+          console.log('[PROJECT] Project created locally (user not in whitelist):', newProject.name)
         }
       },
 
@@ -91,17 +140,23 @@ export const useProjectStore = create<ProjectStore>()(
           lastModified: new Date()
         }
         
-        set(state => ({
-          projects: state.projects.map(p => 
+        const newState = {
+          projects: get().projects.map(p => 
             p.id === updatedProject.id ? updatedProjectWithTimestamp : p
           ),
-          currentProject: state.currentProject?.id === updatedProject.id 
+          currentProject: get().currentProject?.id === updatedProject.id 
             ? updatedProjectWithTimestamp 
-            : state.currentProject
-        }))
+            : get().currentProject
+        }
         
-        // Sync to Firestore
-        if (user) {
+        set(newState)
+        
+        // 自動備份訪客數據
+        backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+        
+        // Sync to Firestore (only if user can use Firebase)
+        const { canUseFirebase } = useAuthStore.getState()
+        if (user && canUseFirebase()) {
           try {
             await firestoreService.updateProject(user.uid, updatedProjectWithTimestamp)
             useSyncStore.getState().setLastSyncTime(new Date())
@@ -109,6 +164,8 @@ export const useProjectStore = create<ProjectStore>()(
           } catch (error) {
             handleAsyncError(error, 'Update Project')
           }
+        } else if (user) {
+          console.log('[PROJECT] Project updated locally (user not in whitelist):', updatedProjectWithTimestamp.name)
         }
       },
 
@@ -116,18 +173,26 @@ export const useProjectStore = create<ProjectStore>()(
       updateProjectLocally: async (updatedProject: Project) => {
         console.log('[PROJECT] Starting local project update:', {
           projectId: updatedProject.id,
-          lastModified: updatedProject.lastModified
+          lastModified: updatedProject.lastModified,
+          projectName: updatedProject.name
         })
         
         // Update local state immediately - this should be instant
-        set(state => ({
-          projects: state.projects.map(p =>
+        const newState = {
+          projects: get().projects.map(p =>
             p.id === updatedProject.id ? updatedProject : p
           ),
-          currentProject: state.currentProject?.id === updatedProject.id
+          currentProject: get().currentProject?.id === updatedProject.id
             ? updatedProject
-            : state.currentProject
-        }))
+            : get().currentProject
+        }
+        
+        set(newState)
+
+        // 自動備份訪客數據 - 延遲執行確保狀態已更新
+        setTimeout(async () => {
+          await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+        }, 100)
 
         // Use base store for local update tracking
         const baseStore = useBaseStore.getState()
@@ -170,13 +235,19 @@ export const useProjectStore = create<ProjectStore>()(
       deleteProject: async (id) => {
         const { user } = useAuthStore.getState()
         
-        set(state => ({
-          projects: state.projects.filter(p => p.id !== id),
-          currentProject: state.currentProject?.id === id ? null : state.currentProject
-        }))
+        const newState = {
+          projects: get().projects.filter(p => p.id !== id),
+          currentProject: get().currentProject?.id === id ? null : get().currentProject
+        }
         
-        // Sync to Firestore
-        if (user) {
+        set(newState)
+        
+        // 自動備份訪客數據
+        backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+        
+        // Sync to Firestore (only if user can use Firebase)
+        const { canUseFirebase } = useAuthStore.getState()
+        if (user && canUseFirebase()) {
           try {
             await firestoreService.deleteProject(user.uid, id)
             useSyncStore.getState().setLastSyncTime(new Date())
@@ -184,6 +255,8 @@ export const useProjectStore = create<ProjectStore>()(
           } catch (error) {
             handleAsyncError(error, 'Delete Project')
           }
+        } else if (user) {
+          console.log('[PROJECT] Project deleted locally (user not in whitelist):', id)
         }
       },
 
@@ -201,8 +274,9 @@ export const useProjectStore = create<ProjectStore>()(
         const user = useAuthStore.getState().user
         
         if (projects.length === 0) {
-          // If user is logged in, try to load from Firestore first
-          if (user) {
+          // If user is logged in and can use Firebase, try to load from Firestore first
+          const { canUseFirebase } = useAuthStore.getState()
+          if (user && canUseFirebase()) {
             try {
               const firestoreProjects = await firestoreService.getUserProjects(user.uid)
               if (firestoreProjects.length > 0) {
@@ -218,17 +292,29 @@ export const useProjectStore = create<ProjectStore>()(
           }
           
           // Create sample project only if no data exists
-          const sampleProject = createSampleProject()
-          set({
-            projects: [sampleProject],
-            currentProject: sampleProject
-          })
+          const { projects: currentProjects } = get()
+          if (!currentProjects || currentProjects.length === 0) {
+            console.log('loadProjects: creating sample project (no existing projects)')
+            const sampleProject = createSampleProject()
+            const newState = {
+              projects: [sampleProject],
+              currentProject: sampleProject
+            }
+            set(newState)
+            
+            // 自動備份訪客數據
+            await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+          } else {
+            console.log('loadProjects: keeping existing projects, not creating sample project')
+            // 只備份現有數據，不創建新項目
+            await backupGuestDataIfNeeded(currentProjects, get().currentProject)
+          }
         }
       },
 
       // Load user projects from Firestore
       loadUserProjects: async () => {
-        const { user } = useAuthStore.getState()
+        const { user, canUseFirebase } = useAuthStore.getState()
         if (!user) {
           get().clearUserDataSilently()
           return
@@ -238,10 +324,11 @@ export const useProjectStore = create<ProjectStore>()(
           useBaseStore.getState().setLoading(true)
           useBaseStore.getState().setError(null)
           
-          // Try to load from Firestore first
-          const firestoreProjects = await firestoreService.getUserProjects(user.uid)
+          // Try to load from Firestore first (only if user can use Firebase)
+          if (canUseFirebase()) {
+            const firestoreProjects = await firestoreService.getUserProjects(user.uid)
           
-          if (firestoreProjects.length > 0) {
+            if (firestoreProjects.length > 0) {
             console.log('Loaded projects from Firestore:', firestoreProjects.length)
             
             // Ensure backward compatibility with migrated data
@@ -271,6 +358,7 @@ export const useProjectStore = create<ProjectStore>()(
             })
             useSyncStore.getState().setLastSyncTime(new Date())
             return
+            }
           }
           
           // If Firestore has no data, try to migrate from localStorage
@@ -363,9 +451,13 @@ export const useProjectStore = create<ProjectStore>()(
                 
                 console.log('Migrating local projects to Firestore:', localProjects.length)
                 
-                // Upload to Firestore
-                for (const project of localProjects) {
-                  await firestoreService.createProject(user.uid, project)
+                // Upload to Firestore (only if user can use Firebase)
+                if (canUseFirebase()) {
+                  for (const project of localProjects) {
+                    await firestoreService.createProject(user.uid, project)
+                  }
+                } else {
+                  console.log('User not in whitelist, keeping projects local only')
                 }
                 
                 set({
@@ -381,26 +473,48 @@ export const useProjectStore = create<ProjectStore>()(
           }
           
           // If no data exists, check if sample project already exists to avoid duplicates
-          const existingProjects = await firestoreService.getUserProjects(user.uid)
-          const hasSampleProject = existingProjects.some(p => p.name === '範例杯墊')
-          
-          if (!hasSampleProject) {
-            console.log('No data found, creating sample project')
-            const sampleProject = createSampleProject()
-            await firestoreService.createProject(user.uid, sampleProject)
+          if (canUseFirebase()) {
+            const existingProjects = await firestoreService.getUserProjects(user.uid)
+            const hasSampleProject = existingProjects.some(p => p.name === '範例杯墊')
             
-            set({
-              projects: [sampleProject],
-              currentProject: sampleProject
-            })
-            useSyncStore.getState().setLastSyncTime(new Date())
+            if (!hasSampleProject) {
+              console.log('No data found, creating sample project')
+              const sampleProject = createSampleProject()
+              await firestoreService.createProject(user.uid, sampleProject)
+              
+              set({
+                projects: [sampleProject],
+                currentProject: sampleProject
+              })
+              useSyncStore.getState().setLastSyncTime(new Date())
+            } else {
+              console.log('Sample project already exists, loading existing projects')
+              set({
+                projects: existingProjects,
+                currentProject: existingProjects[0] || null
+              })
+              useSyncStore.getState().setLastSyncTime(new Date())
+            }
           } else {
-            console.log('Sample project already exists, loading existing projects')
-            set({
-              projects: existingProjects,
-              currentProject: existingProjects[0] || null
-            })
-            useSyncStore.getState().setLastSyncTime(new Date())
+            // 本地模式，檢查是否已有項目，避免覆蓋現有數據
+            const { projects: currentProjects } = get()
+            
+            if (!currentProjects || currentProjects.length === 0) {
+              console.log('Local mode: creating sample project locally (no existing projects)')
+              const sampleProject = createSampleProject()
+              const newState = {
+                projects: [sampleProject],
+                currentProject: sampleProject
+              }
+              set(newState)
+              
+              // 自動備份訪客數據
+              await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
+            } else {
+              console.log('Local mode: keeping existing projects, not creating sample project')
+              // 只備份現有數據，不創建新項目
+              await backupGuestDataIfNeeded(currentProjects, get().currentProject)
+            }
           }
           
         } catch (error) {
@@ -454,10 +568,14 @@ export const useProjectStore = create<ProjectStore>()(
               const { projects } = get()
               if (!projects || projects.length === 0) {
                 const sampleProject = createSampleProject()
-                set({
+                const newState = {
                   projects: [sampleProject],
                   currentProject: sampleProject
-                })
+                }
+                set(newState)
+                
+                // 自動備份訪客數據
+                await backupGuestDataIfNeeded(newState.projects, newState.currentProject)
               }
             }
           }

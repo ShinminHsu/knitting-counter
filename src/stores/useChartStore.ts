@@ -3,6 +3,7 @@ import { Chart, CreateChartRequest, ChartSummary, Project } from '../types'
 import { generateId, createChart, getCurrentChart, getProjectChartSummaries, setCurrentChart, addChartToProject, removeChartFromProject, updateChartInProject, migrateProjectToMultiChart } from '../utils'
 import { useProjectStore } from './useProjectStore'
 import { handleAsyncError } from './useBaseStore'
+import { debouncedSyncManager } from '../utils/debouncedSync'
 
 // Common utility function for safe project updates with Timestamp cleaning
 const createSafeUpdateProjectLocally = () => {
@@ -42,8 +43,9 @@ const createSafeUpdateProjectLocally = () => {
   }
 
   return async (project: Project, _context: string = 'unknown') => {
-    const { updateProjectLocally } = useProjectStore.getState()
+    const { setProjects, setCurrentProject, projects, currentProject } = useProjectStore.getState()
     
+    console.log(`[SAFE-UPDATE] ${_context} - About to update project:`, project.id)
 
     const cleanedProject = {
       ...project,
@@ -70,13 +72,191 @@ const createSafeUpdateProjectLocally = () => {
       }) || []
     }
 
-
-    await updateProjectLocally(cleanedProject)
+    // 只更新本地狀態，不同步到Firebase
+    setProjects(projects.map(p => p.id === cleanedProject.id ? cleanedProject : p))
+    if (currentProject?.id === cleanedProject.id) {
+      setCurrentProject(cleanedProject)
+    }
   }
 }
 
-// Export the safe update function for use in other stores
+// Export the safe update function for use in other stores (with immediate sync)
 export const safeUpdateProjectLocally = createSafeUpdateProjectLocally()
+
+// Create debounced version with reduced Firebase writes
+const createDebouncedUpdateProjectLocally = () => {
+  const safeCreateDate = (dateValue: any, fallback: Date = new Date()): Date => {
+    if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+      return new Date(dateValue)
+    }
+    if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+      const parsed = new Date(dateValue)
+      if (!isNaN(parsed.getTime())) {
+        return parsed
+      }
+    }
+    // Handle Firestore Timestamp objects
+    if (dateValue && typeof dateValue === 'object' && 'seconds' in dateValue && 'nanoseconds' in dateValue) {
+      try {
+        // Convert Firestore Timestamp to Date
+        const timestamp = dateValue.seconds * 1000 + dateValue.nanoseconds / 1000000
+        const date = new Date(timestamp)
+        if (!isNaN(date.getTime())) {
+          return date
+        }
+      } catch (e) {
+      }
+    }
+    // Handle Firestore Timestamp objects with toDate method
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      try {
+        const date = dateValue.toDate()
+        if (date instanceof Date && !isNaN(date.getTime())) {
+          return date
+        }
+      } catch (e) {
+      }
+    }
+    return fallback
+  }
+
+  return async (project: Project, context: string = 'unknown', isUrgent: boolean = false) => {
+    console.log(`[DEBOUNCED-UPDATE] debouncedUpdateProjectLocally called:`, {
+      projectId: project.id,
+      context,
+      isUrgent,
+      firstStitchCountInput: project.charts?.[0]?.rounds?.[0]?.stitches?.[0]?.count || 'N/A'
+    })
+    
+    const { setCurrentProject, setProjects, projects } = useProjectStore.getState()
+    
+    // 針對進度更新操作，避免不必要的深度複製
+    const isProgressUpdate = context === 'updateChartProgress'
+    
+    const cleanedProject = {
+      ...project,
+      lastModified: new Date(),
+      createdDate: safeCreateDate(project.createdDate, new Date()),
+      sessions: project.sessions?.map(session => ({
+        ...session,
+        startTime: safeCreateDate(session.startTime)
+      })) || [],
+      charts: project.charts?.map((chart) => {
+        // 對於進度更新，避免複製 rounds 陣列，因為進度更新不會改變織圖結構
+        if (isProgressUpdate) {
+          return {
+            ...chart,
+            createdDate: safeCreateDate(chart.createdDate, project.createdDate),
+            lastModified: safeCreateDate(chart.lastModified, new Date())
+            // 不複製 rounds，使用原始引用
+          }
+        }
+        
+        // 只有在非進度更新時才進行深度複製
+        return {
+          ...chart,
+          createdDate: safeCreateDate(chart.createdDate, project.createdDate),
+          lastModified: safeCreateDate(chart.lastModified, new Date()),
+          rounds: chart.rounds?.map(round => ({
+            ...round,
+            stitches: [...round.stitches],
+            stitchGroups: round.stitchGroups?.map(group => ({
+              ...group,
+              stitches: [...group.stitches]
+            })) || []
+          })) || []
+        }
+      }) || []
+    }
+
+    // 立即更新本地狀態
+    const updatedProjects = projects.map(p =>
+      p.id === cleanedProject.id ? cleanedProject : p
+    )
+    setProjects(updatedProjects)
+    
+    // 如果是當前項目，也更新當前項目狀態
+    const currentProject = useProjectStore.getState().currentProject
+    if (currentProject?.id === cleanedProject.id) {
+      setCurrentProject(cleanedProject)
+    }
+
+    // 使用防抖同步到Firebase
+    await debouncedSyncManager.debouncedSync(cleanedProject, context, isUrgent)
+    
+    // 為非白名單/訪客用戶模擬 Firebase 訂閱的額外狀態更新和 IndexedDB 備份
+    const { user, canUseFirebase } = await import('./useAuthStore').then(m => m.useAuthStore.getState())
+    if (!user || !canUseFirebase()) {
+      console.log(`[DEBOUNCED-UPDATE] Triggering additional state update and backup for non-whitelist/guest user`, {
+        context,
+        isUrgent,
+        projectId: cleanedProject.id,
+        projectName: cleanedProject.name,
+        userEmail: user?.email || 'guest',
+        canUseFirebase: canUseFirebase()
+      })
+      
+      // 修正：使用多次更新確保 UI 能夠檢測到變化
+      const performForceUpdate = async (attempt: number = 1) => {
+        console.log(`[DEBOUNCED-UPDATE] Executing delayed state update attempt ${attempt} for non-whitelist/guest user`)
+        
+        const currentState = useProjectStore.getState()
+        const forceUpdatedProject = {
+          ...cleanedProject,
+          lastModified: new Date(),
+          _forceUpdateFlag: Math.random(), // 強制觸發 React 檢測
+          _updateAttempt: attempt
+        }
+        const updatedProjects = currentState.projects.map(p =>
+          p.id === cleanedProject.id ? forceUpdatedProject : p
+        )
+        
+        console.log(`[DEBOUNCED-UPDATE] Forcing project store update attempt ${attempt}`, {
+          projectsCount: updatedProjects.length,
+          currentProjectId: currentState.currentProject?.id,
+          updatedProjectId: forceUpdatedProject.id,
+          forceUpdateFlag: forceUpdatedProject._forceUpdateFlag,
+          attempt: forceUpdatedProject._updateAttempt
+        })
+        
+        setProjects(updatedProjects)
+        if (currentState.currentProject?.id === cleanedProject.id) {
+          setCurrentProject(forceUpdatedProject)
+        }
+        
+        // 額外的狀態觸發，確保所有組件都能檢測到變化
+        if (attempt === 1) {
+          // 第一次更新後，再進行一次更強制的更新
+          setTimeout(() => performForceUpdate(2), 100)
+        }
+        
+        // 重要：為非白名單/訪客用戶手動觸發 IndexedDB 備份
+        if (attempt === 2) { // 只在最後一次更新時進行備份
+          try {
+            const { guestDataBackup } = await import('../services/guestDataBackup')
+            const { useAuthStore } = await import('./useAuthStore')
+            const { userType } = useAuthStore.getState()
+            const userIdentity = userType === 'guest' ? 'guest' : (user?.email || 'unknown')
+            
+            console.log('[DEBOUNCED-UPDATE] Manually triggering IndexedDB backup for non-whitelist/guest user:', userIdentity)
+            await guestDataBackup.backupGuestData(updatedProjects, forceUpdatedProject, userIdentity)
+            console.log('[DEBOUNCED-UPDATE] IndexedDB backup completed successfully')
+          } catch (error) {
+            console.error('[DEBOUNCED-UPDATE] Failed to backup to IndexedDB:', error)
+          }
+        }
+      }
+      
+      // 延遲一點時間，模擬 Firebase 監聽器的延遲，然後強制觸發狀態更新
+      setTimeout(() => performForceUpdate(1), 50) // 50ms 延遲，模擬網路延遲
+    }
+    
+    console.log(`[DEBOUNCED-UPDATE] Local state updated immediately, Firebase sync scheduled (context: ${context})`)
+  }
+}
+
+// Export the debounced version for high-frequency operations
+export const debouncedUpdateProjectLocally = createDebouncedUpdateProjectLocally()
 
 interface ChartStoreState {
   // No persistent state needed - charts are managed in projects
@@ -87,6 +267,7 @@ interface ChartStoreActions {
   createChart: (chartData: CreateChartRequest) => Promise<Chart | null>
   duplicateChart: (chartId: string) => Promise<Chart | null>
   updateChart: (chartId: string, updates: Partial<Chart>) => Promise<void>
+  updateChartProgress: (chartId: string, updates: Partial<Chart>) => Promise<void> // 新增：專門用於進度更新
   deleteChart: (chartId: string) => Promise<void>
   setCurrentChart: (chartId: string) => Promise<void>
   
@@ -258,12 +439,62 @@ export const useChartStore = create<ChartStore>(() => ({
         return
       }
 
-      await safeUpdateProjectLocally(updatedProject, 'updateChart')
+      await debouncedUpdateProjectLocally(updatedProject, 'updateChart')
 
       console.log('[CHART] Updated chart:', chartId)
     } catch (error) {
       console.error('[CHART] Error in updateChart:', error)
       handleAsyncError(error, 'Failed to update chart')
+    }
+  },
+
+  // 專門用於進度更新的函數，使用批次處理
+  updateChartProgress: async (chartId: string, updates: Partial<Chart>) => {
+    const { currentProject } = useProjectStore.getState()
+    if (!currentProject) {
+      console.error('[CHART] updateChartProgress: No current project')
+      return
+    }
+
+    try {
+      // Ensure project is migrated to multi-chart format
+      migrateProjectToMultiChart(currentProject)
+      
+      if (!currentProject.charts) {
+        console.error('[CHART] updateChartProgress: No charts found after migration')
+        return
+      }
+
+      const existingChart = currentProject.charts.find(c => c.id === chartId)
+      if (!existingChart) {
+        console.error('[CHART] updateChartProgress: Chart not found:', chartId)
+        return
+      }
+
+      // 僅複製必要的進度欄位，避免深度複製整個 chart
+      const updatedChart = {
+        ...existingChart,
+        currentRound: updates.currentRound ?? existingChart.currentRound,
+        currentStitch: updates.currentStitch ?? existingChart.currentStitch,
+        isCompleted: updates.isCompleted ?? existingChart.isCompleted,
+        lastModified: new Date()
+      }
+
+      // 最小化項目複製，只更新必要的欄位
+      const updatedProject = {
+        ...currentProject,
+        charts: currentProject.charts.map(chart =>
+          chart.id === chartId ? updatedChart : chart
+        ),
+        lastModified: new Date()
+      }
+
+      await debouncedUpdateProjectLocally(updatedProject, 'updateChartProgress')
+
+      console.log('[CHART] Updated chart progress:', chartId)
+    } catch (error) {
+      console.error('[CHART] Error in updateChartProgress:', error)
+      handleAsyncError(error, 'Failed to update chart progress')
     }
   },
 
@@ -429,7 +660,7 @@ export const useChartStore = create<ChartStore>(() => ({
         )
       })
 
-      await safeUpdateProjectLocally(updatedProject, 'setCurrentChart')
+      await debouncedUpdateProjectLocally(updatedProject, 'setCurrentChart')
 
       console.log('[CHART] Set current chart to:', chartId)
     } catch (error) {

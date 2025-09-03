@@ -25,7 +25,7 @@ export default function ProgressTrackingView() {
     getChartSummaries,
     setCurrentChart,
     getCurrentChart,
-    updateChart
+    updateChartProgress
   } = useChartStore()
   
   // Get current chart
@@ -54,6 +54,7 @@ export default function ProgressTrackingView() {
   const {
     currentRound,
     currentStitchInRound,
+    currentStitchDisplayInRound,
     totalStitchesInCurrentRound,
     displayRound,
     roundDescription,
@@ -68,6 +69,7 @@ export default function ProgressTrackingView() {
   // Auto-scroll functionality
   useAutoScroll({
     currentProject,
+    currentChart,
     displayRound,
     isViewMode,
     patternContainerRef
@@ -129,12 +131,12 @@ export default function ProgressTrackingView() {
       }
     }
 
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: newRound,
       currentStitch: newStitch,
       isCompleted
     })
-  }, [currentProject, currentChart, updateChart])
+  }, [currentProject, currentChart, updateChartProgress])
 
   // Handle previous stitch using direct store operations
   const handlePreviousStitch = useCallback(async () => {
@@ -168,12 +170,12 @@ export default function ProgressTrackingView() {
       newStitch = 0
     }
 
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: newRound,
       currentStitch: newStitch,
       isCompleted: false
     })
-  }, [currentProject, currentChart, updateChart])
+  }, [currentProject, currentChart, updateChartProgress])
 
   // Handle complete round using direct store operations
   const handleCompleteRound = useCallback(async () => {
@@ -194,13 +196,13 @@ export default function ProgressTrackingView() {
           return sum + (groupStitches * group.repeatCount)
         }, 0) : 0
       
-      await updateChart(currentChart.id, {
+      await updateChartProgress(currentChart.id, {
         currentStitch: totalStitches,
         isCompleted: true
       })
     } else {
       // Move to next round
-      await updateChart(currentChart.id, {
+      await updateChartProgress(currentChart.id, {
         currentRound: currentChart.currentRound + 1,
         currentStitch: 0,
         isCompleted: false
@@ -208,7 +210,7 @@ export default function ProgressTrackingView() {
     }
     
     setViewingRound(null) // Exit view mode
-  }, [currentProject, currentChart, updateChart])
+  }, [currentProject, currentChart, updateChartProgress])
 
   // Handle exit view mode
   const handleExitViewMode = useCallback(() => {
@@ -222,12 +224,12 @@ export default function ProgressTrackingView() {
     }
     
     // Reset chart progress to beginning
-    await updateChart(currentChart.id, {
+    await updateChartProgress(currentChart.id, {
       currentRound: 1,
       currentStitch: 0,
       isCompleted: false
     })
-  }, [currentProject, currentChart, updateChart])
+  }, [currentProject, currentChart, updateChartProgress])
 
   // Handle share success
   const handleShareSuccess = useCallback(() => {
@@ -246,6 +248,41 @@ export default function ProgressTrackingView() {
       alert('編織完成！')
     }
   }, [currentProject])
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Only handle keyboard events when not in view mode and chart exists
+      if (isViewMode || !currentChart) {
+        return
+      }
+
+      // Prevent default behavior for arrow keys
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault()
+      }
+
+      switch (event.key) {
+        case 'ArrowLeft':
+          // Check if we can go to previous stitch
+          if (!(currentChart.currentRound === 1 && currentChart.currentStitch === 0)) {
+            handlePreviousStitch()
+          }
+          break
+        case 'ArrowRight':
+          handleNextStitch()
+          break
+      }
+    }
+
+    // Add event listener
+    window.addEventListener('keydown', handleKeyPress)
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress)
+    }
+  }, [isViewMode, currentChart, handleNextStitch, handlePreviousStitch])
 
   // Loading state
   if (!currentProject) {
@@ -311,7 +348,7 @@ export default function ProgressTrackingView() {
               currentProject={currentProject}
               currentChart={currentChart}
               isViewMode={isViewMode}
-              currentStitchInRound={currentStitchInRound}
+              currentStitchDisplayInRound={currentStitchDisplayInRound}
               totalStitchesInCurrentRound={totalStitchesInCurrentRound}
               displayRoundNumber={displayRoundNumber}
               onNextStitch={handleNextStitch}

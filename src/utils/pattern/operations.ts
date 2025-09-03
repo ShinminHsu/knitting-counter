@@ -1,4 +1,4 @@
-import { Round, StitchGroup, StitchInfo, PatternItemType, StitchType, StitchTypeInfo, Yarn, PatternItem } from '../../types'
+import { Round, StitchGroup, StitchInfo, PatternItemType, StitchType, StitchTypeInfo, PatternItem } from '../../types'
 import { getSortedPatternItems } from './rendering'
 
 // Interface for expanded stitch items
@@ -123,7 +123,7 @@ export function getExpandedStitches(round: Round): ExpandedStitch[] {
 }
 
 // 根據圈數描述織圖
-export function describeRound(round: Round, yarns: Yarn[]): string {
+export function describeRound(round: Round): string {
   const allDescriptions: string[] = []
   
   // 使用 getSortedPatternItems 獲取正確順序的針法項目
@@ -134,52 +134,46 @@ export function describeRound(round: Round, yarns: Yarn[]): string {
     sortedPatternItems.forEach((item: PatternItem) => {
       if (item.type === PatternItemType.STITCH) {
         const stitchInfo = item.data as StitchInfo
-        const yarn = yarns.find(y => y.id === stitchInfo.yarnId)
-        const yarnName = yarn?.name || '未知毛線'
-        const count = stitchInfo.count > 1 ? ` ×${stitchInfo.count}` : ''
+        const count = stitchInfo.count
         const displayInfo = getStitchDisplayInfo(stitchInfo)
-        allDescriptions.push(`${displayInfo.rawValue}(${yarnName})${count}`)
+        allDescriptions.push(`${displayInfo.rawValue} × ${count}`)
       } else if (item.type === PatternItemType.GROUP) {
         const group = item.data as StitchGroup
-        allDescriptions.push(describeStitchGroup(group, yarns))
+        allDescriptions.push(describeStitchGroup(group))
       }
     })
   } else {
     // 兼容舊格式
     // 個別針法
     const stitchDescriptions = round.stitches.map(stitchInfo => {
-      const yarn = yarns.find(y => y.id === stitchInfo.yarnId)
-      const yarnName = yarn?.name || '未知毛線'
-      const count = stitchInfo.count > 1 ? ` ×${stitchInfo.count}` : ''
+      const count = stitchInfo.count
       const displayInfo = getStitchDisplayInfo(stitchInfo)
-      return `${displayInfo.rawValue}(${yarnName})${count}`
+      return `${displayInfo.rawValue} × ${count}`
     })
     allDescriptions.push(...stitchDescriptions)
     
     // 群組針法
     const groupDescriptions = round.stitchGroups.map(group => {
-      return describeStitchGroup(group, yarns)
+      return describeStitchGroup(group)
     })
     allDescriptions.push(...groupDescriptions)
   }
   
-  return allDescriptions.join(', ') || '無針法'
+  return allDescriptions.join('、') || '無針法'
 }
 
 // 描述針目群組
-export function describeStitchGroup(group: StitchGroup, yarns: Yarn[]): string {
+export function describeStitchGroup(group: StitchGroup): string {
   const stitchDescriptions = group.stitches.map(stitch => {
-    const yarn = yarns.find(y => y.id === stitch.yarnId)
-    const yarnName = yarn?.name || '未知毛線'
-    const count = stitch.count > 1 ? ` ×${stitch.count}` : ''
+    const count = stitch.count
     const displayInfo = getStitchDisplayInfo(stitch)
-    return `${displayInfo.rawValue}(${yarnName})${count}`
+    return `${displayInfo.rawValue} × ${count}`
   })
   
   const groupName = group.name || '針目群組'
-  const repeatText = group.repeatCount > 1 ? ` 重複${group.repeatCount}次` : ''
-  
-  return `[${groupName}: ${stitchDescriptions.join(', ')}]${repeatText}`
+  const repeatText = ` × ${group.repeatCount}`
+
+  return `【${groupName}：${stitchDescriptions.join('、')}】${repeatText}`
 }
 
 // 獲取針法顯示信息的helper函數

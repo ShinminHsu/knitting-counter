@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSyncStore } from '../stores/useSyncStore'
 import { useBaseStore } from '../stores/useBaseStore'
+import { useAuthStore } from '../stores/useAuthStore'
 import { authListener } from '../services/authListener'
 import { networkStatus } from '../utils/networkStatus'
 
@@ -15,6 +16,8 @@ export default function SyncStatusIndicator() {
     setError,
     isLocallyUpdating
   } = useBaseStore()
+  
+  const { syncMode, userType } = useAuthStore()
   
   const [isExpanded, setIsExpanded] = useState(false)
   const [isOnline, setIsOnline] = useState(networkStatus.getIsOnline())
@@ -34,6 +37,11 @@ export default function SyncStatusIndicator() {
       console.error('Manual sync failed:', error)
       setError('手動同步失敗')
     }
+  }
+
+  // 只有 Firebase 同步模式的用戶才顯示同步指示器
+  if (syncMode !== 'firebase' || userType === 'guest') {
+    return null
   }
 
   return (

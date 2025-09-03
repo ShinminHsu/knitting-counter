@@ -26,6 +26,14 @@ export default function PatternPreview({
               {currentChart ? currentChart.name : '織圖預覽'}
             </h2>
           </div>
+          {currentChart && (
+            <button
+              onClick={onEditChart}
+              className="text-text-tertiary hover:text-text-primary p-2"
+            >
+              <FiEdit3 className="w-5 h-5" />
+            </button>
+          )}
         </div>
         
         <div className="text-center py-8">
@@ -65,8 +73,7 @@ export default function PatternPreview({
         {currentChart && (
           <button
             onClick={onEditChart}
-            className="ml-4 text-text-secondary hover:text-text-primary p-2 transition-colors"
-            title="編輯織圖資訊"
+            className="text-text-tertiary hover:text-text-primary p-2"
           >
             <FiEdit3 className="w-5 h-5" />
           </button>
@@ -76,33 +83,35 @@ export default function PatternPreview({
       <div className="space-y-4">
         {/* 織圖列表 */}
         <div className="max-h-96 overflow-y-auto space-y-3">
-          {chartPattern.map((round) => {
-            const roundStitches = getRoundTotalStitches(round)
-            const roundDescription = currentProject ? describeRound(round, currentProject.yarns) : '載入中...'
-            
-            return (
-              <div key={round.id} className="flex gap-3 p-3 bg-background-secondary rounded-lg">
-                <div className="text-sm font-semibold flex-shrink-0 leading-relaxed" style={{ color: '#d96699' }}>
-                  R{round.roundNumber}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-text-primary font-medium text-sm leading-relaxed m-0">
-                    {roundDescription}
-                  </p>
-                  {round.notes && (
-                    <p className="text-xs text-text-tertiary mt-1">
-                      {round.notes}
+          {chartPattern
+            .sort((a, b) => a.roundNumber - b.roundNumber)
+            .map((round) => {
+              const roundStitches = getRoundTotalStitches(round)
+              const roundDescription = currentProject ? describeRound(round) : '載入中...'
+              
+              return (
+                <div key={round.id} className="flex gap-3 p-3 bg-background-secondary rounded-lg">
+                  <div className="text-sm font-semibold flex-shrink-0 leading-relaxed" style={{ color: '#d96699' }}>
+                    R{round.roundNumber}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-text-primary font-medium text-sm leading-relaxed m-0">
+                      {roundDescription}
                     </p>
-                  )}
+                    {round.notes && (
+                      <p className="text-xs text-text-tertiary mt-1">
+                        {round.notes}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-semibold text-text-primary leading-relaxed m-0">
+                      {roundStitches} 針
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-text-primary leading-relaxed m-0">
-                    {roundStitches} 針
-                  </p>
-                </div>
-              </div>
-            )
-          })}
+              )
+            })}
         </div>
 
         {/* 總計資訊 */}
@@ -118,10 +127,6 @@ export default function PatternPreview({
                 {chartPattern.reduce((sum, round) => sum + getRoundTotalStitches(round), 0)}
               </span>
             </div>
-            {/* <div>
-              <span className="text-text-secondary">使用毛線: </span>
-              <span className="font-medium text-text-primary">{currentProject?.yarns.length || 0} 種</span>
-            </div> */}
           </div>
         </div>
       </div>
