@@ -29,8 +29,9 @@ export const GuestModeLogin: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-background-primary">
       <div className="max-w-md w-full space-y-8 p-6">
         <div>
+          <img src={knittingIcon} alt="Stitchie" className="w-12 h-12" />
           <h2 className="mt-6 text-center text-3xl font-extrabold text-text-primary">
-            編織計數器
+            Stitchie
           </h2>
           <p className="mt-2 text-center text-sm text-text-secondary">
             選擇使用方式
