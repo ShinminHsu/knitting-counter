@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { BsHouse } from 'react-icons/bs'
 
 export default function UserGuideView() {
   return (
@@ -11,9 +12,9 @@ export default function UserGuideView() {
               to="/" 
               className="text-text-secondary hover:text-text-primary transition-colors"
             >
-              ← 返回首頁
+              <BsHouse className="w-4 h-4 sm:w-5 sm:h-5" />
             </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold text-text-primary">使用說明</h1>
+            <h1 className="text-base sm:text-xl font-semibold text-text-primary">使用說明</h1>
           </div>
         </div>
       </div>

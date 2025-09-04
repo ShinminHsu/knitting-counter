@@ -401,22 +401,6 @@ export const createDefaultTemplates = async (): Promise<void> => {
 
   const defaultTemplates = [
     {
-      name: '增針 (加針)',
-      description: '在同一針目中鉤兩針短針',
-      category: '基本技法',
-      stitches: [
-        { id: generateId(), type: 'single', yarnId: '', count: 2 }
-      ]
-    },
-    {
-      name: '減針',
-      description: '將兩針合併為一針',
-      category: '基本技法',
-      stitches: [
-        { id: generateId(), type: 'decrease', yarnId: '', count: 1 }
-      ]
-    },
-    {
       name: '花瓣 (5針)',
       description: '5針長針的花瓣圖案',
       category: '花朵圖案',

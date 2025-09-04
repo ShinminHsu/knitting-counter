@@ -386,7 +386,7 @@ export class FirestoreProjectService {
       const migratedChart: Chart = {
         id: `chart-${projectData.id}`,
         name: '主織圖',
-        description: '從舊版本遷移的織圖',
+        description: '織圖',
         rounds: rounds,
         currentRound: projectData.currentRound || 1,
         currentStitch: projectData.currentStitch || 0,
