@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuthStore } from '../stores/useAuthStore'
 import ConfirmDialog from './ConfirmDialog'
 
+import { logger } from '../utils/logger'
 export default function UserProfile() {
   const { user, userType, syncMode, signOut, signInWithGoogle, isLoading } = useAuthStore()
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -11,7 +12,7 @@ export default function UserProfile() {
       await signOut()
       // clearUserData 會在 App.tsx 的 useEffect 中自動調用
     } catch (error) {
-      console.error('登出失敗:', error)
+      logger.error('登出失敗:', error)
     }
   }
 

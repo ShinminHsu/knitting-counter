@@ -3,6 +3,7 @@ import { guestDataBackup } from '../services/guestDataBackup'
 import { useProjectStore } from '../stores/useProjectStore'
 import { useAuthStore } from '../stores/useAuthStore'
 
+import { logger } from '../utils/logger'
 interface GuestDataRecoveryProps {
   onRecoveryComplete: () => void
 }
@@ -33,7 +34,7 @@ export const GuestDataRecovery: React.FC<GuestDataRecoveryProps> = ({ onRecovery
         onRecoveryComplete()
       }
     } catch (error) {
-      console.error('[RECOVERY] Error checking backup:', error)
+      logger.error('Error checking backup:', error)
       onRecoveryComplete()
     }
   }
@@ -47,7 +48,7 @@ export const GuestDataRecovery: React.FC<GuestDataRecoveryProps> = ({ onRecovery
         // 獲取當前本地項目
         const { projects: currentProjects } = useProjectStore.getState()
         
-        console.log('[RECOVERY] Merging backup data with current projects:', {
+        logger.debug('Merging backup data with current projects:', {
           backupProjects: backupData.projects.length,
           currentProjects: currentProjects.length,
           backupProjectNames: backupData.projects.map(p => p.name),
@@ -62,14 +63,14 @@ export const GuestDataRecovery: React.FC<GuestDataRecoveryProps> = ({ onRecovery
         for (const backupProject of backupData.projects) {
           if (!existingIds.has(backupProject.id)) {
             allProjects.push(backupProject)
-            console.log('[RECOVERY] Added missing project from backup:', backupProject.name)
+            logger.debug('Added missing project from backup:', backupProject.name)
           } else {
             // 如果項目存在，比較修改時間，選擇更新的版本
             const currentProject = currentProjects.find(p => p.id === backupProject.id)
             if (currentProject && backupProject.lastModified > currentProject.lastModified) {
               const index = allProjects.findIndex(p => p.id === backupProject.id)
               allProjects[index] = backupProject
-              console.log('[RECOVERY] Updated project from backup (newer):', backupProject.name)
+              logger.debug('Updated project from backup (newer):', backupProject.name)
             }
           }
         }
@@ -91,10 +92,10 @@ export const GuestDataRecovery: React.FC<GuestDataRecoveryProps> = ({ onRecovery
           setCurrentProject(latestProject)
         }
         
-        console.log('[RECOVERY] Data merged successfully, total projects:', allProjects.length)
+        logger.debug('Data merged successfully, total projects:', allProjects.length)
       }
     } catch (error) {
-      console.error('[RECOVERY] Error restoring data:', error)
+      logger.error('Error restoring data:', error)
     } finally {
       setIsRestoring(false)
       setShowRecovery(false)

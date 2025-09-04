@@ -5,11 +5,12 @@ import { useBaseStore } from '../stores/useBaseStore'
 import { useSyncStore } from '../stores/useSyncStore'
 import { syncManager, ProjectConflict } from './syncManager'
 
+import { logger } from '../utils/logger'
 class AuthListener {
   private unsubscribeFirestore: (() => void) | null = null
   
   async handleUserLogin(user: User) {
-    console.log('User logged in:', user.uid)
+    logger.debug('User logged in:', user.uid)
     
     try {
       const projectStore = useProjectStore.getState()
@@ -20,16 +21,16 @@ class AuthListener {
       // TODO: 實現 Firestore 監聽功能（目前在新架構中暫不支援）
       // this.unsubscribeFirestore = subscribeToFirestoreChanges()
       
-      console.log('User login handling completed')
+      logger.debug('User login handling completed')
     } catch (error) {
-      console.error('Error handling user login:', error)
+      logger.error('Error handling user login:', error)
       const baseStore = useBaseStore.getState()
       baseStore.setError('登入時載入數據失敗，請檢查網絡連接並重新整理頁面')
     }
   }
   
   async handleUserLogout() {
-    console.log('User logged out')
+    logger.debug('User logged out')
     
     try {
       // 停止監聽Firestore變化
@@ -42,14 +43,14 @@ class AuthListener {
       const projectStore = useProjectStore.getState()
       projectStore.clearUserData()
       
-      console.log('User logout handling completed')
+      logger.debug('User logout handling completed')
     } catch (error) {
-      console.error('Error handling user logout:', error)
+      logger.error('Error handling user logout:', error)
     }
   }
   
   async handleGuestMode() {
-    console.log('Entering guest mode')
+    logger.debug('Entering guest mode')
     
     try {
       // 停止任何Firebase監聽
@@ -62,16 +63,16 @@ class AuthListener {
       const projectStore = useProjectStore.getState()
       await projectStore.loadProjects()
       
-      console.log('Guest mode handling completed')
+      logger.debug('Guest mode handling completed')
     } catch (error) {
-      console.error('Error handling guest mode:', error)
+      logger.error('Error handling guest mode:', error)
       const baseStore = useBaseStore.getState()
       baseStore.setError('載入本地數據失敗')
     }
   }
   
   async handleUserSwitch(newUser: User, oldUser: User | null) {
-    console.log('User switched:', { 
+    logger.debug('User switched:', { 
       from: oldUser?.uid || 'none', 
       to: newUser.uid 
     })
@@ -85,14 +86,14 @@ class AuthListener {
       // 再處理新用戶登入
       await this.handleUserLogin(newUser)
       
-      console.log('User switch handling completed')
+      logger.debug('User switch handling completed')
     } catch (error) {
-      console.error('Error handling user switch:', error)
+      logger.error('Error handling user switch:', error)
     }
   }
   
   async performCrossDeviceSync(user: User) {
-    console.log('Performing cross-device sync for user:', user.uid)
+    logger.debug('Performing cross-device sync for user:', user.uid)
     
     try {
       const syncStore = useSyncStore.getState()
@@ -117,18 +118,18 @@ class AuthListener {
         projectStore.setCurrentProject(newCurrentProject)
         syncStore.setLastSyncTime(new Date())
         
-        console.log('Cross-device sync completed successfully:', {
+        logger.debug('Cross-device sync completed successfully:', {
           merged: syncResult.merged.length,
           conflicts: syncResult.conflicts.length,
           errors: syncResult.errors.length
         })
       } else {
-        console.warn('Cross-device sync completed with issues:', syncResult.errors)
+        logger.warn('Cross-device sync completed with issues:', syncResult.errors)
         const baseStore = useBaseStore.getState()
         baseStore.setError('同步過程中發生問題')
       }
     } catch (error) {
-      console.error('Error in cross-device sync:', error)
+      logger.error('Error in cross-device sync:', error)
       const baseStore = useBaseStore.getState()
       baseStore.setError('跨裝置同步失敗')
     } finally {
@@ -148,7 +149,7 @@ class AuthListener {
       const currentUser = useAuthStore.getState().user
       
       if (previousUser?.uid !== currentUser?.uid) {
-        console.log('Auth state changed:', { 
+        logger.debug('Auth state changed:', { 
           previousUser: previousUser?.uid || 'none',
           currentUser: currentUser?.uid || 'none'
         })
@@ -204,7 +205,7 @@ class AuthListener {
       await this.performCrossDeviceSync(user)
       return true
     } catch (error) {
-      console.error('Error resolving conflicts:', error)
+      logger.error('Error resolving conflicts:', error)
       return false
     }
   }

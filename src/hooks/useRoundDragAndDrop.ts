@@ -4,6 +4,7 @@ import { usePatternStore } from '../stores/usePatternStore'
 import { Round, Chart } from '../types'
 import { useDragState, DragType } from './useDragState'
 
+import { logger } from '../utils/logger'
 interface DraggedRound {
   roundNumber: number
   roundId: string
@@ -17,7 +18,7 @@ export function useRoundDragAndDrop() {
   const { setDragState, isDragging, clearDragState } = useDragState()
 
   const handleRoundDragStart = (e: React.DragEvent, round: Round) => {
-    console.log('[ROUND_DRAG] Starting drag for Round:', { roundNumber: round.roundNumber, roundId: round.id })
+    logger.debug('Starting drag for Round:', { roundNumber: round.roundNumber, roundId: round.id })
     setDraggedRound({ roundNumber: round.roundNumber, roundId: round.id })
     setDragState(DragType.ROUND, { roundNumber: round.roundNumber, roundId: round.id })
     e.dataTransfer.effectAllowed = 'move'
@@ -51,7 +52,7 @@ export function useRoundDragAndDrop() {
     
     // Check if this is a round drag
     if (!isDragging(DragType.ROUND)) {
-      console.log('[ROUND_DRAG] Not a round drag, ignoring')
+      logger.debug('Not a round drag, ignoring')
       setDraggedRound(null)
       clearDragState()
       return
@@ -63,7 +64,7 @@ export function useRoundDragAndDrop() {
       return
     }
 
-    console.log('[ROUND_DRAG] Dropping Round:', {
+    logger.debug('Dropping Round:', {
       fromRound: draggedRound.roundNumber,
       toRound: targetRound.roundNumber
     })
@@ -71,7 +72,7 @@ export function useRoundDragAndDrop() {
     try {
       await reorderRounds(draggedRound.roundNumber, targetRound.roundNumber, currentChart, chartPattern)
     } catch (error) {
-      console.error('Error reordering rounds:', error)
+      logger.error('Error reordering rounds:', error)
       alert('調整圈數順序時發生錯誤')
     }
     

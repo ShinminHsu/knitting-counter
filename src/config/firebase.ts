@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 import { getFirestore, enableNetwork, disableNetwork, initializeFirestore, Firestore } from 'firebase/firestore'
 
+import { logger } from '../utils/logger'
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -36,13 +37,13 @@ try {
 
   // 針對移動設備的特殊設置
   if (isMobileDevice()) {
-    console.log('[FIREBASE] Mobile device detected, using optimized settings')
+    logger.debug('Mobile device detected, using optimized settings')
     Object.assign(firestoreSettings, {
       experimentalForceLongPolling: true, // 移動設備使用長輪詢
       experimentalAutoDetectLongPolling: false, // 不使用自動檢測
     })
   } else {
-    console.log('[FIREBASE] Desktop device detected, using standard settings')
+    logger.debug('Desktop device detected, using standard settings')
     Object.assign(firestoreSettings, {
       experimentalForceLongPolling: false, // 桌面設備使用標準連接
       experimentalAutoDetectLongPolling: true, // 自動檢測最佳連接方式
@@ -52,7 +53,7 @@ try {
   db = initializeFirestore(app, firestoreSettings)
 } catch (error) {
   // 如果已經初始化，使用現有實例
-  console.log('[FIREBASE] Firestore already initialized, using existing instance')
+  logger.debug('Firestore already initialized, using existing instance')
   db = getFirestore(app)
 }
 export { db }
@@ -63,18 +64,18 @@ export const googleProvider = new GoogleAuthProvider()
 export const enableFirestoreNetwork = async () => {
   try {
     await enableNetwork(db)
-    console.log('Firestore network enabled')
+    logger.debug('Firestore network enabled')
   } catch (error) {
-    console.log('Failed to enable Firestore network:', error)
+    logger.debug('Failed to enable Firestore network:', error)
   }
 }
 
 export const disableFirestoreNetwork = async () => {
   try {
     await disableNetwork(db)
-    console.log('Firestore network disabled')
+    logger.debug('Firestore network disabled')
   } catch (error) {
-    console.log('Failed to disable Firestore network:', error)
+    logger.debug('Failed to disable Firestore network:', error)
   }
 }
 

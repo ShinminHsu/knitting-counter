@@ -26,6 +26,7 @@ import {
   AnalyticsAggregates
 } from '../types/analytics'
 import { generateId } from '../utils'
+import { logger } from '../utils/logger'
 
 class AnalyticsService {
   private currentSession: AnalyticsSession | null = null
@@ -110,7 +111,7 @@ class AnalyticsService {
     const lastTime = this.lastEventTimes.get(eventKey)
     
     if (lastTime && (now - lastTime) < this.MIN_EVENT_INTERVAL) {
-      console.log(`[ANALYTICS] Skipping duplicate event: ${eventKey}`)
+      logger.debug(`Skipping duplicate event: ${eventKey}`)
       return true
     }
     
@@ -137,7 +138,7 @@ class AnalyticsService {
     if (this.eventBuffer.length === 0) return
     
     try {
-      console.log(`[ANALYTICS] Flushing ${this.eventBuffer.length} events to Firebase`)
+      logger.debug(`Flushing ${this.eventBuffer.length} events to Firebase`)
       
       // 批量寫入所有事件
       const batch = this.eventBuffer.splice(0)
@@ -146,9 +147,9 @@ class AnalyticsService {
         await addDoc(collection(db, 'analytics', 'data', 'events'), eventData)
       }
       
-      console.log(`[ANALYTICS] Successfully flushed ${batch.length} events`)
+      logger.debug(`Successfully flushed ${batch.length} events`)
     } catch (error) {
-      console.error('[ANALYTICS] Failed to flush event buffer:', error)
+      logger.error('Failed to flush event buffer:', error)
       // 如果失敗，不要丟失數據，但限制重試次數
       if (this.eventBuffer.length < this.BUFFER_SIZE * 2) {
         this.eventBuffer.unshift(...this.eventBuffer.splice(0))
@@ -164,13 +165,13 @@ class AnalyticsService {
   async initializeSession(): Promise<void> {
     // 防止重複初始化
     if (this.currentSession || this.isInitializing) {
-      console.log('[ANALYTICS] Session already exists or initializing, skipping...')
+      logger.debug('Session already exists or initializing, skipping...')
       return
     }
 
     try {
       this.isInitializing = true
-      console.log('[ANALYTICS] Starting session initialization...')
+      logger.debug('Starting session initialization...')
       
       const now = new Date()
       const sessionId = generateId()
@@ -178,7 +179,7 @@ class AnalyticsService {
       const userType = this.getUserType()
       const authStore = useAuthStore.getState()
       
-      console.log('[ANALYTICS] Session data:', {
+      logger.debug('Session data:', {
         sessionId,
         userId,
         userType,
@@ -200,18 +201,18 @@ class AnalyticsService {
       
       this.sessionStartTime = now
       
-      console.log('[ANALYTICS] Updating user analytics...')
+      logger.debug('Updating user analytics...')
       await this.updateUserAnalytics()
       
       // 不要在初始化時調用 recordUsageEvent，避免無限遞歸
-      console.log('[ANALYTICS] Recording app start event...')
+      logger.debug('Recording app start event...')
       await this.recordUsageEventDirect('app_start', 'session_start')
       
       this.startActivityTimer()
       
-      console.log('[ANALYTICS] Session initialized successfully!')
+      logger.debug('Session initialized successfully!')
     } catch (error) {
-      console.error('[ANALYTICS] Failed to initialize session:', error)
+      logger.error('Failed to initialize session:', error)
       // 即使初始化失敗，也創建本地會話以避免後續調用崩潰
       const now = new Date()
       this.currentSession = {
@@ -254,7 +255,7 @@ class AnalyticsService {
         this.bufferFlushTimer = null
       }
       
-      console.log('[ANALYTICS] Session ended:', {
+      logger.debug('Session ended:', {
         sessionId: this.currentSession.id,
         duration: Math.round(duration / 1000) + 's'
       })
@@ -262,7 +263,7 @@ class AnalyticsService {
       this.currentSession = null
       this.sessionStartTime = null
     } catch (error) {
-      console.error('[ANALYTICS] Failed to end session:', error)
+      logger.error('Failed to end session:', error)
     }
   }
 
@@ -273,10 +274,10 @@ class AnalyticsService {
     metadata?: any
   ): Promise<void> {
     if (!this.currentSession) {
-      console.warn('[ANALYTICS] No active session for project action, initializing...')
+      logger.warn('No active session for project action, initializing...')
       await this.initializeSession()
       if (!this.currentSession) {
-        console.error('[ANALYTICS] Failed to initialize session for project action')
+        logger.error('Failed to initialize session for project action')
         return
       }
     }
@@ -310,9 +311,9 @@ class AnalyticsService {
 
       this.updateActivity()
       
-      console.log('[ANALYTICS] Project action buffered:', { action, projectId, projectName })
+      logger.debug('Project action buffered:', { action, projectId, projectName })
     } catch (error) {
-      console.error('[ANALYTICS] Failed to record project action:', error)
+      logger.error('Failed to record project action:', error)
     }
   }
 
@@ -322,10 +323,10 @@ class AnalyticsService {
     metadata?: Record<string, any>
   ): Promise<void> {
     if (!this.currentSession) {
-      console.warn('[ANALYTICS] No active session for usage event, initializing...')
+      logger.warn('No active session for usage event, initializing...')
       await this.initializeSession()
       if (!this.currentSession) {
-        console.error('[ANALYTICS] Failed to initialize session for usage event')
+        logger.error('Failed to initialize session for usage event')
         return
       }
     }
@@ -358,9 +359,9 @@ class AnalyticsService {
 
       this.updateActivity()
       
-      console.log('[ANALYTICS] Usage event buffered:', { eventType, eventAction })
+      logger.debug('Usage event buffered:', { eventType, eventAction })
     } catch (error) {
-      console.error('[ANALYTICS] Failed to record usage event:', error)
+      logger.error('Failed to record usage event:', error)
     }
   }
 
@@ -394,9 +395,9 @@ class AnalyticsService {
 
       this.updateActivity()
       
-      console.log('[ANALYTICS] Usage event buffered directly:', { eventType, eventAction })
+      logger.debug('Usage event buffered directly:', { eventType, eventAction })
     } catch (error) {
-      console.error('[ANALYTICS] Failed to record usage event directly:', error)
+      logger.error('Failed to record usage event directly:', error)
     }
   }
 
@@ -449,7 +450,7 @@ class AnalyticsService {
 
       return summary
     } catch (error) {
-      console.error('[ANALYTICS] Failed to get analytics summary:', error)
+      logger.error('Failed to get analytics summary:', error)
       throw error
     }
   }
@@ -495,7 +496,7 @@ class AnalyticsService {
         await setDoc(userAnalyticsRef, cleanedUserAnalytics)
       }
     } catch (error) {
-      console.error('[ANALYTICS] Failed to update user analytics:', error)
+      logger.error('Failed to update user analytics:', error)
     }
   }
 
@@ -513,7 +514,7 @@ class AnalyticsService {
       
       await setDoc(sessionRef, sessionData)
     } catch (error) {
-      console.error('[ANALYTICS] Failed to save session:', error)
+      logger.error('Failed to save session:', error)
     }
   }
 

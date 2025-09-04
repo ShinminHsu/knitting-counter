@@ -27,6 +27,7 @@ import StitchGroupTemplateModal from '../StitchGroupTemplateModal'
 import CopyRoundModal from '../CopyRoundModal'
 import EditChartModal from '../ProjectDetail/modals/EditChartModal'
 
+import { logger } from '../../utils/logger'
 export default function PatternEditorContainer() {
   const { projectId } = useParams()
   const [searchParams] = useSearchParams()
@@ -129,7 +130,7 @@ export default function PatternEditorContainer() {
     // 從最新的 currentProject 中獲取對應的 chart
     const updatedChart = currentProject.charts?.find(c => c.id === currentChart.id)
     if (updatedChart) {
-      console.log('[PATTERN-EDITOR] Force sync - project updated, syncing local chart:', {
+      logger.debug('Force sync - project updated, syncing local chart:', {
         chartId: updatedChart.id,
         roundsCount: updatedChart.rounds?.length || 0,
         firstRoundStitches: updatedChart.rounds?.[0]?.stitches?.length || 0,
@@ -144,7 +145,7 @@ export default function PatternEditorContainer() {
       
       // 檢查是否有實際變化
       const hasChanges = JSON.stringify(updatedChart) !== JSON.stringify(currentChart)
-      console.log('[PATTERN-EDITOR] Chart comparison:', {
+      logger.debug('Chart comparison:', {
         hasChanges,
         currentChartModified: currentChart.lastModified instanceof Date ? currentChart.lastModified.toISOString() : currentChart.lastModified,
         updatedChartModified: updatedChart.lastModified instanceof Date ? updatedChart.lastModified.toISOString() : updatedChart.lastModified
@@ -203,7 +204,7 @@ export default function PatternEditorContainer() {
             }
           })) || []
         }))
-        console.log('[PATTERN-EDITOR] Forcing pattern re-render with enhanced keys:', {
+        logger.debug('Forcing pattern re-render with enhanced keys:', {
           prevLength: prevPattern?.length || 0,
           newLength: patternWithKeys?.length || 0,
           hasNewKeys: patternWithKeys?.[0]?._renderKey ? 'yes' : 'no',
@@ -307,7 +308,7 @@ export default function PatternEditorContainer() {
       // 成功時重置表單
       patternEditorState.resetNewGroupForm()
     } catch (error) {
-      console.error('Error adding group:', error)
+      logger.error('Error adding group:', error)
       alert('新增群組時發生錯誤，請重試')
     }
   }
@@ -450,7 +451,7 @@ export default function PatternEditorContainer() {
       }
       modalStates.setShowAddGroupModal(null)
     } catch (error) {
-      console.error('Error adding group:', error)
+      logger.error('Error adding group:', error)
       alert('新增群組時發生錯誤')
     }
   }
@@ -519,7 +520,7 @@ export default function PatternEditorContainer() {
         }
       }
     } catch (error) {
-      console.error('Error moving item up:', error)
+      logger.error('Error moving item up:', error)
       alert('上移時發生錯誤')
     }
   }
@@ -544,7 +545,7 @@ export default function PatternEditorContainer() {
         }
       }
     } catch (error) {
-      console.error('Error moving item down:', error)
+      logger.error('Error moving item down:', error)
       alert('下移時發生錯誤')
     }
   }
@@ -580,7 +581,7 @@ export default function PatternEditorContainer() {
         }
       }
     } catch (error) {
-      console.error('Error moving group stitch up:', error)
+      logger.error('Error moving group stitch up:', error)
       alert('上移群組針法時發生錯誤')
     }
   }
@@ -616,7 +617,7 @@ export default function PatternEditorContainer() {
         }
       }
     } catch (error) {
-      console.error('Error moving group stitch down:', error)
+      logger.error('Error moving group stitch down:', error)
       alert('下移群組針法時發生錯誤')
     }
   }
@@ -648,7 +649,7 @@ export default function PatternEditorContainer() {
         }
       }
     } catch (error) {
-      console.error('Error moving round up:', error)
+      logger.error('Error moving round up:', error)
       alert('上移圈數時發生錯誤')
     }
   }
@@ -677,7 +678,7 @@ export default function PatternEditorContainer() {
         }
       }
     } catch (error) {
-      console.error('Error moving round down:', error)
+      logger.error('Error moving round down:', error)
       alert('下移圈數時發生錯誤')
     }
   }
@@ -835,7 +836,7 @@ export default function PatternEditorContainer() {
                 }
               }
             } catch (error) {
-              console.error('Error updating stitch:', error)
+              logger.error('Error updating stitch:', error)
               alert('更新針法時發生錯誤')
             }
             
@@ -940,7 +941,7 @@ export default function PatternEditorContainer() {
                 }
               }
             } catch (error) {
-              console.error('Error updating group:', error)
+              logger.error('Error updating group:', error)
               alert('更新群組時發生錯誤')
             }
             
@@ -975,7 +976,7 @@ export default function PatternEditorContainer() {
             }
           }}
           onEditGroupStitch={(roundNumber, groupId, stitch) => {
-            console.log('[DEBUG] onEditGroupStitch called:', { roundNumber, groupId, stitch })
+            logger.debug('onEditGroupStitch called:', { roundNumber, groupId, stitch })
             patternEditorState.setEditingGroupStitch({ roundNumber, groupId, stitchId: stitch.id })
             patternEditorState.handleGroupStitchTypeChange(stitch.type)
             patternEditorState.handleGroupStitchCountChange(String(stitch.count))
@@ -1034,7 +1035,7 @@ export default function PatternEditorContainer() {
                 }
               }
             } catch (error) {
-              console.error('Error updating group stitch:', error)
+              logger.error('Error updating group stitch:', error)
               alert('更新群組針法時發生錯誤')
             }
             
@@ -1085,7 +1086,7 @@ export default function PatternEditorContainer() {
                 }
               }
             } catch (error) {
-              console.error('Error deleting group stitch:', error)
+              logger.error('Error deleting group stitch:', error)
               alert('刪除群組針法時發生錯誤')
             }
           }}

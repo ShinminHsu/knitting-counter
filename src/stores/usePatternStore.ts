@@ -6,6 +6,7 @@ import { useProjectStore } from './useProjectStore'
 import { handleAsyncError } from './useBaseStore'
 import { safeUpdateProjectLocally } from './useChartStore'
 
+import { logger } from '../utils/logger'
 interface PatternStoreState {
   // No persistent state needed - patterns are managed in projects
 }
@@ -46,7 +47,7 @@ export const usePatternStore = create<PatternStore>(() => ({
   addRound: async (roundData = {}) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[PATTERN] addRound: No current project')
+      logger.error('addRound: No current project')
       return
     }
 
@@ -85,7 +86,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'addRound')
       }
 
-      console.log('[PATTERN] Added round:', nextRoundNumber)
+      logger.debug('Added round:', nextRoundNumber)
     } catch (error) {
       handleAsyncError(error, 'Failed to add round')
     }
@@ -144,7 +145,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'deleteRound')
       }
 
-      console.log('[PATTERN] Deleted round:', roundNumber, 'Adjusted current round to:', newCurrentRound)
+      logger.debug('Deleted round:', roundNumber, 'Adjusted current round to:', newCurrentRound)
     } catch (error) {
       handleAsyncError(error, 'Failed to delete round')
     }
@@ -182,7 +183,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'updateRound')
       }
 
-      console.log('[PATTERN] Updated round:', roundNumber)
+      logger.debug('Updated round:', roundNumber)
     } catch (error) {
       handleAsyncError(error, 'Failed to update round')
     }
@@ -196,7 +197,7 @@ export const usePatternStore = create<PatternStore>(() => ({
       const pattern = getProjectPattern(currentProject)
       const sourceRound = pattern.find(r => r.roundNumber === roundNumber)
       if (!sourceRound) {
-        console.error('[PATTERN] duplicateRound: Source round not found:', roundNumber)
+        logger.error('duplicateRound: Source round not found:', roundNumber)
         return
       }
 
@@ -235,7 +236,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'duplicateRound')
       }
 
-      console.log('[PATTERN] Duplicated round:', roundNumber, 'as round:', duplicatedRound.roundNumber)
+      logger.debug('Duplicated round:', roundNumber, 'as round:', duplicatedRound.roundNumber)
     } catch (error) {
       handleAsyncError(error, 'Failed to duplicate round')
     }
@@ -250,7 +251,7 @@ export const usePatternStore = create<PatternStore>(() => ({
       const sortedPattern = [...pattern].sort((a, b) => a.roundNumber - b.roundNumber)
       
       if (fromIndex < 0 || fromIndex >= sortedPattern.length || toIndex < 0 || toIndex >= sortedPattern.length) {
-        console.error('[PATTERN] reorderRounds: Invalid indices', fromIndex, toIndex)
+        logger.error('reorderRounds: Invalid indices', fromIndex, toIndex)
         return
       }
 
@@ -284,7 +285,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'reorderRounds')
       }
 
-      console.log('[PATTERN] Reordered rounds from index', fromIndex, 'to', toIndex)
+      logger.debug('Reordered rounds from index', fromIndex, 'to', toIndex)
     } catch (error) {
       handleAsyncError(error, 'Failed to reorder rounds')
     }
@@ -299,7 +300,7 @@ export const usePatternStore = create<PatternStore>(() => ({
       const pattern = getProjectPattern(currentProject)
       const targetRound = pattern.find(r => r.roundNumber === roundNumber)
       if (!targetRound) {
-        console.error('[PATTERN] addStitch: Round not found:', roundNumber)
+        logger.error('addStitch: Round not found:', roundNumber)
         return
       }
 
@@ -339,7 +340,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'addStitch')
       }
 
-      console.log('[PATTERN] Added stitch to round:', roundNumber)
+      logger.debug('Added stitch to round:', roundNumber)
     } catch (error) {
       handleAsyncError(error, 'Failed to add stitch')
     }
@@ -381,7 +382,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'updateStitch')
       }
 
-      console.log('[PATTERN] Updated stitch in round:', roundNumber, 'at index:', stitchIndex)
+      logger.debug('Updated stitch in round:', roundNumber, 'at index:', stitchIndex)
     } catch (error) {
       handleAsyncError(error, 'Failed to update stitch')
     }
@@ -421,7 +422,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'deleteStitch')
       }
 
-      console.log('[PATTERN] Deleted stitch from round:', roundNumber, 'at index:', stitchIndex)
+      logger.debug('Deleted stitch from round:', roundNumber, 'at index:', stitchIndex)
     } catch (error) {
       handleAsyncError(error, 'Failed to delete stitch')
     }
@@ -435,7 +436,7 @@ export const usePatternStore = create<PatternStore>(() => ({
       const pattern = getProjectPattern(currentProject)
       const targetRound = pattern.find(r => r.roundNumber === roundNumber)
       if (!targetRound || stitchIndex >= targetRound.stitches.length) {
-        console.error('[PATTERN] duplicateStitch: Invalid round or stitch index')
+        logger.error('duplicateStitch: Invalid round or stitch index')
         return
       }
 
@@ -471,7 +472,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'duplicateStitch')
       }
 
-      console.log('[PATTERN] Duplicated stitch in round:', roundNumber, 'at index:', stitchIndex)
+      logger.debug('Duplicated stitch in round:', roundNumber, 'at index:', stitchIndex)
     } catch (error) {
       handleAsyncError(error, 'Failed to duplicate stitch')
     }
@@ -486,7 +487,7 @@ export const usePatternStore = create<PatternStore>(() => ({
       const pattern = getProjectPattern(currentProject)
       const targetRound = pattern.find(r => r.roundNumber === roundNumber)
       if (!targetRound) {
-        console.error('[PATTERN] addGroup: Round not found:', roundNumber)
+        logger.error('addGroup: Round not found:', roundNumber)
         return
       }
 
@@ -526,7 +527,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'addGroup')
       }
 
-      console.log('[PATTERN] Added group to round:', roundNumber)
+      logger.debug('Added group to round:', roundNumber)
     } catch (error) {
       handleAsyncError(error, 'Failed to add group')
     }
@@ -568,7 +569,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'updateGroup')
       }
 
-      console.log('[PATTERN] Updated group in round:', roundNumber, 'at index:', groupIndex)
+      logger.debug('Updated group in round:', roundNumber, 'at index:', groupIndex)
     } catch (error) {
       handleAsyncError(error, 'Failed to update group')
     }
@@ -608,7 +609,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'deleteGroup')
       }
 
-      console.log('[PATTERN] Deleted group from round:', roundNumber, 'at index:', groupIndex)
+      logger.debug('Deleted group from round:', roundNumber, 'at index:', groupIndex)
     } catch (error) {
       handleAsyncError(error, 'Failed to delete group')
     }
@@ -622,7 +623,7 @@ export const usePatternStore = create<PatternStore>(() => ({
       const pattern = getProjectPattern(currentProject)
       const targetRound = pattern.find(r => r.roundNumber === roundNumber)
       if (!targetRound || groupIndex >= targetRound.stitchGroups.length) {
-        console.error('[PATTERN] duplicateGroup: Invalid round or group index')
+        logger.error('duplicateGroup: Invalid round or group index')
         return
       }
 
@@ -662,7 +663,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'duplicateGroup')
       }
 
-      console.log('[PATTERN] Duplicated group in round:', roundNumber, 'at index:', groupIndex)
+      logger.debug('Duplicated group in round:', roundNumber, 'at index:', groupIndex)
     } catch (error) {
       handleAsyncError(error, 'Failed to duplicate group')
     }
@@ -677,7 +678,7 @@ export const usePatternStore = create<PatternStore>(() => ({
       const pattern = getProjectPattern(currentProject)
       const targetRound = pattern.find(r => r.roundNumber === roundNumber)
       if (!targetRound) {
-        console.error('[PATTERN] reorderPatternItemsInRound: Round not found:', roundNumber)
+        logger.error('reorderPatternItemsInRound: Round not found:', roundNumber)
         return
       }
 
@@ -709,7 +710,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'reorderPatternItemsInRound')
       }
 
-      console.log('[PATTERN] Reordered pattern items in round:', roundNumber, 'from index', fromIndex, 'to', toIndex)
+      logger.debug('Reordered pattern items in round:', roundNumber, 'from index', fromIndex, 'to', toIndex)
     } catch (error) {
       handleAsyncError(error, 'Failed to reorder pattern items')
     }
@@ -872,7 +873,7 @@ export const usePatternStore = create<PatternStore>(() => ({
         }, 'optimizePattern')
       }
 
-      console.log('[PATTERN] Pattern optimized successfully')
+      logger.debug('Pattern optimized successfully')
     } catch (error) {
       handleAsyncError(error, 'Failed to optimize pattern')
     }

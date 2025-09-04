@@ -5,6 +5,7 @@ import { useProjectStore } from './useProjectStore'
 import { handleAsyncError } from './useBaseStore'
 import { safeUpdateProjectLocally } from './useChartStore'
 
+import { logger } from '../utils/logger'
 interface YarnStoreState {
   // No persistent state needed - yarns are managed in projects
 }
@@ -42,7 +43,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
   addYarn: async (yarnData) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[YARN] addYarn: No current project')
+      logger.error('addYarn: No current project')
       return null
     }
 
@@ -61,7 +62,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
       }
 
       await safeUpdateProjectLocally(updatedProject, 'addYarn')
-      console.log('[YARN] Added yarn:', newYarn.name)
+      logger.debug('Added yarn:', newYarn.name)
       return newYarn
     } catch (error) {
       handleAsyncError(error, 'Failed to add yarn')
@@ -72,7 +73,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
   updateYarn: async (yarnId, updates) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[YARN] updateYarn: No current project')
+      logger.error('updateYarn: No current project')
       return
     }
 
@@ -88,7 +89,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
       }
 
       await safeUpdateProjectLocally(updatedProject, 'updateYarn')
-      console.log('[YARN] Updated yarn:', yarnId)
+      logger.debug('Updated yarn:', yarnId)
     } catch (error) {
       handleAsyncError(error, 'Failed to update yarn')
     }
@@ -97,7 +98,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
   deleteYarn: async (yarnId) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[YARN] deleteYarn: No current project')
+      logger.error('deleteYarn: No current project')
       return
     }
 
@@ -105,7 +106,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
       // Check if yarn is being used in the pattern
       const usage = get().getYarnUsageInProject(yarnId)
       if (usage.totalStitches > 0) {
-        console.warn('[YARN] deleteYarn: Yarn is being used in pattern, cannot delete:', yarnId)
+        logger.warn('deleteYarn: Yarn is being used in pattern, cannot delete:', yarnId)
         throw new Error('Cannot delete yarn that is being used in the pattern')
       }
 
@@ -118,7 +119,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
       }
 
       await safeUpdateProjectLocally(updatedProject, 'deleteYarn')
-      console.log('[YARN] Deleted yarn:', yarnId)
+      logger.debug('Deleted yarn:', yarnId)
     } catch (error) {
       handleAsyncError(error, 'Failed to delete yarn')
     }
@@ -127,14 +128,14 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
   duplicateYarn: async (yarnId) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[YARN] duplicateYarn: No current project')
+      logger.error('duplicateYarn: No current project')
       return null
     }
 
     try {
       const sourceYarn = currentProject.yarns.find(yarn => yarn.id === yarnId)
       if (!sourceYarn) {
-        console.error('[YARN] duplicateYarn: Source yarn not found:', yarnId)
+        logger.error('duplicateYarn: Source yarn not found:', yarnId)
         return null
       }
 
@@ -151,7 +152,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
       }
 
       await safeUpdateProjectLocally(updatedProject, 'duplicateYarn')
-      console.log('[YARN] Duplicated yarn:', sourceYarn.name)
+      logger.debug('Duplicated yarn:', sourceYarn.name)
       return duplicatedYarn
     } catch (error) {
       handleAsyncError(error, 'Failed to duplicate yarn')
@@ -312,7 +313,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
   importYarns: async (yarns) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[YARN] importYarns: No current project')
+      logger.error('importYarns: No current project')
       return
     }
 
@@ -330,7 +331,7 @@ export const useYarnStore = create<YarnStore>((_set, get) => ({
       }
 
       await safeUpdateProjectLocally(updatedProject, 'importYarns')
-      console.log('[YARN] Imported', importedYarns.length, 'yarns')
+      logger.debug('Imported', importedYarns.length, 'yarns')
     } catch (error) {
       handleAsyncError(error, 'Failed to import yarns')
     }

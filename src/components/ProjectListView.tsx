@@ -9,6 +9,7 @@ import { ImportExportService } from '../services/importExportService'
 import { ImportMode } from '../types'
 import knittingIcon from '../assets/images/kniitingIcon.png'
 
+import { logger } from '../utils/logger'
 export default function ProjectListView() {
   const { projects, createProject, deleteProject, setProjects, setCurrentProject, updateProjectLocally } = useProjectStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -24,7 +25,7 @@ export default function ProjectListView() {
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning', text: string } | null>(null)
   
-  console.log('ProjectListView 渲染，專案數量:', projects.length)
+  logger.debug('ProjectListView 渲染，專案數量:', projects.length)
 
   const { getChartSummaries } = useChartStore()
 
@@ -81,7 +82,7 @@ export default function ProjectListView() {
         showMessage('error', `匯入失敗：${result.errors.join('，')}`)
       }
     } catch (error) {
-      console.error('Import error:', error)
+      logger.error('Import error:', error)
       showMessage('error', '匯入失敗，請檢查檔案格式')
     } finally {
       setIsImporting(false)

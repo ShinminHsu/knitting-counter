@@ -4,6 +4,7 @@ import { StitchGroupTemplate, StitchInfo, StitchGroup } from '../types'
 import { generateId } from '../utils'
 import { handleAsyncError } from './useBaseStore'
 
+import { logger } from '../utils/logger'
 interface TemplateStoreState {
   templates: StitchGroupTemplate[]
   isLoading: boolean
@@ -71,7 +72,7 @@ export const useTemplateStore = create<TemplateStore>()(
             isLoading: false
           }))
 
-          console.log('[TEMPLATE] Created template:', newTemplate.name)
+          logger.debug('Created template:', newTemplate.name)
           return newTemplate
         } catch (error) {
           set({ isLoading: false })
@@ -93,7 +94,7 @@ export const useTemplateStore = create<TemplateStore>()(
             isLoading: false
           }))
 
-          console.log('[TEMPLATE] Updated template:', templateId)
+          logger.debug('Updated template:', templateId)
         } catch (error) {
           set({ isLoading: false })
           handleAsyncError(error, 'Failed to update template')
@@ -109,7 +110,7 @@ export const useTemplateStore = create<TemplateStore>()(
             isLoading: false
           }))
 
-          console.log('[TEMPLATE] Deleted template:', templateId)
+          logger.debug('Deleted template:', templateId)
         } catch (error) {
           set({ isLoading: false })
           handleAsyncError(error, 'Failed to delete template')
@@ -122,7 +123,7 @@ export const useTemplateStore = create<TemplateStore>()(
           
           const sourceTemplate = get().templates.find(t => t.id === templateId)
           if (!sourceTemplate) {
-            console.error('[TEMPLATE] duplicateTemplate: Source template not found:', templateId)
+            logger.error('duplicateTemplate: Source template not found:', templateId)
             set({ isLoading: false })
             return null
           }
@@ -146,7 +147,7 @@ export const useTemplateStore = create<TemplateStore>()(
             isLoading: false
           }))
 
-          console.log('[TEMPLATE] Duplicated template:', sourceTemplate.name)
+          logger.debug('Duplicated template:', sourceTemplate.name)
           return duplicatedTemplate
         } catch (error) {
           set({ isLoading: false })
@@ -160,7 +161,7 @@ export const useTemplateStore = create<TemplateStore>()(
         try {
           const template = get().templates.find(t => t.id === templateId)
           if (!template) {
-            console.error('[TEMPLATE] useTemplate: Template not found:', templateId)
+            logger.error('useTemplate: Template not found:', templateId)
             return null
           }
 
@@ -179,7 +180,7 @@ export const useTemplateStore = create<TemplateStore>()(
             repeatCount: template.repeatCount
           }
 
-          console.log('[TEMPLATE] Used template:', template.name)
+          logger.debug('Used template:', template.name)
           return stitchGroup
         } catch (error) {
           handleAsyncError(error, 'Failed to use template')
@@ -307,7 +308,7 @@ export const useTemplateStore = create<TemplateStore>()(
             isLoading: false
           }))
 
-          console.log('[TEMPLATE] Imported', importedTemplates.length, 'templates')
+          logger.debug('Imported', importedTemplates.length, 'templates')
         } catch (error) {
           set({ isLoading: false })
           handleAsyncError(error, 'Failed to import templates')
@@ -331,7 +332,7 @@ export const useTemplateStore = create<TemplateStore>()(
             isLoading: false
           })
 
-          console.log('[TEMPLATE] Cleared all templates')
+          logger.debug('Cleared all templates')
         } catch (error) {
           set({ isLoading: false })
           handleAsyncError(error, 'Failed to clear templates')
@@ -427,7 +428,7 @@ export const createDefaultTemplates = async (): Promise<void> => {
     )
   }
 
-  console.log('[TEMPLATE] Created default templates')
+  logger.debug('Created default templates')
 }
 
 // Utility functions for template operations

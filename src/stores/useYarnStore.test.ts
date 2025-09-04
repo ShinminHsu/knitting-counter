@@ -3,6 +3,7 @@ import { useYarnStore, hexToRgb, rgbToHex, getColorBrightness, isLightColor, get
 import { useProjectStore } from './useProjectStore'
 import { Project, YarnColor, StitchType } from '../types'
 
+import { logger } from '../utils/logger'
 // Mock dependencies
 vi.mock('./useProjectStore')
 vi.mock('../utils', () => ({
@@ -10,7 +11,7 @@ vi.mock('../utils', () => ({
 }))
 vi.mock('./useBaseStore', () => ({
   handleAsyncError: vi.fn((error, context) => {
-    console.error(`[${context}]`, error)
+    logger.error('[${context}]', error)
   })
 }))
 

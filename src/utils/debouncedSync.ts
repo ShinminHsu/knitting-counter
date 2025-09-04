@@ -8,6 +8,7 @@ import { useSyncStore } from '../stores/useSyncStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { getSyncConfig } from '../config/syncConfig'
 
+import { logger } from './logger'
 interface PendingSync {
   project: Project
   context: string
@@ -35,7 +36,7 @@ class DebouncedSyncManager {
     const projectId = project.id
     const priority = this.getPriority(context, isUrgent)
     
-    console.log(`[DEBOUNCED-SYNC] debouncedSync called:`, {
+    logger.debug('[DEBOUNCED-SYNC] debouncedSync called:', {
       projectId,
       context,
       priority,
@@ -72,7 +73,7 @@ class DebouncedSyncManager {
       priority
     })
     
-    console.log(`[DEBOUNCED-SYNC] Scheduled sync for project ${projectId} in ${debounceTime}ms (context: ${context}, priority: ${priority})`)
+    logger.debug('[DEBOUNCED-SYNC] Scheduled sync for project ${projectId} in ${debounceTime}ms (context: ${context}, priority: ${priority})')
   }
   
   /**
@@ -81,7 +82,7 @@ class DebouncedSyncManager {
   async flushAll(): Promise<void> {
     const promises: Promise<void>[] = []
     
-    console.log('[DEBOUNCED-SYNC] Starting flushAll...', {
+    logger.debug('Starting flushAll...', {
       pendingSyncsCount: this.pendingSyncs.size,
       batchedProjectsCount: this.batchedProjects.size,
       hasBatchTimer: !!this.batchTimer
@@ -89,7 +90,7 @@ class DebouncedSyncManager {
     
     // 處理防抖同步
     for (const [projectId, pendingSync] of this.pendingSyncs.entries()) {
-      console.log(`[DEBOUNCED-SYNC] Flushing pending sync for project: ${projectId} (context: ${pendingSync.context})`)
+      logger.debug('[DEBOUNCED-SYNC] Flushing pending sync for project: ${projectId} (context: ${pendingSync.context})')
       clearTimeout(pendingSync.timeout)
       promises.push(this.performSync(pendingSync.project, pendingSync.context))
     }
@@ -98,18 +99,18 @@ class DebouncedSyncManager {
     
     // 處理批次同步
     if (this.batchTimer) {
-      console.log('[DEBOUNCED-SYNC] Flushing batch timer with projects:', Array.from(this.batchedProjects))
+      logger.debug('Flushing batch timer with projects:', Array.from(this.batchedProjects))
       clearTimeout(this.batchTimer)
       this.batchTimer = null
       promises.push(this.processBatch())
     }
     
     if (promises.length === 0) {
-      console.log('[DEBOUNCED-SYNC] No pending syncs or batches to flush')
+      logger.debug('No pending syncs or batches to flush')
     }
     
     await Promise.all(promises)
-    console.log('[DEBOUNCED-SYNC] Flushed all pending syncs and batches')
+    logger.debug('Flushed all pending syncs and batches')
   }
   
   /**
@@ -121,7 +122,7 @@ class DebouncedSyncManager {
       clearTimeout(pendingSync.timeout)
       await this.performSync(pendingSync.project, pendingSync.context)
       this.pendingSyncs.delete(projectId)
-      console.log(`[DEBOUNCED-SYNC] Flushed sync for project ${projectId}`)
+      logger.debug('[DEBOUNCED-SYNC] Flushed sync for project ${projectId}')
     }
     
     // 檢查批次中是否有這個項目
@@ -135,7 +136,7 @@ class DebouncedSyncManager {
       if (project) {
         // 使用原始context進行同步
         await this.performSync(project, originalContext || 'flushProject')
-        console.log(`[BATCH-SYNC] Flushed batched project ${projectId} with context ${originalContext}`)
+        logger.debug('[BATCH-SYNC] Flushed batched project ${projectId} with context ${originalContext}')
       }
     }
   }
@@ -159,7 +160,7 @@ class DebouncedSyncManager {
    */
   private async addToBatch(project: Project, context: string, _priority: 'high' | 'medium' | 'low'): Promise<void> {
     const projectId = project.id
-    console.log(`[BATCH-SYNC] Adding project ${projectId} to batch (context: ${context})`)
+    logger.debug('[BATCH-SYNC] Adding project ${projectId} to batch (context: ${context})')
     
     this.batchedProjects.set(projectId, context)
     
@@ -178,9 +179,9 @@ class DebouncedSyncManager {
         this.processBatch()
       }, batchDelay)
       
-      console.log(`[BATCH-SYNC] Added project ${projectId} to batch, will process in ${batchDelay}ms (batchedProjects.size: ${this.batchedProjects.size})`)
+      logger.debug('[BATCH-SYNC] Added project ${projectId} to batch, will process in ${batchDelay}ms (batchedProjects.size: ${this.batchedProjects.size})')
     } else {
-      console.log(`[BATCH-SYNC] Added project ${projectId} to existing batch (batchedProjects.size: ${this.batchedProjects.size})`)
+      logger.debug('[BATCH-SYNC] Added project ${projectId} to existing batch (batchedProjects.size: ${this.batchedProjects.size})')
     }
   }
   
@@ -188,10 +189,10 @@ class DebouncedSyncManager {
    * 處理批次同步
    */
   private async processBatch(): Promise<void> {
-    console.log(`[BATCH-SYNC] processBatch called, batchedProjects.size: ${this.batchedProjects.size}`)
+    logger.debug('[BATCH-SYNC] processBatch called, batchedProjects.size: ${this.batchedProjects.size}')
     
     if (this.batchedProjects.size === 0) {
-      console.log('[BATCH-SYNC] No projects in batch, exiting')
+      logger.debug('No projects in batch, exiting')
       this.batchTimer = null
       return
     }
@@ -200,12 +201,12 @@ class DebouncedSyncManager {
     this.batchedProjects.clear()
     this.batchTimer = null
     
-    console.log(`[BATCH-SYNC] Processing batch with ${projectEntries.length} projects:`, projectEntries.map(([id, context]) => ({ id, context })))
+    logger.debug('[BATCH-SYNC] Processing batch with ${projectEntries.length} projects:', projectEntries.map(([id, context]) => ({ id, context })))
     
     // 批次同步所有項目（可以考慮進一步優化，比如使用 Firestore batch writes）
     const { user } = useAuthStore.getState()
     if (!user) {
-      console.log('[BATCH-SYNC] No user found, skipping batch sync')
+      logger.debug('No user found, skipping batch sync')
       return
     }
     
@@ -221,15 +222,15 @@ class DebouncedSyncManager {
         if (project) {
           // 使用原始context以保持智能圈數同步
           await syncStore.syncProjectWithRetry(project, config.strategy.maxRetries, undefined, originalContext)
-          console.log(`[BATCH-SYNC] Successfully synced project ${projectId} with context ${originalContext}`)
+          logger.debug('[BATCH-SYNC] Successfully synced project ${projectId} with context ${originalContext}')
         }
       } catch (error) {
-        console.error(`[BATCH-SYNC] Error syncing project ${projectId}:`, error)
+        logger.error('[BATCH-SYNC] Error syncing project ${projectId}:', error)
       }
     })
     
     await Promise.allSettled(syncPromises)
-    console.log(`[BATCH-SYNC] Completed batch processing`)
+    logger.debug('[BATCH-SYNC] Completed batch processing')
   }
   
   /**
@@ -298,7 +299,7 @@ class DebouncedSyncManager {
   private async performSync(project: Project, context: string): Promise<void> {
     const { user } = useAuthStore.getState()
     if (!user) {
-      console.log('[DEBOUNCED-SYNC] No user found, skipping sync')
+      logger.debug('No user found, skipping sync')
       return
     }
     
@@ -308,12 +309,12 @@ class DebouncedSyncManager {
       const success = await syncStore.syncProjectWithRetry(project, config.strategy.maxRetries, undefined, context)
       
       if (success) {
-        console.log(`[DEBOUNCED-SYNC] Successfully synced project ${project.id} (context: ${context})`)
+        logger.debug('[DEBOUNCED-SYNC] Successfully synced project ${project.id} (context: ${context})')
       } else {
-        console.log(`[DEBOUNCED-SYNC] Failed to sync project ${project.id} (context: ${context})`)
+        logger.debug('[DEBOUNCED-SYNC] Failed to sync project ${project.id} (context: ${context})')
       }
     } catch (error) {
-      console.error('[DEBOUNCED-SYNC] Error during sync:', error)
+      logger.error('Error during sync:', error)
     }
   }
   
@@ -365,7 +366,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     const config = getSyncConfig()
     if (config.strategy.flushOnBeforeUnload) {
-      debouncedSyncManager.flushAll().catch(console.error)
+      debouncedSyncManager.flushAll().catch(logger.error)
     }
   })
   
@@ -373,7 +374,7 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     const config = getSyncConfig()
     if (document.hidden && config.strategy.flushOnVisibilityChange) {
-      debouncedSyncManager.flushAll().catch(console.error)
+      debouncedSyncManager.flushAll().catch(logger.error)
     }
   })
 }

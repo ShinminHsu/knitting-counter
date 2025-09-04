@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger'
+
 /**
  * Firebase 同步配置
  * 控制Firebase寫入頻率以避免達到使用限制
@@ -134,7 +136,7 @@ export const setSyncMode = (mode: 'default' | 'economy' | 'rapid'): void => {
       currentConfig = { ...defaultSyncConfig }
       break
   }
-  console.log(`[SYNC-CONFIG] Switched to ${mode} mode:`, currentConfig)
+  logger.debug('[SYNC-CONFIG] Switched to ${mode} mode:', currentConfig)
 }
 
 // 從localStorage載入配置
@@ -144,10 +146,10 @@ export const loadSyncConfigFromStorage = (): void => {
     if (stored) {
       const config = JSON.parse(stored)
       setSyncConfig(config)
-      console.log('[SYNC-CONFIG] Loaded configuration from localStorage:', config)
+      logger.debug('Loaded configuration from localStorage:', config)
     }
   } catch (error) {
-    console.error('[SYNC-CONFIG] Error loading configuration from localStorage:', error)
+    logger.error('Error loading configuration from localStorage:', error)
   }
 }
 
@@ -155,8 +157,8 @@ export const loadSyncConfigFromStorage = (): void => {
 export const saveSyncConfigToStorage = (): void => {
   try {
     localStorage.setItem('sync-config', JSON.stringify(currentConfig))
-    console.log('[SYNC-CONFIG] Saved configuration to localStorage')
+    logger.debug('Saved configuration to localStorage')
   } catch (error) {
-    console.error('[SYNC-CONFIG] Error saving configuration to localStorage:', error)
+    logger.error('Error saving configuration to localStorage:', error)
   }
 }

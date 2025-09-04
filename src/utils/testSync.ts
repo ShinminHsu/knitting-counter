@@ -3,6 +3,7 @@ import { firestoreService } from '../services/firestoreService'
 import { syncManager } from '../services/syncManager'
 import { generateId, createSampleProject } from './index'
 
+import { logger } from './logger'
 export interface SyncTestResult {
   success: boolean
   message: string
@@ -240,39 +241,39 @@ export class SyncTester {
   }
   
   async runAllTests(userId: string): Promise<SyncTestResult[]> {
-    console.log('開始執行同步功能測試...')
+    logger.debug('開始執行同步功能測試...')
     
     const results: SyncTestResult[] = []
     
     // 測試1: Firestore連接
-    console.log('測試1: Firestore連接')
+    logger.debug('測試1: Firestore連接')
     const connectionTest = await this.testFirestoreConnection(userId)
     results.push(connectionTest)
     
     if (!connectionTest.success) {
-      console.log('Firestore連接失敗，跳過後續測試')
+      logger.debug('Firestore連接失敗，跳過後續測試')
       return results
     }
     
     // 測試2: 專案CRUD操作
-    console.log('測試2: 專案CRUD操作')
+    logger.debug('測試2: 專案CRUD操作')
     const crudTest = await this.testProjectCRUD(userId)
     results.push(crudTest)
     
     // 測試3: 資料合併
-    console.log('測試3: 資料合併')
+    logger.debug('測試3: 資料合併')
     const mergeTest = await this.testDataMerging(userId)
     results.push(mergeTest)
     
     // 測試4: 即時同步
-    console.log('測試4: 即時同步')
+    logger.debug('測試4: 即時同步')
     const realtimeTest = await this.testRealTimeSync(userId)
     results.push(realtimeTest)
     
     const passedTests = results.filter(r => r.success).length
     const totalTests = results.length
     
-    console.log(`測試完成: ${passedTests}/${totalTests} 通過`)
+    logger.debug('測試完成: ${passedTests}/${totalTests} 通過')
     
     return results
   }

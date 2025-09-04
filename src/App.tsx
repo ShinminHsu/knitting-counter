@@ -16,6 +16,7 @@ import NotFoundView from './components/NotFoundView'
 import { GuestModeLogin } from './components/GuestModeLogin'
 import WelcomeLoadingView from './components/WelcomeLoadingView'
 
+import { logger } from './utils/logger'
 function App() {
   const { loadUserProjects, clearUserDataSilently, projects } = useProjectStore()
   const { setError, error, isLoading: appIsLoading } = useBaseStore()
@@ -35,7 +36,7 @@ function App() {
     }
     
     // 初始化分析服務（異步）
-    analyticsService.initializeSession().catch(console.error)
+    analyticsService.initializeSession().catch(logger.error)
     
     // 頁面卸載時結束會話
     const handleBeforeUnload = () => {
@@ -58,13 +59,13 @@ function App() {
 
   useEffect(() => {
     if (user) {
-      console.log(`使用者已登入 (${user.uid})，載入專案...`)
+      logger.debug('使用者已登入 (${user.uid})，載入專案...')
       
       // 嘗試遷移舊數據（如果存在）
       migrateLegacyUserData(user.uid)
       
       loadUserProjects().catch((err: any) => {
-        console.error('載入專案錯誤:', err)
+        logger.error('載入專案錯誤:', err)
         setError(err instanceof Error ? err.message : '載入專案時發生錯誤');
       });
       
@@ -73,7 +74,7 @@ function App() {
         setTimeout(() => debugStorageInfo(), 500)
       }
     } else {
-      console.log('使用者已登出，清空界面數據...')
+      logger.debug('使用者已登出，清空界面數據...')
       clearUserDataSilently()
     }
   }, [user, loadUserProjects, clearUserDataSilently, setError]);

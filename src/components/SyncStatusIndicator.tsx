@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/useAuthStore'
 import { authListener } from '../services/authListener'
 import { networkStatus } from '../utils/networkStatus'
 
+import { logger } from '../utils/logger'
 export default function SyncStatusIndicator() {
   const {
     isSyncing,
@@ -34,7 +35,7 @@ export default function SyncStatusIndicator() {
     try {
       await authListener.forceSync()
     } catch (error) {
-      console.error('Manual sync failed:', error)
+      logger.error('Manual sync failed:', error)
       setError('手動同步失敗')
     }
   }

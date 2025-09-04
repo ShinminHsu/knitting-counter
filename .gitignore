@@ -80,8 +80,4 @@ dist/
 admin/service-account-key.json
 admin/node_modules/
 
-# Admin tools - sensitive files
-admin/service-account-key.json
-admin/node_modules/
-
-admin/service-account-key.json
+scripts

@@ -4,6 +4,7 @@ import { useProjectStore } from '../stores/useProjectStore'
 import { useChartStore } from '../stores/useChartStore'
 import { usePatternStore } from '../stores/usePatternStore'
 
+import { logger } from '../utils/logger'
 export function usePatternOperations() {
   const { currentProject } = useProjectStore()
   const { updateChart } = useChartStore()
@@ -43,7 +44,7 @@ export function usePatternOperations() {
         await addRound(newRound)
       }
     } catch (error) {
-      console.error('Error adding round:', error)
+      logger.error('Error adding round:', error)
       alert('新增圈數時發生錯誤')
       throw error
     } finally {
@@ -121,7 +122,7 @@ export function usePatternOperations() {
         await addStitch(roundNumber, newStitch)
       }
     } catch (error) {
-      console.error('Error adding stitch:', error)
+      logger.error('Error adding stitch:', error)
       alert('新增針法時發生錯誤')
       throw error
     } finally {
@@ -194,7 +195,7 @@ export function usePatternOperations() {
         }
       }
     } catch (error) {
-      console.error('Error adding group stitch:', error)
+      logger.error('Error adding group stitch:', error)
       alert('新增群組針法時發生錯誤')
       throw error
     } finally {
@@ -251,7 +252,7 @@ export function usePatternOperations() {
         }
       }
     } catch (error) {
-      console.error('Error adding group:', error)
+      logger.error('Error adding group:', error)
       alert('新增群組時發生錯誤')
       throw error
     }

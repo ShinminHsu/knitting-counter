@@ -3,6 +3,7 @@ import { useChartStore } from '../stores/useChartStore'
 import { useProjectStore } from '../stores/useProjectStore'
 import { getRoundTotalStitches } from '../utils'
 
+import { logger } from '../utils/logger'
 /**
  * Chart-aware progress operations hook
  * Provides operations that work with the currently selected chart
@@ -18,19 +19,19 @@ export const useChartProgressOperations = () => {
   // Chart-aware next stitch operation
   const nextStitch = useCallback(async () => {
     if (!currentProject || !currentChart || currentChart.isCompleted) {
-      console.log('[CHART_PROGRESS] nextStitch: No current project/chart or already completed')
+      logger.debug('nextStitch: No current project/chart or already completed')
       return
     }
 
     const pattern = currentChart.rounds || []
     if (pattern.length === 0) {
-      console.log('[CHART_PROGRESS] nextStitch: No pattern available in current chart')
+      logger.debug('nextStitch: No pattern available in current chart')
       return
     }
 
     const currentRound = pattern.find(r => r.roundNumber === currentChart.currentRound)
     if (!currentRound) {
-      console.log('[CHART_PROGRESS] nextStitch: Current round not found', currentChart.currentRound)
+      logger.debug('nextStitch: Current round not found', currentChart.currentRound)
       // Try to adjust to valid round
       const minRoundNumber = Math.min(...pattern.map(r => r.roundNumber))
       await updateChartProgress(currentChart.id, {
@@ -78,13 +79,13 @@ export const useChartProgressOperations = () => {
   // Chart-aware previous stitch operation
   const previousStitch = useCallback(async () => {
     if (!currentProject || !currentChart) {
-      console.log('[CHART_PROGRESS] previousStitch: No current project/chart')
+      logger.debug('previousStitch: No current project/chart')
       return
     }
 
     const pattern = currentChart.rounds || []
     if (pattern.length === 0) {
-      console.log('[CHART_PROGRESS] previousStitch: No pattern available in current chart')
+      logger.debug('previousStitch: No pattern available in current chart')
       return
     }
 
@@ -114,7 +115,7 @@ export const useChartProgressOperations = () => {
     // Ensure round is valid
     const targetRound = pattern.find(r => r.roundNumber === newRound)
     if (!targetRound) {
-      console.log('[CHART_PROGRESS] previousStitch: Target round not found', newRound)
+      logger.debug('previousStitch: Target round not found', newRound)
       // Adjust to minimum available round
       const minRoundNumber = Math.min(...pattern.map(r => r.roundNumber))
       newRound = minRoundNumber
@@ -131,7 +132,7 @@ export const useChartProgressOperations = () => {
   // Chart-aware round completion
   const completeRound = useCallback(async (roundNumber?: number) => {
     if (!currentProject || !currentChart) {
-      console.log('[CHART_PROGRESS] completeRound: No current project/chart')
+      logger.debug('completeRound: No current project/chart')
       return
     }
 
@@ -140,11 +141,11 @@ export const useChartProgressOperations = () => {
     const targetRound = pattern.find(r => r.roundNumber === targetRoundNumber)
     
     if (!targetRound) {
-      console.log('[CHART_PROGRESS] completeRound: Target round not found', targetRoundNumber)
+      logger.debug('completeRound: Target round not found', targetRoundNumber)
       return
     }
 
-    console.log('[CHART_PROGRESS] completeRound: Completing round', targetRoundNumber)
+    logger.debug('completeRound: Completing round', targetRoundNumber)
     
     // Check if it's the last round
     const maxRoundNumber = Math.max(...pattern.map(r => r.roundNumber))
@@ -156,7 +157,7 @@ export const useChartProgressOperations = () => {
         currentStitch: getRoundTotalStitches(targetRound),
         isCompleted: true
       })
-      console.log('[CHART_PROGRESS] completeRound: Marking chart as completed')
+      logger.debug('completeRound: Marking chart as completed')
     } else {
       // Move to next round
       const nextRoundNumber = targetRoundNumber + 1
@@ -165,7 +166,7 @@ export const useChartProgressOperations = () => {
         currentStitch: 0,
         isCompleted: false
       })
-      console.log('[CHART_PROGRESS] completeRound: Moving to next round', nextRoundNumber)
+      logger.debug('completeRound: Moving to next round', nextRoundNumber)
     }
   }, [currentProject, currentChart, updateChart])
 
@@ -181,13 +182,13 @@ export const useChartProgressOperations = () => {
       currentStitch: 0,
       isCompleted: false
     })
-    console.log('[CHART_PROGRESS] Reset progress for chart:', currentChart.id)
+    logger.debug('Reset progress for chart:', currentChart.id)
   }, [currentProject, currentChart, updateChart])
 
   // Set current round for current chart
   const setCurrentRound = useCallback(async (roundNumber: number) => {
     if (!currentProject || !currentChart) {
-      console.log('[CHART_PROGRESS] setCurrentRound: No current project/chart')
+      logger.debug('setCurrentRound: No current project/chart')
       return
     }
 
@@ -195,11 +196,11 @@ export const useChartProgressOperations = () => {
     const pattern = currentChart.rounds || []
     const targetRound = pattern.find(r => r.roundNumber === roundNumber)
     if (!targetRound) {
-      console.error('[CHART_PROGRESS] setCurrentRound: Invalid round number', roundNumber)
+      logger.error('setCurrentRound: Invalid round number', roundNumber)
       return
     }
 
-    console.log('[CHART_PROGRESS] setCurrentRound: Updating from round', currentChart.currentRound, 'to', roundNumber)
+    logger.debug('setCurrentRound: Updating from round', currentChart.currentRound, 'to', roundNumber)
 
     await updateChartProgress(currentChart.id, {
       currentRound: roundNumber,

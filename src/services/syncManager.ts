@@ -1,6 +1,7 @@
 import { Project } from '../types'
 import { firestoreService } from './firestoreService'
 
+import { logger } from '../utils/logger'
 export interface SyncResult {
   success: boolean
   merged: Project[]
@@ -30,7 +31,7 @@ class SyncManager {
     try {
       const remoteProjects = await firestoreService.getUserProjects(userId)
       
-      console.log('Merging data:', {
+      logger.debug('Merging data:', {
         localCount: localProjects.length,
         remoteCount: remoteProjects.length,
         strategy: options.strategy
@@ -54,18 +55,18 @@ class SyncManager {
         
         if (localProject && !remoteProject) {
           // 只存在於本地，上傳到雲端
-          console.log(`Uploading local-only project: ${localProject.name}`)
+          logger.debug('Uploading local-only project: ${localProject.name}')
           try {
             await firestoreService.createProject(userId, localProject)
             result.merged.push(localProject)
           } catch (error) {
-            console.error('Error uploading local project:', error)
+            logger.error('Error uploading local project:', error)
             result.errors.push(`Failed to upload project ${localProject.name}`)
             result.merged.push(localProject) // 保留本地版本
           }
         } else if (!localProject && remoteProject) {
           // 只存在於雲端，直接使用
-          console.log(`Adding remote-only project: ${remoteProject.name}`)
+          logger.debug('Adding remote-only project: ${remoteProject.name}')
           result.merged.push(remoteProject)
         } else if (localProject && remoteProject) {
           // 兩邊都存在，需要合併
@@ -89,7 +90,7 @@ class SyncManager {
         result.success = false
       }
       
-      console.log('Merge completed:', {
+      logger.debug('Merge completed:', {
         merged: result.merged.length,
         conflicts: result.conflicts.length,
         errors: result.errors.length
@@ -97,7 +98,7 @@ class SyncManager {
       
       return result
     } catch (error) {
-      console.error('Error in merge operation:', error)
+      logger.error('Error in merge operation:', error)
       return {
         success: false,
         merged: localProjects, // 發生錯誤時保留本地數據
@@ -119,7 +120,7 @@ class SyncManager {
     const localTime = localProject.lastModified.getTime()
     const remoteTime = remoteProject.lastModified.getTime()
     
-    console.log(`Merging project ${localProject.name}:`, {
+    logger.debug('Merging project ${localProject.name}:', {
       localTime: new Date(localTime).toISOString(),
       remoteTime: new Date(remoteTime).toISOString(),
       timeDiff: localTime - remoteTime
@@ -174,11 +175,11 @@ class SyncManager {
     if (options.autoResolve) {
       try {
         await firestoreService.updateProject(userId, winningProject)
-        console.log(`Auto-resolved conflict for ${winningProject.name}, chose ${localTime >= remoteTime ? 'local' : 'remote'} version`)
+        logger.debug(`Auto-resolved conflict for ${winningProject.name}, chose ${localTime >= remoteTime ? 'local' : 'remote'} version`)
         // 自動解決後不返回衝突
         conflict = undefined
       } catch (error) {
-        console.error('Error auto-resolving conflict:', error)
+        logger.error('Error auto-resolving conflict:', error)
         // 更新失敗時保留本地版本
         winningProject = localProject
       }
@@ -217,10 +218,10 @@ class SyncManager {
       }
       
       await firestoreService.updateProject(userId, projectToSave)
-      console.log(`Conflict resolved for project ${conflict.projectName} using ${resolution}`)
+      logger.debug('Conflict resolved for project ${conflict.projectName} using ${resolution}')
       return true
     } catch (error) {
-      console.error('Error resolving conflict:', error)
+      logger.error('Error resolving conflict:', error)
       return false
     }
   }
@@ -234,22 +235,22 @@ class SyncManager {
       if (!remoteProject) {
         // 雲端不存在，創建新項目
         await firestoreService.createProject(userId, project)
-        console.log(`Created new project in cloud: ${project.name}`)
+        logger.debug('Created new project in cloud: ${project.name}')
         return true
       }
       
       // 檢查是否有衝突
       if (remoteProject.lastModified.getTime() > project.lastModified.getTime()) {
-        console.log(`Remote version is newer for ${project.name}, skipping sync`)
+        logger.debug('Remote version is newer for ${project.name}, skipping sync')
         return false
       }
       
       // 更新到雲端
       await firestoreService.updateProject(userId, project)
-      console.log(`Synced project changes: ${project.name}`)
+      logger.debug('Synced project changes: ${project.name}')
       return true
     } catch (error) {
-      console.error('Error syncing project changes:', error)
+      logger.error('Error syncing project changes:', error)
       return false
     }
   }
@@ -278,7 +279,7 @@ class SyncManager {
         ? remoteProjects.filter(p => p.lastModified.getTime() > lastSyncTime.getTime())
         : remoteProjects
       
-      console.log(`Incremental sync: ${changedRemoteProjects.length} changed remote projects`)
+      logger.debug('Incremental sync: ${changedRemoteProjects.length} changed remote projects')
       
       for (const remoteProject of changedRemoteProjects) {
         const localProject = localProjects.find(p => p.id === remoteProject.id)
@@ -310,7 +311,7 @@ class SyncManager {
       
       return result
     } catch (error) {
-      console.error('Error in incremental sync:', error)
+      logger.error('Error in incremental sync:', error)
       return {
         updated: [],
         conflicts: [],

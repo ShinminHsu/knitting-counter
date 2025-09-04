@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { usePatternStore } from '../stores/usePatternStore'
 import { useDragState, DragType } from './useDragState'
 
+import { logger } from '../utils/logger'
 interface DraggedItem {
   index: number
   roundNumber: number
@@ -13,7 +14,7 @@ export function useDragAndDrop() {
   const { setDragState, isDragging, clearDragState } = useDragState()
 
   const handleDragStart = (e: React.DragEvent, index: number, roundNumber: number) => {
-    console.log('[DRAG] Starting drag for PatternItem:', { index, roundNumber })
+    logger.debug('Starting drag for PatternItem:', { index, roundNumber })
     
     // Reset any existing drag state first
     setDraggedItem(null)
@@ -41,18 +42,18 @@ export function useDragAndDrop() {
     
     // Check if this is a pattern item drag
     if (!isDragging(DragType.PATTERN_ITEM)) {
-      console.log('[DRAG] Not a pattern item drag, ignoring')
+      logger.debug('Not a pattern item drag, ignoring')
       return
     }
     
-    console.log('[DRAG] Drop event:', {
+    logger.debug('Drop event:', {
       draggedItem,
       targetIndex,
       roundNumber
     })
     
     if (draggedItem && draggedItem.roundNumber === roundNumber) {
-      console.log('[DRAG] Dropping PatternItem:', {
+      logger.debug('Dropping PatternItem:', {
         fromIndex: draggedItem.index,
         toIndex: targetIndex,
         roundNumber
@@ -61,14 +62,14 @@ export function useDragAndDrop() {
       if (draggedItem.index !== targetIndex) {
         try {
           await reorderPatternItemsInRound(roundNumber, draggedItem.index, targetIndex)
-          console.log('[DRAG] Reorder successful')
+          logger.debug('Reorder successful')
         } catch (error) {
-          console.error('Error reordering pattern items:', error)
+          logger.error('Error reordering pattern items:', error)
           alert('調整針法順序時發生錯誤')
         }
       }
     } else {
-      console.log('[DRAG] Invalid drop - different rounds or no dragged item:', {
+      logger.debug('Invalid drop - different rounds or no dragged item:', {
         hasDraggedItem: !!draggedItem,
         sameRound: draggedItem?.roundNumber === roundNumber
       })
