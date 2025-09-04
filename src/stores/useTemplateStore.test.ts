@@ -8,8 +8,8 @@ vi.mock('../utils', () => ({
 }))
 
 vi.mock('./useBaseStore', () => ({
-  handleAsyncError: vi.fn((error, context) => {
-    logger.error('[${context}]', error)
+  handleAsyncError: vi.fn((error, _context) => {
+    logger.error('[${_context}]', error)
   })
 }))
 

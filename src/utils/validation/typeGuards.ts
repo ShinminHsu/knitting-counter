@@ -222,7 +222,7 @@ export function isValidProject(value: unknown): value is Project {
     })
     
     // Log details for invalid charts
-    chartValidations.forEach(({index, id, isValid}) => {
+    chartValidations.forEach(({index, id: _id, isValid}) => {
       if (!isValid) {
         logger.debug('[VALIDATION-DEBUG] Invalid chart at index ${index} (id: ${id}) - validating individually...')
         // This will trigger the detailed chart validation logging

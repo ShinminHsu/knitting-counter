@@ -155,7 +155,7 @@ export class FirestoreConnectionManager {
    * @param error - The error that occurred
    * @param context - Context information about the operation
    */
-  async handleNetworkError(error: unknown, context: string): Promise<void> {
+  async handleNetworkError(error: unknown, _context: string): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error)
     logger.debug('[FIRESTORE-CONNECTION] Handling network error in ${context}:', errorMessage)
     

@@ -10,8 +10,8 @@ vi.mock('../utils', () => ({
   generateId: vi.fn(() => 'mock-id-' + Date.now())
 }))
 vi.mock('./useBaseStore', () => ({
-  handleAsyncError: vi.fn((error, context) => {
-    logger.error('[${context}]', error)
+  handleAsyncError: vi.fn((error, _context) => {
+    logger.error('[${_context}]', error)
   })
 }))
 

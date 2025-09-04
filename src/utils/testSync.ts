@@ -270,10 +270,10 @@ export class SyncTester {
     const realtimeTest = await this.testRealTimeSync(userId)
     results.push(realtimeTest)
     
-    const passedTests = results.filter(r => r.success).length
-    const totalTests = results.length
+    const _passedTests = results.filter(r => r.success).length
+    const _totalTests = results.length
     
-    logger.debug('測試完成: ${passedTests}/${totalTests} 通過')
+    logger.debug(`測試完成: ${_passedTests}/${_totalTests} 通過`)
     
     return results
   }

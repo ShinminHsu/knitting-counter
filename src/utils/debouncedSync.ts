@@ -89,7 +89,7 @@ class DebouncedSyncManager {
     })
     
     // 處理防抖同步
-    for (const [projectId, pendingSync] of this.pendingSyncs.entries()) {
+    for (const [_projectId, pendingSync] of this.pendingSyncs.entries()) {
       logger.debug('[DEBOUNCED-SYNC] Flushing pending sync for project: ${projectId} (context: ${pendingSync.context})')
       clearTimeout(pendingSync.timeout)
       promises.push(this.performSync(pendingSync.project, pendingSync.context))
