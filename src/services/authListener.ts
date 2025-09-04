@@ -58,9 +58,9 @@ class AuthListener {
         this.unsubscribeFirestore = null
       }
       
-      // 載入本地項目數據（訊客模式）
+      // 載入本地項目數據（訪客模式）- 使用loadProjects會創建範例專案
       const projectStore = useProjectStore.getState()
-      await projectStore.loadUserProjects()
+      await projectStore.loadProjects()
       
       console.log('Guest mode handling completed')
     } catch (error) {

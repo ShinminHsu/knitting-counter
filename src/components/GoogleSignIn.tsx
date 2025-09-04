@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuthStore } from '../stores/useAuthStore'
 import ConfirmDialog from './ConfirmDialog'
+import knittingIcon from '../assets/images/kniitingIcon.png'
 
 export default function GoogleSignIn() {
   const { signInWithGoogle, isLoading, error } = useAuthStore()
