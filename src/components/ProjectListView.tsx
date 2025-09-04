@@ -8,6 +8,7 @@ import { useChartStore } from '../stores/useChartStore'
 import { ImportExportService } from '../services/importExportService'
 import { ImportMode } from '../types'
 import knittingIcon from '../assets/images/kniitingIcon.png'
+import knittingIcon from '../assets/images/kniitingIcon.png'
 
 export default function ProjectListView() {
   const { projects, createProject, deleteProject, setProjects, setCurrentProject, updateProjectLocally } = useProjectStore()
@@ -142,6 +143,13 @@ export default function ProjectListView() {
             <div className="flex items-center gap-3">
               <img src={knittingIcon} alt="Stitchie" className="w-12 h-12" />
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">Stitchie</h1>
+              <Link
+                to="/guide"
+                className="text-text-secondary hover:text-text-primary transition-colors text-sm"
+                title="使用說明"
+              >
+                使用說明
+              </Link>
             </div>
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
               <UserProfile />

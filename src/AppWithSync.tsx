@@ -13,6 +13,7 @@ import ProgressTrackingView from './components/ProgressTrackingView'
 import YarnManagerView from './components/YarnManagerView'
 import ImportExportView from './components/ImportExportView'
 import NotFoundView from './components/NotFoundView'
+import UserGuideView from './components/UserGuideView'
 import { GuestModeLogin } from './components/GuestModeLogin'
 import { GuestDataRecovery } from './components/GuestDataRecovery'
 import LoadingPage from './components/LoadingPage'
@@ -65,7 +66,10 @@ function AppWithSync() {
     } else if (userType === 'guest') {
       console.log('訪客模式，使用本地數據...')
       // 訪客模式需要載入本地項目
-      authListener.handleUserLogout()
+      authListener.handleGuestMode().catch((err: any) => {
+        console.error('處理訪客模式錯誤:', err)
+        setError('載入本地數據失敗')
+      })
     } else {
       console.log('使用者已登出，清空數據...')
       authListener.handleUserLogout()
@@ -146,6 +150,9 @@ function AppWithSync() {
         
         {/* 匯出/匯入 */}
         <Route path="/project/:projectId/import-export" element={<ImportExportView />} />
+        
+        {/* 使用說明 */}
+        <Route path="/guide" element={<UserGuideView />} />
         
         {/* 404 頁面 */}
         <Route path="/404" element={<NotFoundView />} />
