@@ -8,7 +8,6 @@ import { useChartStore } from '../stores/useChartStore'
 import { ImportExportService } from '../services/importExportService'
 import { ImportMode } from '../types'
 import knittingIcon from '../assets/images/kniitingIcon.png'
-import knittingIcon from '../assets/images/kniitingIcon.png'
 
 export default function ProjectListView() {
   const { projects, createProject, deleteProject, setProjects, setCurrentProject, updateProjectLocally } = useProjectStore()
