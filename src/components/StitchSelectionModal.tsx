@@ -99,6 +99,27 @@ export default function StitchSelectionModal({
   const [customSymbol, setCustomSymbol] = useState<string>('')
   const [showIncreaseTooltip, setShowIncreaseTooltip] = useState<boolean>(false)
 
+  // Body scroll lock for mobile
+  useEffect(() => {
+    if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+      document.body.style.overflow = 'hidden'
+      
+      return () => {
+        // Restore scroll position
+        document.body.style.position = ''
+        document.body.style.top = ''
+        document.body.style.width = ''
+        document.body.style.overflow = ''
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [isOpen])
+
   // 當有初始針法時，預填表單
   useEffect(() => {
     if (isOpen && initialStitch) {
