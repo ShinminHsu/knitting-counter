@@ -1,16 +1,31 @@
+import { useState } from 'react'
 import { useAuthStore } from '../stores/useAuthStore'
+import ConfirmDialog from './ConfirmDialog'
 
 export default function GoogleSignIn() {
   const { signInWithGoogle, isLoading, error } = useAuthStore()
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+
+  const handleGoogleSignIn = () => {
+    setShowConfirmDialog(true)
+  }
+
+  const handleConfirmSignIn = () => {
+    setShowConfirmDialog(false)
+    signInWithGoogle()
+  }
+
+  const handleCancelSignIn = () => {
+    setShowConfirmDialog(false)
+  }
 
   return (
     <div className="min-h-screen bg-background-primary flex items-center justify-center px-4">
       <div className="card max-w-sm sm:max-w-md w-full">
         <div className="text-center mb-6">
           <div className="text-3xl sm:text-4xl mb-3">🧶</div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text-primary mb-2">
-            編織計數器
-          </h1>
+          <img src={knittingIcon} alt="Stitchie" className="w-12 h-12" />
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">Stitchie</h1> 
           <p className="text-sm sm:text-base text-text-secondary">
             使用 Google 帳戶登入以同步您的編織專案
           </p>
@@ -23,7 +38,7 @@ export default function GoogleSignIn() {
         )}
 
         <button
-          onClick={signInWithGoogle}
+          onClick={handleGoogleSignIn}
           disabled={isLoading}
           className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -60,6 +75,16 @@ export default function GoogleSignIn() {
           </p>
         </div>
       </div>
+      
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        title="確認登入"
+        message="注意：如果您不是特定用戶，您的資料將不會同步到雲端，與訪客模式相同。確定要使用Google帳號登入嗎？"
+        onConfirm={handleConfirmSignIn}
+        onCancel={handleCancelSignIn}
+        confirmText="確定登入"
+        cancelText="取消"
+      />
     </div>
   )
 }

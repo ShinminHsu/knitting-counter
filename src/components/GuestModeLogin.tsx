@@ -1,8 +1,24 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useAuthStore } from '../stores/useAuthStore'
+import knittingIcon from '../assets/images/kniitingIcon.png'
+import ConfirmDialog from './ConfirmDialog'
 
 export const GuestModeLogin: React.FC = () => {
   const { signInWithGoogle, enterGuestMode, isLoading, error, userType, user } = useAuthStore()
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+
+  const handleGoogleSignIn = () => {
+    setShowConfirmDialog(true)
+  }
+
+  const handleConfirmSignIn = () => {
+    setShowConfirmDialog(false)
+    signInWithGoogle()
+  }
+
+  const handleCancelSignIn = () => {
+    setShowConfirmDialog(false)
+  }
 
   // 如果已經登入，不顯示登入界面
   if (user && userType === 'authenticated') {
@@ -28,11 +44,56 @@ export const GuestModeLogin: React.FC = () => {
         )}
 
         <div className="space-y-4">
+
+          {/* 訪客模式按鈕 */}
+          <button
+            onClick={enterGuestMode}
+            disabled={isLoading}
+            className="btn btn-primary w-full py-3 text-lg"
+          >
+            以訪客身份使用
+          </button>
+          
+          {/* 訪客模式說明 */}
+          <div className="card">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-text-primary">
+                  本地模式
+                </h3>
+                <div className="mt-1 text-sm text-text-secondary">
+                  <p className="mb-2">
+                    數據僅儲存在此裝置上，不會同步到雲端
+                  </p>
+                  <p className="font-semibold text-text-primary">
+                    注意：清除瀏覽器數據或強制重新整理可能導致資料遺失，請記得備份！
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 分隔線 */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-background-primary text-text-tertiary">或</span>
+            </div>
+          </div>
+
+
           {/* Google 登入按鈕 */}
           <button
-            onClick={signInWithGoogle}
+            onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="btn btn-primary w-full py-3"
+            className="btn btn-secondary w-full py-3"
           >
             {isLoading ? (
               '登入中...'
@@ -66,54 +127,8 @@ export const GuestModeLogin: React.FC = () => {
                 </div>
                 <div className="mt-2 text-sm text-text-secondary">
                   <p className="mb-2">
-                    目前雲端同步功能只開放給特定用戶使用。<br />
-                    您的帳號將使用本地模式，數據不會同步到雲端。
-                  </p>
-                  <p className="font-semibold text-text-primary">
-                    如需雲端同步功能，請聯繫管理員申請權限。
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 分隔線 */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-background-primary text-text-tertiary">或</span>
-            </div>
-          </div>
-
-          {/* 訪客模式按鈕 */}
-          <button
-            onClick={enterGuestMode}
-            disabled={isLoading}
-            className="btn btn-primary w-full py-3"
-          >
-            以訪客身份使用
-          </button>
-          
-          {/* 訪客模式說明 */}
-          <div className="card">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-text-primary">
-                  本地模式
-                </h3>
-                <div className="mt-1 text-sm text-text-secondary">
-                  <p className="mb-2">
-                    數據僅儲存在此裝置上，不會同步到雲端
-                  </p>
-                  <p className="font-semibold text-text-primary">
-                    注意：清除瀏覽器數據或強制重新整理可能導致資料遺失
+                    目前雲端同步功能<b>只開放給特定用戶使用</b>。<br />
+                    即便登入，您的帳號仍會使用本地模式，數據不會同步到雲端。
                   </p>
                 </div>
               </div>
@@ -122,6 +137,16 @@ export const GuestModeLogin: React.FC = () => {
         </div>
 
       </div>
+      
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        title="確認登入"
+        message="注意：如果您不是特定用戶，您的資料將不會同步到雲端，與訪客模式相同。確定要使用Google帳號登入嗎？"
+        onConfirm={handleConfirmSignIn}
+        onCancel={handleCancelSignIn}
+        confirmText="確定登入"
+        cancelText="取消"
+      />
     </div>
   )
 }
