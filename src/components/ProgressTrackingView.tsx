@@ -4,6 +4,7 @@ import { useProjectStore } from '../stores/useProjectStore'
 import { useChartStore } from '../stores/useChartStore'
 import { useAutoScroll } from '../hooks/useAutoScroll'
 import { useProgressCalculations } from '../hooks/useProgressCalculations'
+import { analyticsService } from '../services/analyticsService'
 import ProgressHeader from './ProgressTracking/ProgressHeader'
 import ChartSelector from './ProgressTracking/ChartSelector'
 import ProgressDisplay from './ProgressTracking/ProgressDisplay'
@@ -44,6 +45,11 @@ export default function ProgressTrackingView() {
       
       if (project) {
         setCurrentProjectById(projectId)
+        // 記錄進度追蹤使用統計
+        analyticsService.recordUsageEvent('progress_track', 'enter_progress_view', {
+          projectId,
+          projectName: project.name
+        })
       } else {
         navigate('/404')
       }

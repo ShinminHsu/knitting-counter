@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { BsHouse } from 'react-icons/bs'
 import { useProjectStore } from '../stores/useProjectStore'
 import { useYarnStore } from '../stores/useYarnStore'
+import { analyticsService } from '../services/analyticsService'
 import SyncStatusIndicator from './SyncStatusIndicator'
 import { Yarn, YarnColor } from '../types'
 import { generateId } from '../utils'
@@ -41,6 +42,11 @@ export default function YarnManagerView() {
       const project = projects.find(p => p.id === projectId)
       if (project) {
         setCurrentProjectById(projectId)
+        // 記錄毛線管理使用統計
+        analyticsService.recordUsageEvent('yarn_manage', 'enter_yarn_manager', {
+          projectId,
+          projectName: project.name
+        })
       } else {
         navigate('/404')
       }

@@ -7,6 +7,7 @@ import { usePatternStore } from '../../stores/usePatternStore'
 import { useModalStates } from '../../hooks/useModalStates'
 import { usePatternEditorState } from '../../hooks/usePatternEditorState'
 import { usePatternOperations } from '../../hooks/usePatternOperations'
+import { analyticsService } from '../../services/analyticsService'
 import ChartSelectorHeader from '../ChartSelectorHeader'
 import { Round, StitchType, StitchInfo, StitchGroup, PatternItemType } from '../../types'
 import {
@@ -65,6 +66,12 @@ export default function PatternEditorContainer() {
       const project = projects.find(p => p.id === projectId)
       if (project) {
         setCurrentProjectById(projectId)
+        
+        // 記錄織圖編輯使用統計
+        analyticsService.recordUsageEvent('pattern_edit', 'enter_pattern_editor', {
+          projectId,
+          projectName: project.name
+        })
         
         // 舊格式專案的自動遷移已在 store 層處理
       } else {

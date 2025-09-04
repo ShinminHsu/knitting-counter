@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useProjectStore } from './stores/useProjectStore'
 import { useBaseStore } from './stores/useBaseStore'
 import { useSyncStore } from './stores/useSyncStore'
 import { useAuthStore } from './stores/useAuthStore'
 import { cleanupLegacyData, migrateLegacyUserData, debugStorageInfo } from './utils/migrateLegacyData'
+import { analyticsService } from './services/analyticsService'
 import ProjectListView from './components/ProjectListView'
 import ProjectDetailView from './components/ProjectDetailView'
 import PatternEditorView from './components/PatternEditorView'
@@ -20,6 +21,7 @@ function App() {
   const { setError, error, isLoading: appIsLoading } = useBaseStore()
   const { isSyncing } = useSyncStore()
   const { user, userType, isLoading: authIsLoading, initialize } = useAuthStore()
+  const location = useLocation()
 
   useEffect(() => {
     const unsubscribe = initialize()
@@ -32,8 +34,27 @@ function App() {
       debugStorageInfo()
     }
     
-    return () => unsubscribe()
+    // 初始化分析服務（異步）
+    analyticsService.initializeSession().catch(console.error)
+    
+    // 頁面卸載時結束會話
+    const handleBeforeUnload = () => {
+      analyticsService.endSession()
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      unsubscribe()
+      analyticsService.endSession()
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
   }, [initialize])
+
+  // 追蹤頁面瀏覽
+  useEffect(() => {
+    analyticsService.onPageView()
+  }, [location.pathname])
 
   useEffect(() => {
     if (user) {
