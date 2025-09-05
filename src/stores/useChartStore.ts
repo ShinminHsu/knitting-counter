@@ -5,6 +5,7 @@ import { useProjectStore } from './useProjectStore'
 import { handleAsyncError } from './useBaseStore'
 import { debouncedSyncManager } from '../utils/debouncedSync'
 
+import { logger } from '../utils/logger'
 // Common utility function for safe project updates with Timestamp cleaning
 const createSafeUpdateProjectLocally = () => {
   const safeCreateDate = (dateValue: any, fallback: Date = new Date()): Date => {
@@ -45,7 +46,7 @@ const createSafeUpdateProjectLocally = () => {
   return async (project: Project, _context: string = 'unknown') => {
     const { setProjects, setCurrentProject, projects, currentProject } = useProjectStore.getState()
     
-    console.log(`[SAFE-UPDATE] ${_context} - About to update project:`, project.id)
+    logger.debug('[SAFE-UPDATE] ${_context} - About to update project:', project.id)
 
     const cleanedProject = {
       ...project,
@@ -121,7 +122,7 @@ const createDebouncedUpdateProjectLocally = () => {
   }
 
   return async (project: Project, context: string = 'unknown', isUrgent: boolean = false) => {
-    console.log(`[DEBOUNCED-UPDATE] debouncedUpdateProjectLocally called:`, {
+    logger.debug('[DEBOUNCED-UPDATE] debouncedUpdateProjectLocally called:', {
       projectId: project.id,
       context,
       isUrgent,
@@ -187,7 +188,7 @@ const createDebouncedUpdateProjectLocally = () => {
     // 為非白名單/訪客用戶模擬 Firebase 訂閱的額外狀態更新和 IndexedDB 備份
     const { user, canUseFirebase } = await import('./useAuthStore').then(m => m.useAuthStore.getState())
     if (!user || !canUseFirebase()) {
-      console.log(`[DEBOUNCED-UPDATE] Triggering additional state update and backup for non-whitelist/guest user`, {
+      logger.debug('[DEBOUNCED-UPDATE] Triggering additional state update and backup for non-whitelist/guest user', {
         context,
         isUrgent,
         projectId: cleanedProject.id,
@@ -198,7 +199,7 @@ const createDebouncedUpdateProjectLocally = () => {
       
       // 修正：使用多次更新確保 UI 能夠檢測到變化
       const performForceUpdate = async (attempt: number = 1) => {
-        console.log(`[DEBOUNCED-UPDATE] Executing delayed state update attempt ${attempt} for non-whitelist/guest user`)
+        logger.debug('[DEBOUNCED-UPDATE] Executing delayed state update attempt ${attempt} for non-whitelist/guest user')
         
         const currentState = useProjectStore.getState()
         const forceUpdatedProject = {
@@ -211,7 +212,7 @@ const createDebouncedUpdateProjectLocally = () => {
           p.id === cleanedProject.id ? forceUpdatedProject : p
         )
         
-        console.log(`[DEBOUNCED-UPDATE] Forcing project store update attempt ${attempt}`, {
+        logger.debug('[DEBOUNCED-UPDATE] Forcing project store update attempt ${attempt}', {
           projectsCount: updatedProjects.length,
           currentProjectId: currentState.currentProject?.id,
           updatedProjectId: forceUpdatedProject.id,
@@ -238,11 +239,11 @@ const createDebouncedUpdateProjectLocally = () => {
             const { userType } = useAuthStore.getState()
             const userIdentity = userType === 'guest' ? 'guest' : (user?.email || 'unknown')
             
-            console.log('[DEBOUNCED-UPDATE] Manually triggering IndexedDB backup for non-whitelist/guest user:', userIdentity)
+            logger.debug('Manually triggering IndexedDB backup for non-whitelist/guest user:', userIdentity)
             await guestDataBackup.backupGuestData(updatedProjects, forceUpdatedProject, userIdentity)
-            console.log('[DEBOUNCED-UPDATE] IndexedDB backup completed successfully')
+            logger.debug('IndexedDB backup completed successfully')
           } catch (error) {
-            console.error('[DEBOUNCED-UPDATE] Failed to backup to IndexedDB:', error)
+            logger.error('Failed to backup to IndexedDB:', error)
           }
         }
       }
@@ -251,7 +252,7 @@ const createDebouncedUpdateProjectLocally = () => {
       setTimeout(() => performForceUpdate(1), 50) // 50ms 延遲，模擬網路延遲
     }
     
-    console.log(`[DEBOUNCED-UPDATE] Local state updated immediately, Firebase sync scheduled (context: ${context})`)
+    logger.debug('[DEBOUNCED-UPDATE] Local state updated immediately, Firebase sync scheduled (context: ${context})')
   }
 }
 
@@ -293,7 +294,7 @@ export const useChartStore = create<ChartStore>(() => ({
   createChart: async (chartData: CreateChartRequest) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] createChart: No current project')
+      logger.error('createChart: No current project')
       return null
     }
 
@@ -301,7 +302,7 @@ export const useChartStore = create<ChartStore>(() => ({
       // Ensure project is migrated to multi-chart format
       const migrationResult = migrateProjectToMultiChart(currentProject)
       if (!migrationResult.success) {
-        console.error('[CHART] createChart: Migration failed:', migrationResult.errors)
+        logger.error('createChart: Migration failed:', migrationResult.errors)
         return null
       }
 
@@ -311,13 +312,13 @@ export const useChartStore = create<ChartStore>(() => ({
       const success = addChartToProject(updatedProject, newChart)
       
       if (!success) {
-        console.error('[CHART] createChart: Failed to add chart to project')
+        logger.error('createChart: Failed to add chart to project')
         return null
       }
 
       await safeUpdateProjectLocally(updatedProject, 'createChart')
 
-      console.log('[CHART] Created chart:', newChart.name, 'with ID:', newChart.id)
+      logger.debug('Created chart:', newChart.name, 'with ID:', newChart.id)
       return newChart
     } catch (error) {
       handleAsyncError(error, 'Failed to create chart')
@@ -328,7 +329,7 @@ export const useChartStore = create<ChartStore>(() => ({
   duplicateChart: async (chartId: string) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] duplicateChart: No current project')
+      logger.error('duplicateChart: No current project')
       return null
     }
 
@@ -337,13 +338,13 @@ export const useChartStore = create<ChartStore>(() => ({
       migrateProjectToMultiChart(currentProject)
       
       if (!currentProject.charts) {
-        console.error('[CHART] duplicateChart: No charts found')
+        logger.error('duplicateChart: No charts found')
         return null
       }
 
       const sourceChart = currentProject.charts.find(c => c.id === chartId)
       if (!sourceChart) {
-        console.error('[CHART] duplicateChart: Source chart not found:', chartId)
+        logger.error('duplicateChart: Source chart not found:', chartId)
         return null
       }
 
@@ -380,13 +381,13 @@ export const useChartStore = create<ChartStore>(() => ({
       const success = addChartToProject(updatedProject, duplicatedChart)
       
       if (!success) {
-        console.error('[CHART] duplicateChart: Failed to add duplicated chart to project')
+        logger.error('duplicateChart: Failed to add duplicated chart to project')
         return null
       }
 
       await safeUpdateProjectLocally(updatedProject, 'duplicateChart')
 
-      console.log('[CHART] Duplicated chart:', sourceChart.name, 'as:', duplicatedChart.name)
+      logger.debug('Duplicated chart:', sourceChart.name, 'as:', duplicatedChart.name)
       return duplicatedChart
     } catch (error) {
       handleAsyncError(error, 'Failed to duplicate chart')
@@ -397,7 +398,7 @@ export const useChartStore = create<ChartStore>(() => ({
   updateChart: async (chartId: string, updates: Partial<Chart>) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] updateChart: No current project')
+      logger.error('updateChart: No current project')
       return
     }
 
@@ -406,13 +407,13 @@ export const useChartStore = create<ChartStore>(() => ({
       migrateProjectToMultiChart(currentProject)
       
       if (!currentProject.charts) {
-        console.error('[CHART] updateChart: No charts found after migration')
+        logger.error('updateChart: No charts found after migration')
         return
       }
 
       const existingChart = currentProject.charts.find(c => c.id === chartId)
       if (!existingChart) {
-        console.error('[CHART] updateChart: Chart not found:', chartId)
+        logger.error('updateChart: Chart not found:', chartId)
         return
       }
 
@@ -435,15 +436,15 @@ export const useChartStore = create<ChartStore>(() => ({
       const success = updateChartInProject(updatedProject, updatedChart)
       
       if (!success) {
-        console.error('[CHART] updateChart: Failed to update chart in project')
+        logger.error('updateChart: Failed to update chart in project')
         return
       }
 
       await debouncedUpdateProjectLocally(updatedProject, 'updateChart')
 
-      console.log('[CHART] Updated chart:', chartId)
+      logger.debug('Updated chart:', chartId)
     } catch (error) {
-      console.error('[CHART] Error in updateChart:', error)
+      logger.error('Error in updateChart:', error)
       handleAsyncError(error, 'Failed to update chart')
     }
   },
@@ -452,7 +453,7 @@ export const useChartStore = create<ChartStore>(() => ({
   updateChartProgress: async (chartId: string, updates: Partial<Chart>) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] updateChartProgress: No current project')
+      logger.error('updateChartProgress: No current project')
       return
     }
 
@@ -461,13 +462,13 @@ export const useChartStore = create<ChartStore>(() => ({
       migrateProjectToMultiChart(currentProject)
       
       if (!currentProject.charts) {
-        console.error('[CHART] updateChartProgress: No charts found after migration')
+        logger.error('updateChartProgress: No charts found after migration')
         return
       }
 
       const existingChart = currentProject.charts.find(c => c.id === chartId)
       if (!existingChart) {
-        console.error('[CHART] updateChartProgress: Chart not found:', chartId)
+        logger.error('updateChartProgress: Chart not found:', chartId)
         return
       }
 
@@ -491,9 +492,9 @@ export const useChartStore = create<ChartStore>(() => ({
 
       await debouncedUpdateProjectLocally(updatedProject, 'updateChartProgress')
 
-      console.log('[CHART] Updated chart progress:', chartId)
+      logger.debug('Updated chart progress:', chartId)
     } catch (error) {
-      console.error('[CHART] Error in updateChartProgress:', error)
+      logger.error('Error in updateChartProgress:', error)
       handleAsyncError(error, 'Failed to update chart progress')
     }
   },
@@ -501,7 +502,7 @@ export const useChartStore = create<ChartStore>(() => ({
   deleteChart: async (chartId: string) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] deleteChart: No current project')
+      logger.error('deleteChart: No current project')
       return
     }
 
@@ -510,7 +511,7 @@ export const useChartStore = create<ChartStore>(() => ({
       migrateProjectToMultiChart(currentProject)
       
       if (!currentProject.charts || currentProject.charts.length <= 1) {
-        console.error('[CHART] deleteChart: Cannot delete the last chart')
+        logger.error('deleteChart: Cannot delete the last chart')
         return
       }
 
@@ -518,13 +519,13 @@ export const useChartStore = create<ChartStore>(() => ({
       const success = removeChartFromProject(updatedProject, chartId)
       
       if (!success) {
-        console.error('[CHART] deleteChart: Failed to remove chart from project')
+        logger.error('deleteChart: Failed to remove chart from project')
         return
       }
 
       await safeUpdateProjectLocally(updatedProject, 'deleteChart')
 
-      console.log('[CHART] Deleted chart:', chartId)
+      logger.debug('Deleted chart:', chartId)
     } catch (error) {
       handleAsyncError(error, 'Failed to delete chart')
     }
@@ -533,12 +534,12 @@ export const useChartStore = create<ChartStore>(() => ({
   setCurrentChart: async (chartId: string) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] setCurrentChart: No current project')
+      logger.error('setCurrentChart: No current project')
       return
     }
 
     try {
-      console.log('[CHART-DEBUG] Starting setCurrentChart:', {
+      logger.debug('Starting setCurrentChart:', {
         chartId,
         projectId: currentProject.id,
         projectName: currentProject.name,
@@ -568,11 +569,11 @@ export const useChartStore = create<ChartStore>(() => ({
             const timestamp = dateValue.seconds * 1000 + dateValue.nanoseconds / 1000000
             const date = new Date(timestamp)
             if (!isNaN(date.getTime())) {
-              console.log('[CHART-DEBUG] setCurrentChart - Successfully converted Firestore Timestamp to Date:', dateValue, '→', date)
+              logger.debug('setCurrentChart - Successfully converted Firestore Timestamp to Date:', dateValue, '→', date)
               return date
             }
           } catch (e) {
-            console.warn('[CHART-DEBUG] setCurrentChart - Failed to convert Firestore Timestamp:', dateValue, e)
+            logger.warn('setCurrentChart - Failed to convert Firestore Timestamp:', dateValue, e)
           }
         }
         // Handle Firestore Timestamp objects with toDate method
@@ -580,14 +581,14 @@ export const useChartStore = create<ChartStore>(() => ({
           try {
             const date = dateValue.toDate()
             if (date instanceof Date && !isNaN(date.getTime())) {
-              console.log('[CHART-DEBUG] setCurrentChart - Successfully converted Firestore Timestamp using toDate():', date)
+              logger.debug('setCurrentChart - Successfully converted Firestore Timestamp using toDate():', date)
               return date
             }
           } catch (e) {
-            console.warn('[CHART-DEBUG] setCurrentChart - Failed to convert Firestore Timestamp using toDate():', e)
+            logger.warn('setCurrentChart - Failed to convert Firestore Timestamp using toDate():', e)
           }
         }
-        console.warn('[CHART-DEBUG] setCurrentChart - Using fallback date for invalid date value:', dateValue)
+        logger.warn('setCurrentChart - Using fallback date for invalid date value:', dateValue)
         return fallback
       }
 
@@ -602,7 +603,7 @@ export const useChartStore = create<ChartStore>(() => ({
           const hasTimestampCreatedDate = chart.createdDate && typeof chart.createdDate === 'object' && 'seconds' in chart.createdDate
           const hasTimestampLastModified = chart.lastModified && typeof chart.lastModified === 'object' && 'seconds' in chart.lastModified
           
-          console.log('[CHART-DEBUG] setCurrentChart - Processing chart dates:', {
+          logger.debug('setCurrentChart - Processing chart dates:', {
             chartIndex: index,
             chartId: chart.id,
             chartName: chart.name,
@@ -630,7 +631,7 @@ export const useChartStore = create<ChartStore>(() => ({
             })) || []
           }
           
-          console.log('[CHART-DEBUG] setCurrentChart - After processing chart dates:', {
+          logger.debug('setCurrentChart - After processing chart dates:', {
             chartIndex: index,
             chartId: chart.id,
             processedCreatedDate: processedChart.createdDate,
@@ -646,11 +647,11 @@ export const useChartStore = create<ChartStore>(() => ({
       const success = setCurrentChart(updatedProject, chartId)
       
       if (!success) {
-        console.error('[CHART] setCurrentChart: Failed to set current chart:', chartId)
+        logger.error('setCurrentChart: Failed to set current chart:', chartId)
         return
       }
 
-      console.log('[CHART-DEBUG] setCurrentChart - About to call updateProjectLocally with cleaned project:', {
+      logger.debug('setCurrentChart - About to call updateProjectLocally with cleaned project:', {
         projectId: updatedProject.id,
         projectName: updatedProject.name,
         chartsCount: updatedProject.charts?.length || 0,
@@ -662,9 +663,9 @@ export const useChartStore = create<ChartStore>(() => ({
 
       await debouncedUpdateProjectLocally(updatedProject, 'setCurrentChart')
 
-      console.log('[CHART] Set current chart to:', chartId)
+      logger.debug('Set current chart to:', chartId)
     } catch (error) {
-      console.error('[CHART-DEBUG] Error in setCurrentChart:', error)
+      logger.error('Error in setCurrentChart:', error)
       handleAsyncError(error, 'Failed to set current chart')
     }
   },
@@ -700,7 +701,7 @@ export const useChartStore = create<ChartStore>(() => ({
   clearChart: async (chartId: string) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] clearChart: No current project')
+      logger.error('clearChart: No current project')
       return
     }
 
@@ -709,13 +710,13 @@ export const useChartStore = create<ChartStore>(() => ({
       migrateProjectToMultiChart(currentProject)
       
       if (!currentProject.charts) {
-        console.error('[CHART] clearChart: No charts found')
+        logger.error('clearChart: No charts found')
         return
       }
 
       const chart = currentProject.charts.find(c => c.id === chartId)
       if (!chart) {
-        console.error('[CHART] clearChart: Chart not found:', chartId)
+        logger.error('clearChart: Chart not found:', chartId)
         return
       }
 
@@ -732,13 +733,13 @@ export const useChartStore = create<ChartStore>(() => ({
       const success = updateChartInProject(updatedProject, clearedChart)
       
       if (!success) {
-        console.error('[CHART] clearChart: Failed to update chart in project')
+        logger.error('clearChart: Failed to update chart in project')
         return
       }
 
       await safeUpdateProjectLocally(updatedProject, 'clearChart')
 
-      console.log('[CHART] Cleared chart:', chartId)
+      logger.debug('Cleared chart:', chartId)
     } catch (error) {
       handleAsyncError(error, 'Failed to clear chart')
     }
@@ -747,7 +748,7 @@ export const useChartStore = create<ChartStore>(() => ({
   resetChartProgress: async (chartId: string) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] resetChartProgress: No current project')
+      logger.error('resetChartProgress: No current project')
       return
     }
 
@@ -756,13 +757,13 @@ export const useChartStore = create<ChartStore>(() => ({
       migrateProjectToMultiChart(currentProject)
       
       if (!currentProject.charts) {
-        console.error('[CHART] resetChartProgress: No charts found')
+        logger.error('resetChartProgress: No charts found')
         return
       }
 
       const chart = currentProject.charts.find(c => c.id === chartId)
       if (!chart) {
-        console.error('[CHART] resetChartProgress: Chart not found:', chartId)
+        logger.error('resetChartProgress: Chart not found:', chartId)
         return
       }
 
@@ -778,13 +779,13 @@ export const useChartStore = create<ChartStore>(() => ({
       const success = updateChartInProject(updatedProject, resetChart)
       
       if (!success) {
-        console.error('[CHART] resetChartProgress: Failed to update chart in project')
+        logger.error('resetChartProgress: Failed to update chart in project')
         return
       }
 
       await safeUpdateProjectLocally(updatedProject, 'resetChartProgress')
 
-      console.log('[CHART] Reset progress for chart:', chartId)
+      logger.debug('Reset progress for chart:', chartId)
     } catch (error) {
       handleAsyncError(error, 'Failed to reset chart progress')
     }
@@ -793,7 +794,7 @@ export const useChartStore = create<ChartStore>(() => ({
   markChartComplete: async (chartId: string) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] markChartComplete: No current project')
+      logger.error('markChartComplete: No current project')
       return
     }
 
@@ -802,13 +803,13 @@ export const useChartStore = create<ChartStore>(() => ({
       migrateProjectToMultiChart(currentProject)
       
       if (!currentProject.charts) {
-        console.error('[CHART] markChartComplete: No charts found')
+        logger.error('markChartComplete: No charts found')
         return
       }
 
       const chart = currentProject.charts.find(c => c.id === chartId)
       if (!chart) {
-        console.error('[CHART] markChartComplete: Chart not found:', chartId)
+        logger.error('markChartComplete: Chart not found:', chartId)
         return
       }
 
@@ -842,13 +843,13 @@ export const useChartStore = create<ChartStore>(() => ({
       const success = updateChartInProject(updatedProject, completedChart)
       
       if (!success) {
-        console.error('[CHART] markChartComplete: Failed to update chart in project')
+        logger.error('markChartComplete: Failed to update chart in project')
         return
       }
 
       await safeUpdateProjectLocally(updatedProject, 'markChartComplete')
 
-      console.log('[CHART] Marked chart as complete:', chartId)
+      logger.debug('Marked chart as complete:', chartId)
     } catch (error) {
       handleAsyncError(error, 'Failed to mark chart as complete')
     }
@@ -895,7 +896,7 @@ export const useChartStore = create<ChartStore>(() => ({
   importChart: async (chartData: string) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.error('[CHART] importChart: No current project')
+      logger.error('importChart: No current project')
       return null
     }
 
@@ -924,13 +925,13 @@ export const useChartStore = create<ChartStore>(() => ({
       const success = addChartToProject(updatedProject, importedChart)
       
       if (!success) {
-        console.error('[CHART] importChart: Failed to add imported chart to project')
+        logger.error('importChart: Failed to add imported chart to project')
         return null
       }
 
       await safeUpdateProjectLocally(updatedProject, 'importChart')
 
-      console.log('[CHART] Imported chart:', importedChart.name)
+      logger.debug('Imported chart:', importedChart.name)
       return importedChart
     } catch (error) {
       handleAsyncError(error, 'Failed to import chart')

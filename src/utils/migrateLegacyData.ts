@@ -4,6 +4,7 @@
 
 import { useAuthStore } from '../stores/useAuthStore'
 
+import { logger } from './logger'
 // 清理舊的共享 localStorage 數據
 export const cleanupLegacyData = (): void => {
   try {
@@ -15,7 +16,7 @@ export const cleanupLegacyData = (): void => {
     
     legacyKeys.forEach(key => {
       if (localStorage.getItem(key)) {
-        console.log(`清理舊的共享數據: ${key}`)
+        logger.debug('清理舊的共享數據: ${key}')
         localStorage.removeItem(key)
       }
     })
@@ -31,15 +32,15 @@ export const cleanupLegacyData = (): void => {
     }
     
     keysToCheck.forEach(key => {
-      console.log(`清理舊格式數據: ${key}`)
+      logger.debug('清理舊格式數據: ${key}')
       localStorage.removeItem(key)
     })
     
     if (legacyKeys.length > 0 || keysToCheck.length > 0) {
-      console.log('已清理舊的 localStorage 數據')
+      logger.debug('已清理舊的 localStorage 數據')
     }
   } catch (error) {
-    console.error('清理舊數據時發生錯誤:', error)
+    logger.error('清理舊數據時發生錯誤:', error)
   }
 }
 
@@ -48,7 +49,7 @@ export const migrateLegacyUserData = (userId: string): void => {
   try {
     const legacyData = localStorage.getItem('knitting-counter-storage')
     if (legacyData && userId) {
-      console.log(`為用戶 ${userId} 遷移舊數據`)
+      logger.debug('為用戶 ${userId} 遷移舊數據')
       
       // 將舊數據遷移到新的用戶專屬格式
       const newKey = `user_${userId}_knitting-counter-storage`
@@ -56,10 +57,10 @@ export const migrateLegacyUserData = (userId: string): void => {
       
       // 移除舊數據
       localStorage.removeItem('knitting-counter-storage')
-      console.log('數據遷移完成')
+      logger.debug('數據遷移完成')
     }
   } catch (error) {
-    console.error('遷移用戶數據時發生錯誤:', error)
+    logger.error('遷移用戶數據時發生錯誤:', error)
   }
 }
 
@@ -67,10 +68,10 @@ export const migrateLegacyUserData = (userId: string): void => {
 export const debugStorageInfo = (): void => {
   if (!import.meta.env.DEV) return
   
-  console.group('🔍 LocalStorage 調試信息')
+  logger.group('🔍 LocalStorage 調試信息')
   
   const { user } = useAuthStore.getState()
-  console.log('當前用戶:', user?.uid || '無')
+  logger.debug('當前用戶:', user?.uid || '無')
   
   const allKeys: string[] = []
   for (let i = 0; i < localStorage.length; i++) {
@@ -81,9 +82,9 @@ export const debugStorageInfo = (): void => {
   const userKeys = allKeys.filter(key => key.startsWith('user_'))
   const otherKeys = allKeys.filter(key => !key.startsWith('user_'))
   
-  console.log('用戶專屬數據:', userKeys)
-  console.log('其他數據:', otherKeys)
-  console.log('總計:', allKeys.length, '項目')
+  logger.debug('用戶專屬數據:', userKeys)
+  logger.debug('其他數據:', otherKeys)
+  logger.debug('總計:', allKeys.length, '項目')
   
   // 分析用戶數據分佈
   const userDataByUser: Record<string, string[]> = {}
@@ -98,6 +99,6 @@ export const debugStorageInfo = (): void => {
     }
   })
   
-  console.log('按用戶分組的數據:', userDataByUser)
-  console.groupEnd()
+  logger.debug('按用戶分組的數據:', userDataByUser)
+  logger.groupEnd()
 }

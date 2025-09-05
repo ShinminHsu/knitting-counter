@@ -1,9 +1,10 @@
 import { db, auth } from '../config/firebase'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 
+import { logger } from './logger'
 export async function testFirebaseConnection() {
   try {
-    console.log('Testing Firebase connection...')
+    logger.debug('Testing Firebase connection...')
     
     // 測試基本連接
     const testDoc = doc(db, 'test', 'connection')
@@ -14,30 +15,30 @@ export async function testFirebaseConnection() {
       test: 'connection test'
     })
     
-    console.log('✅ Firebase write test successful')
+    logger.debug('✅ Firebase write test successful')
     
     // 嘗試讀取測試數據
     const snapshot = await getDoc(testDoc)
     if (snapshot.exists()) {
-      console.log('✅ Firebase read test successful:', snapshot.data())
+      logger.debug('✅ Firebase read test successful:', snapshot.data())
     } else {
-      console.log('❌ Firebase read test failed: document does not exist')
+      logger.debug('❌ Firebase read test failed: document does not exist')
     }
     
     return true
   } catch (error) {
-    console.error('❌ Firebase connection test failed:', error)
+    logger.error('❌ Firebase connection test failed:', error)
     return false
   }
 }
 
 export async function testAuthConnection() {
   try {
-    console.log('Testing Auth connection...')
-    console.log('Current user:', auth.currentUser?.uid || 'Not logged in')
+    logger.debug('Testing Auth connection...')
+    logger.debug('Current user:', auth.currentUser?.uid || 'Not logged in')
     return true
   } catch (error) {
-    console.error('❌ Auth connection test failed:', error)
+    logger.error('❌ Auth connection test failed:', error)
     return false
   }
 }

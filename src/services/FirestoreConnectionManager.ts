@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
+import { logger } from '../utils/logger'
 /**
  * FirestoreConnectionManager handles connection management and network operations
  * Responsible for:
@@ -25,15 +26,15 @@ export class FirestoreConnectionManager {
   async enableOfflineSupport(): Promise<void> {
     try {
       if (!this.isNetworkEnabled) {
-        console.log('[FIRESTORE-CONNECTION] Enabling network...')
+        logger.debug('Enabling network...')
         await enableNetwork(db)
         this.isNetworkEnabled = true
-        console.log('[FIRESTORE-CONNECTION] Network enabled successfully')
+        logger.debug('Network enabled successfully')
       } else {
-        console.log('[FIRESTORE-CONNECTION] Network already enabled')
+        logger.debug('Network already enabled')
       }
     } catch (error) {
-      console.error('[FIRESTORE-CONNECTION] Error enabling network:', error)
+      logger.error('Error enabling network:', error)
       throw this.createConnectionError('Failed to enable network', error)
     }
   }
@@ -44,15 +45,15 @@ export class FirestoreConnectionManager {
   async disableOfflineSupport(): Promise<void> {
     try {
       if (this.isNetworkEnabled) {
-        console.log('[FIRESTORE-CONNECTION] Disabling network...')
+        logger.debug('Disabling network...')
         await disableNetwork(db)
         this.isNetworkEnabled = false
-        console.log('[FIRESTORE-CONNECTION] Network disabled successfully')
+        logger.debug('Network disabled successfully')
       } else {
-        console.log('[FIRESTORE-CONNECTION] Network already disabled')
+        logger.debug('Network already disabled')
       }
     } catch (error) {
-      console.error('[FIRESTORE-CONNECTION] Error disabling network:', error)
+      logger.error('Error disabling network:', error)
       throw this.createConnectionError('Failed to disable network', error)
     }
   }
@@ -69,13 +70,13 @@ export class FirestoreConnectionManager {
     if (useCache) {
       const cached = this.connectionTestCache.get(cacheKey)
       if (cached && Date.now() - cached.timestamp < this.CONNECTION_TEST_CACHE_DURATION) {
-        console.log('[FIRESTORE-CONNECTION] Using cached connection test result:', cached.result)
+        logger.debug('Using cached connection test result:', cached.result)
         return cached.result
       }
     }
 
     try {
-      console.log('[FIRESTORE-CONNECTION] Testing Firestore connection...')
+      logger.debug('Testing Firestore connection...')
       
       // Use a simple document read to test connectivity
       // This won't fail if the document doesn't exist, only if there are connection issues
@@ -83,14 +84,14 @@ export class FirestoreConnectionManager {
       await getDoc(testRef)
       
       const result = true
-      console.log('[FIRESTORE-CONNECTION] Connection test completed successfully')
+      logger.debug('Connection test completed successfully')
       
       // Cache the result
       this.connectionTestCache.set(cacheKey, { result, timestamp: Date.now() })
       
       return result
     } catch (error) {
-      console.error('[FIRESTORE-CONNECTION] Connection test failed:', error)
+      logger.error('Connection test failed:', error)
       
       // Determine if this is a real network error vs other issues
       const isNetworkError = this.isNetworkRelatedError(error)
@@ -112,7 +113,7 @@ export class FirestoreConnectionManager {
    */
   async restartConnection(): Promise<boolean> {
     try {
-      console.log('[FIRESTORE-CONNECTION] Restarting Firestore connection...')
+      logger.debug('Restarting Firestore connection...')
       
       // Clear connection test cache
       this.connectionTestCache.clear()
@@ -127,10 +128,10 @@ export class FirestoreConnectionManager {
       // Test the connection after restart
       const isConnected = await this.testConnection(false) // Don't use cache after restart
       
-      console.log('[FIRESTORE-CONNECTION] Connection restart completed, success:', isConnected)
+      logger.debug('Connection restart completed, success:', isConnected)
       return isConnected
     } catch (error) {
-      console.error('[FIRESTORE-CONNECTION] Error restarting connection:', error)
+      logger.error('Error restarting connection:', error)
       return false
     }
   }
@@ -154,27 +155,27 @@ export class FirestoreConnectionManager {
    * @param error - The error that occurred
    * @param context - Context information about the operation
    */
-  async handleNetworkError(error: unknown, context: string): Promise<void> {
+  async handleNetworkError(error: unknown, _context: string): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    console.log(`[FIRESTORE-CONNECTION] Handling network error in ${context}:`, errorMessage)
+    logger.debug('[FIRESTORE-CONNECTION] Handling network error in ${context}:', errorMessage)
     
     if (!this.isNetworkRelatedError(error)) {
-      console.log('[FIRESTORE-CONNECTION] Error is not network-related, no recovery needed')
+      logger.debug('Error is not network-related, no recovery needed')
       return
     }
 
     // For mobile devices, try connection restart
     if (this.isMobileDevice()) {
-      console.log('[FIRESTORE-CONNECTION] Mobile device detected, attempting connection restart...')
+      logger.debug('Mobile device detected, attempting connection restart...')
       
       const restartSuccess = await this.restartConnection()
       if (restartSuccess) {
-        console.log('[FIRESTORE-CONNECTION] Connection restart successful')
+        logger.debug('Connection restart successful')
       } else {
-        console.log('[FIRESTORE-CONNECTION] Connection restart failed')
+        logger.debug('Connection restart failed')
       }
     } else {
-      console.log('[FIRESTORE-CONNECTION] Desktop device, skipping connection restart')
+      logger.debug('Desktop device, skipping connection restart')
     }
   }
 
@@ -232,14 +233,14 @@ export class FirestoreConnectionManager {
     }
 
     if (this.isMobileDevice()) {
-      console.log('[FIRESTORE-CONNECTION] Mobile device detected, using optimized settings')
+      logger.debug('Mobile device detected, using optimized settings')
       return {
         ...baseSettings,
         experimentalForceLongPolling: true, // Mobile devices use long polling
         experimentalAutoDetectLongPolling: false, // Don't use auto detection
       }
     } else {
-      console.log('[FIRESTORE-CONNECTION] Desktop device detected, using standard settings')
+      logger.debug('Desktop device detected, using standard settings')
       return {
         ...baseSettings,
         experimentalForceLongPolling: false, // Desktop uses standard connection
@@ -253,7 +254,7 @@ export class FirestoreConnectionManager {
    */
   clearConnectionCache(): void {
     this.connectionTestCache.clear()
-    console.log('[FIRESTORE-CONNECTION] Connection cache cleared')
+    logger.debug('Connection cache cleared')
   }
 
   /**

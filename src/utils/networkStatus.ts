@@ -1,3 +1,5 @@
+import { logger } from './logger'
+
 export class NetworkStatusManager {
   private static instance: NetworkStatusManager
   private isOnline: boolean = navigator.onLine
@@ -16,13 +18,13 @@ export class NetworkStatusManager {
 
   private setupEventListeners() {
     window.addEventListener('online', () => {
-      console.log('[NETWORK] Connection restored')
+      logger.debug('Connection restored')
       this.isOnline = true
       this.notifyListeners()
     })
 
     window.addEventListener('offline', () => {
-      console.log('[NETWORK] Connection lost')
+      logger.debug('Connection lost')
       this.isOnline = false
       this.notifyListeners()
     })
@@ -43,7 +45,7 @@ export class NetworkStatusManager {
         const wasOnline = this.isOnline
         this.isOnline = false
         if (wasOnline) {
-          console.log('[NETWORK] Navigator reports offline')
+          logger.debug('Navigator reports offline')
           this.notifyListeners()
         }
         return
@@ -85,14 +87,14 @@ export class NetworkStatusManager {
       this.isOnline = connectionOk
       
       if (wasOffline && this.isOnline) {
-        console.log('[NETWORK] Connection status verified: online')
+        logger.debug('Connection status verified: online')
         this.notifyListeners()
       } else if (!wasOffline && !this.isOnline) {
-        console.log('[NETWORK] Connection status verified: offline')
+        logger.debug('Connection status verified: offline')
         this.notifyListeners()
       }
     } catch (error) {
-      console.error('[NETWORK] Connection check failed:', error)
+      logger.error('Connection check failed:', error)
       // 保持當前狀態，不改變
     }
   }
@@ -102,7 +104,7 @@ export class NetworkStatusManager {
       try {
         listener(this.isOnline)
       } catch (error) {
-        console.error('[NETWORK] Error in network status listener:', error)
+        logger.error('Error in network status listener:', error)
       }
     })
   }

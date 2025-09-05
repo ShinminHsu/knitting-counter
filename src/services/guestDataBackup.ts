@@ -5,6 +5,7 @@
 
 import { Project } from '../types'
 
+import { logger } from '../utils/logger'
 interface GuestData {
   projects: Project[]
   currentProject: Project | null
@@ -28,13 +29,13 @@ class GuestDataBackupService {
       const request = indexedDB.open(this.dbName, this.version)
 
       request.onerror = () => {
-        console.error('[GUEST-BACKUP] Failed to open IndexedDB:', request.error)
+        logger.error('Failed to open IndexedDB:', request.error)
         reject(request.error)
       }
 
       request.onsuccess = () => {
         this.db = request.result
-        console.log('[GUEST-BACKUP] IndexedDB initialized successfully')
+        logger.debug('IndexedDB initialized successfully')
         resolve()
       }
 
@@ -45,7 +46,7 @@ class GuestDataBackupService {
         if (!db.objectStoreNames.contains(this.storeName)) {
           const store = db.createObjectStore(this.storeName, { keyPath: 'id' })
           store.createIndex('lastBackup', 'lastBackup', { unique: false })
-          console.log('[GUEST-BACKUP] Object store created')
+          logger.debug('Object store created')
         }
       }
     })
@@ -56,7 +57,7 @@ class GuestDataBackupService {
    */
   async backupGuestData(projects: Project[], currentProject: Project | null, userIdentity?: string): Promise<boolean> {
     try {
-      console.log('[GUEST-BACKUP] Starting backup with data:', {
+      logger.debug('Starting backup with data:', {
         projectCount: projects.length,
         currentProjectId: currentProject?.id,
         currentProjectName: currentProject?.name,
@@ -66,7 +67,7 @@ class GuestDataBackupService {
       await this.init()
       
       if (!this.db) {
-        console.error('[GUEST-BACKUP] Database not initialized')
+        logger.error('Database not initialized')
         return false
       }
 
@@ -88,17 +89,17 @@ class GuestDataBackupService {
         const request = store.put({ id: backupKey, ...data })
 
         request.onsuccess = () => {
-          console.log('[GUEST-BACKUP] Data backed up successfully')
+          logger.debug('Data backed up successfully')
           resolve(true)
         }
 
         request.onerror = () => {
-          console.error('[GUEST-BACKUP] Failed to backup data:', request.error)
+          logger.error('Failed to backup data:', request.error)
           resolve(false)
         }
       })
     } catch (error) {
-      console.error('[GUEST-BACKUP] Error backing up data:', error)
+      logger.error('Error backing up data:', error)
       return false
     }
   }
@@ -111,7 +112,7 @@ class GuestDataBackupService {
       await this.init()
       
       if (!this.db) {
-        console.error('[GUEST-BACKUP] Database not initialized')
+        logger.error('Database not initialized')
         return null
       }
 
@@ -126,7 +127,7 @@ class GuestDataBackupService {
         request.onsuccess = () => {
           const result = request.result
           if (result) {
-            console.log('[GUEST-BACKUP] Data restored successfully', {
+            logger.debug('Data restored successfully', {
               projectCount: result.projects?.length || 0,
               projectNames: result.projects?.map((p: Project) => p.name) || [],
               currentProjectName: result.currentProject?.name || 'none',
@@ -139,18 +140,18 @@ class GuestDataBackupService {
               userIdentity: result.userIdentity
             })
           } else {
-            console.log('[GUEST-BACKUP] No backup data found')
+            logger.debug('No backup data found')
             resolve(null)
           }
         }
 
         request.onerror = () => {
-          console.error('[GUEST-BACKUP] Failed to restore data:', request.error)
+          logger.error('Failed to restore data:', request.error)
           resolve(null)
         }
       })
     } catch (error) {
-      console.error('[GUEST-BACKUP] Error restoring data:', error)
+      logger.error('Error restoring data:', error)
       return null
     }
   }
@@ -163,7 +164,7 @@ class GuestDataBackupService {
       await this.init()
       
       if (!this.db) {
-        console.error('[GUEST-BACKUP] Database not initialized')
+        logger.error('Database not initialized')
         return false
       }
 
@@ -176,17 +177,17 @@ class GuestDataBackupService {
         const request = store.delete(backupKey)
 
         request.onsuccess = () => {
-          console.log('[GUEST-BACKUP] Backup data cleared')
+          logger.debug('Backup data cleared')
           resolve(true)
         }
 
         request.onerror = () => {
-          console.error('[GUEST-BACKUP] Failed to clear data:', request.error)
+          logger.error('Failed to clear data:', request.error)
           resolve(false)
         }
       })
     } catch (error) {
-      console.error('[GUEST-BACKUP] Error clearing data:', error)
+      logger.error('Error clearing data:', error)
       return false
     }
   }

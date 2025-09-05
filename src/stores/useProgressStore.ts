@@ -5,6 +5,7 @@ import { generateId, getProjectPattern, getProjectCurrentRound, getProjectCurren
 import { useProjectStore } from './useProjectStore'
 import { debouncedUpdateProjectLocally } from './useChartStore'
 
+import { logger } from '../utils/logger'
 interface ProgressStoreState {
   // No persistent state needed - progress is managed in projects
 }
@@ -34,19 +35,19 @@ export const useProgressStore = create<ProgressStore>(() => ({
   nextStitch: async () => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject || currentProject.isCompleted) {
-      console.log('[PROGRESS] nextStitch: No current project or already completed')
+      logger.debug('nextStitch: No current project or already completed')
       return
     }
 
     const pattern = getProjectPattern(currentProject)
     if (!pattern || pattern.length === 0) {
-      console.log('[PROGRESS] nextStitch: No pattern available')
+      logger.debug('nextStitch: No pattern available')
       return
     }
 
     const currentRound = pattern.find(r => r.roundNumber === getProjectCurrentRound(currentProject))
     if (!currentRound) {
-      console.log('[PROGRESS] nextStitch: Current round not found', getProjectCurrentRound(currentProject))
+      logger.debug('nextStitch: Current round not found', getProjectCurrentRound(currentProject))
       // Try to adjust to valid round
       const minRoundNumber = Math.min(...pattern.map(r => r.roundNumber))
       const updatedProject = {
@@ -104,7 +105,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
 
     const pattern = getProjectPattern(currentProject)
     if (!pattern || pattern.length === 0) {
-      console.log('[PROGRESS] previousStitch: No pattern available')
+      logger.debug('previousStitch: No pattern available')
       return
     }
 
@@ -134,7 +135,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
     // Ensure round is valid
     const targetRound = pattern.find(r => r.roundNumber === newRound)
     if (!targetRound) {
-      console.log('[PROGRESS] previousStitch: Target round not found', newRound)
+      logger.debug('previousStitch: Target round not found', newRound)
       // Adjust to minimum available round
       const minRoundNumber = Math.min(...pattern.map(r => r.roundNumber))
       newRound = minRoundNumber
@@ -155,7 +156,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
   setCurrentRound: async (roundNumber) => {
     const { currentProject } = useProjectStore.getState()
     if (!currentProject) {
-      console.log('[PROGRESS] setCurrentRound: No current project')
+      logger.debug('setCurrentRound: No current project')
       return
     }
 
@@ -163,11 +164,11 @@ export const useProgressStore = create<ProgressStore>(() => ({
     const pattern = getProjectPattern(currentProject)
     const targetRound = pattern.find(r => r.roundNumber === roundNumber)
     if (!targetRound) {
-      console.error('[PROGRESS] setCurrentRound: Invalid round number', roundNumber)
+      logger.error('setCurrentRound: Invalid round number', roundNumber)
       return
     }
 
-    console.log('[PROGRESS] setCurrentRound: Updating from round', getProjectCurrentRound(currentProject), 'to', roundNumber)
+    logger.debug('setCurrentRound: Updating from round', getProjectCurrentRound(currentProject), 'to', roundNumber)
 
     const updatedProject = {
       ...currentProject,
@@ -213,7 +214,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
     }
 
     await debouncedUpdateProjectLocally(updatedProject, 'startSession')
-    console.log('[PROGRESS] Started new session:', newSession.id)
+    logger.debug('Started new session:', newSession.id)
   },
 
   endSession: async () => {
@@ -241,7 +242,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
     }
 
     await debouncedUpdateProjectLocally(updatedProject, 'endSession')
-    console.log('[PROGRESS] Ended session:', lastSession.id, 'Duration:', duration, 'seconds')
+    logger.debug('Ended session:', lastSession.id, 'Duration:', duration, 'seconds')
   },
 
   // Progress utilities
@@ -253,7 +254,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
     const pattern = getProjectPattern(currentProject)
     const targetRound = pattern.find(r => r.roundNumber === roundNumber)
     if (!targetRound) {
-      console.error('[PROGRESS] goToRoundStart: Round not found', roundNumber)
+      logger.error('goToRoundStart: Round not found', roundNumber)
       return
     }
 
@@ -266,7 +267,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
     }
 
     await debouncedUpdateProjectLocally(updatedProject, 'goToRoundStart')
-    console.log('[PROGRESS] Moved to start of round', roundNumber)
+    logger.debug('Moved to start of round', roundNumber)
   },
 
   goToRoundEnd: async (roundNumber) => {
@@ -277,7 +278,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
     const pattern = getProjectPattern(currentProject)
     const targetRound = pattern.find(r => r.roundNumber === roundNumber)
     if (!targetRound) {
-      console.error('[PROGRESS] goToRoundEnd: Round not found', roundNumber)
+      logger.error('goToRoundEnd: Round not found', roundNumber)
       return
     }
 
@@ -290,7 +291,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
     }
 
     await debouncedUpdateProjectLocally(updatedProject, 'goToRoundEnd')
-    console.log('[PROGRESS] Moved to end of round', roundNumber)
+    logger.debug('Moved to end of round', roundNumber)
   },
 
   markProjectComplete: async () => {
@@ -313,7 +314,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
     }
 
     await debouncedUpdateProjectLocally(updatedProject, 'markProjectComplete', true)
-    console.log('[PROGRESS] Project marked as complete:', currentProject.name)
+    logger.debug('Project marked as complete:', currentProject.name)
   },
 
   resetProgress: async () => {
@@ -332,7 +333,7 @@ export const useProgressStore = create<ProgressStore>(() => ({
     }
 
     await debouncedUpdateProjectLocally(updatedProject, 'resetProgress', true)
-    console.log('[PROGRESS] Progress reset for project:', currentProject.name)
+    logger.debug('Progress reset for project:', currentProject.name)
   }
 }))
 

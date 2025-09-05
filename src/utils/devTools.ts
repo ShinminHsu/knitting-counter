@@ -5,7 +5,7 @@
 
 import { getSyncConfig, setSyncMode, setSyncConfig } from '../config/syncConfig'
 import { debouncedSyncManager } from './debouncedSync'
-
+import { logger } from './logger'
 declare global {
   interface Window {
     // Firebase 同步開發者工具
@@ -37,77 +37,77 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
   window.firebaseDebug = {
     getConfig: () => {
       const config = getSyncConfig()
-      console.group('🔧 Firebase Sync Configuration')
-      console.log('Current Mode:', 
+      logger.group('🔧 Firebase Sync Configuration')
+      logger.debug('Current Mode:', 
         config.debounceTime.progress === 15000 ? 'economy' :
         config.debounceTime.progress === 8000 ? 'default' :
         config.debounceTime.progress === 5000 ? 'rapid' : 'custom'
       )
-      console.log('Debounce Times:', config.debounceTime)
-      console.log('Batch Delay (progress):', Math.max(config.debounceTime.progress * 1.5, 10000) + 'ms')
-      console.log('Subscription Settings:', config.subscription)
-      console.log('Strategy Settings:', config.strategy)
-      console.groupEnd()
+      logger.debug('Debounce Times:', config.debounceTime)
+      logger.debug('Batch Delay (progress):', Math.max(config.debounceTime.progress * 1.5, 10000) + 'ms')
+      logger.debug('Subscription Settings:', config.subscription)
+      logger.debug('Strategy Settings:', config.strategy)
+      logger.groupEnd()
       return config
     },
 
     setMode: (mode: 'default' | 'economy' | 'rapid') => {
       setSyncMode(mode)
-      console.log(`🔄 Switched to ${mode} mode`)
+      logger.debug(`🔄 Switched to ${mode} mode`)
       window.firebaseDebug.getConfig()
     },
 
     getPendingCount: () => {
       const count = debouncedSyncManager.getPendingCount()
-      console.log(`⏳ Pending syncs: ${count}`)
+      logger.debug(`⏳ Pending syncs: ${count}`)
       return count
     },
 
     flushAll: async () => {
-      console.log('🚀 Flushing all pending syncs...')
+      logger.debug('🚀 Flushing all pending syncs...')
       await debouncedSyncManager.flushAll()
-      console.log('✅ All syncs completed')
+      logger.debug('✅ All syncs completed')
     },
 
     flushProject: async (projectId: string) => {
-      console.log(`🚀 Flushing sync for project: ${projectId}`)
+      logger.debug(`🚀 Flushing sync for project: ${projectId}`)
       await debouncedSyncManager.flushProject(projectId)
-      console.log(`✅ Project ${projectId} sync completed`)
+      logger.debug(`✅ Project ${projectId} sync completed`)
     },
 
     hasPendingSync: (projectId: string) => {
       const hasPending = debouncedSyncManager.hasPendingSync(projectId)
-      console.log(`🔍 Project ${projectId} has pending sync: ${hasPending}`)
+      logger.debug(`🔍 Project ${projectId} has pending sync: ${hasPending}`)
       return hasPending
     },
 
     // 檢查同步狀態
     checkSyncStatus: () => {
-      console.group('📊 Firebase Sync Status')
+      logger.group('📊 Firebase Sync Status')
       
       // 獲取同步 store 狀態
       const { useSyncStore } = require('../stores/useSyncStore')
       const syncStore = useSyncStore.getState()
-      console.log('Last Sync Time:', syncStore.lastSyncTime)
-      console.log('Is Currently Syncing:', syncStore.isSyncing)
+      logger.debug('Last Sync Time:', syncStore.lastSyncTime)
+      logger.debug('Is Currently Syncing:', syncStore.isSyncing)
       
       // 獲取網路狀態
       const { networkStatus } = require('../utils/networkStatus')
-      console.log('Network Status:', networkStatus.getIsOnline() ? 'Online' : 'Offline')
+      logger.debug('Network Status:', networkStatus.getIsOnline() ? 'Online' : 'Offline')
       
       // 獲取認證狀態
       const { useAuthStore } = require('../stores/useAuthStore')
       const authStore = useAuthStore.getState()
-      console.log('User Authenticated:', !!authStore.user)
+      logger.debug('User Authenticated:', !!authStore.user)
       if (authStore.user) {
-        console.log('User ID:', authStore.user.uid)
+        logger.debug('User ID:', authStore.user.uid)
       }
       
       // 待處理同步
       const pendingCount = debouncedSyncManager.getPendingCount()
-      console.log('Pending Syncs:', pendingCount)
+      logger.debug('Pending Syncs:', pendingCount)
       
-      console.groupEnd()
+      logger.groupEnd()
       
       return {
         lastSync: syncStore.lastSyncTime,
@@ -127,24 +127,24 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
       } else if (context === 'critical') {
         setSyncConfig({ debounceTime: { ...config.debounceTime, critical: time } })
       }
-      console.log(`⏱️ Set ${context} debounce time to ${time}ms`)
+      logger.debug(`⏱️ Set ${context} debounce time to ${time}ms`)
     },
 
     toggleDebouncing: (enabled: boolean) => {
       setSyncConfig({ strategy: { ...getSyncConfig().strategy, enableDebouncing: enabled } })
-      console.log(`🔄 Debouncing ${enabled ? 'enabled' : 'disabled'}`)
+      logger.debug(`🔄 Debouncing ${enabled ? 'enabled' : 'disabled'}`)
     }
   }
 
   // 顯示開發者工具說明
-  console.group('🛠️ Firebase Debug Tools Available')
-  console.log('Use window.firebaseDebug to access Firebase sync debugging tools:')
-  console.log('• window.firebaseDebug.getConfig() - View current configuration')
-  console.log('• window.firebaseDebug.setMode("economy") - Switch to economy mode')
-  console.log('• window.firebaseDebug.getPendingCount() - Check pending syncs')
-  console.log('• window.firebaseDebug.flushAll() - Force sync all pending')
-  console.log('• window.firebaseDebug.toggleDebouncing(false) - Disable debouncing')
-  console.groupEnd()
+  logger.group('🛠️ Firebase Debug Tools Available')
+  logger.debug('Use window.firebaseDebug to access Firebase sync debugging tools:')
+  logger.debug('• window.firebaseDebug.getConfig() - View current configuration')
+  logger.debug('• window.firebaseDebug.setMode("economy") - Switch to economy mode')
+  logger.debug('• window.firebaseDebug.getPendingCount() - Check pending syncs')
+  logger.debug('• window.firebaseDebug.flushAll() - Force sync all pending')
+  logger.debug('• window.firebaseDebug.toggleDebouncing(false) - Disable debouncing')
+  logger.groupEnd()
 }
 
 // 導出類型供開發環境使用

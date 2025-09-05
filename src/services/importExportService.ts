@@ -7,6 +7,7 @@ import {
 } from '../types'
 import { generateId } from '../utils'
 
+import { logger } from '../utils/logger'
 export class ImportExportService {
   private static readonly CURRENT_VERSION = '1.0.0'
 
@@ -66,7 +67,7 @@ export class ImportExportService {
 
       return JSON.stringify(exportData, null, 2)
     } catch (error) {
-      console.error('Export error:', error)
+      logger.error('Export error:', error)
       throw new Error('匯出專案時發生錯誤')
     }
   }
@@ -87,7 +88,7 @@ export class ImportExportService {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     } catch (error) {
-      console.error('Export file error:', error)
+      logger.error('Export file error:', error)
       throw new Error('匯出檔案時發生錯誤')
     }
   }
@@ -130,7 +131,7 @@ export class ImportExportService {
       }
 
     } catch (error) {
-      console.error('Import error:', error)
+      logger.error('Import error:', error)
       result.errors.push('檔案格式錯誤或已損壞')
     }
 
@@ -273,7 +274,7 @@ export class ImportExportService {
       
       return JSON.stringify(batchExport, null, 2)
     } catch (error) {
-      console.error('Batch export error:', error)
+      logger.error('Batch export error:', error)
       throw new Error('批量匯出時發生錯誤')
     }
   }

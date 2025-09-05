@@ -15,6 +15,8 @@ import NotFoundView from './components/NotFoundView'
 import { GuestModeLogin } from './components/GuestModeLogin'
 import WelcomeLoadingView from './components/WelcomeLoadingView'
 
+import { logger } from './utils/logger'
+import { googleAnalytics } from './services/googleAnalytics'
 function App() {
   const { loadUserProjects, clearUserDataSilently, projects } = useProjectStore()
   const { setError, error, isLoading: appIsLoading } = useBaseStore()
@@ -24,6 +26,9 @@ function App() {
   useEffect(() => {
     const unsubscribe = initialize()
     
+    // 初始化 Google Analytics
+    googleAnalytics.initialize()
+    
     // 清理舊的共享數據
     cleanupLegacyData()
     
@@ -32,18 +37,21 @@ function App() {
       debugStorageInfo()
     }
     
-    return () => unsubscribe()
+    return () => {
+      unsubscribe()
+    }
   }, [initialize])
+
 
   useEffect(() => {
     if (user) {
-      console.log(`使用者已登入 (${user.uid})，載入專案...`)
+      logger.debug('使用者已登入 (${user.uid})，載入專案...')
       
       // 嘗試遷移舊數據（如果存在）
       migrateLegacyUserData(user.uid)
       
       loadUserProjects().catch((err: any) => {
-        console.error('載入專案錯誤:', err)
+        logger.error('載入專案錯誤:', err)
         setError(err instanceof Error ? err.message : '載入專案時發生錯誤');
       });
       
@@ -52,7 +60,7 @@ function App() {
         setTimeout(() => debugStorageInfo(), 500)
       }
     } else {
-      console.log('使用者已登出，清空界面數據...')
+      logger.debug('使用者已登出，清空界面數據...')
       clearUserDataSilently()
     }
   }, [user, loadUserProjects, clearUserDataSilently, setError]);

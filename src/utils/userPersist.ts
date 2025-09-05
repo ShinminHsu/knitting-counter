@@ -3,6 +3,7 @@ import { getUserData, setUserData, removeUserData } from './userStorage'
 import { SerializedDate, SerializableValue } from '../types'
 
 
+import { logger } from './logger'
 // 日期序列化處理
 const serializeWithDates = <T>(obj: T): string => {
   return JSON.stringify(obj, (_key, value: unknown): SerializableValue => {
@@ -49,7 +50,7 @@ export const userPersist = <T>(config: StateCreator<T, [], []>, options: {
         api.setState(deserializedData as Partial<T>, true)
       }
     } catch (error) {
-      console.error(`Failed to load user data for ${userId}:`, error)
+      logger.error('Failed to load user data for ${userId}:', error)
     }
   }
 
@@ -63,7 +64,7 @@ export const userPersist = <T>(config: StateCreator<T, [], []>, options: {
       const serializedData = serialize(state)
       setUserData(userId, name, serializedData)
     } catch (error) {
-      console.error(`Failed to save user data for ${userId}:`, error)
+      logger.error('Failed to save user data for ${userId}:', error)
     }
   }
 
@@ -75,7 +76,7 @@ export const userPersist = <T>(config: StateCreator<T, [], []>, options: {
     try {
       removeUserData(userId, name)
     } catch (error) {
-      console.error(`Failed to clear user data for ${userId}:`, error)
+      logger.error('Failed to clear user data for ${userId}:', error)
     }
   }
 

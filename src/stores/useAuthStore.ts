@@ -5,6 +5,7 @@ import { auth, googleProvider } from '../config/firebase'
 import { AuthState, UserType, SyncMode, UnifiedUser } from '../types/auth'
 import { canUseFirebaseSync, getUserSyncModeFromFirestore } from '../services/whitelistService'
 import { generateId } from '../utils'
+import { logger } from '../utils/logger'
 
 interface AuthStore extends AuthState {
   // 錯誤狀態（為了向後兼容）
@@ -52,7 +53,7 @@ export const useAuthStore = create<AuthStore>()(
           error: null // 清除錯誤訊息
         })
         
-        console.log(`[AUTH] User updated:`, {
+        logger.debug('User updated:', {
           hasUser: !!user,
           email: user?.email,
           userType,
@@ -86,7 +87,7 @@ export const useAuthStore = create<AuthStore>()(
           
           // 顯示同步模式資訊
           if (!canSync) {
-            console.warn(`[AUTH] User ${result.user.email} not in whitelist, using local-only mode`)
+            logger.warn(`User ${result.user.email} not in whitelist, using local-only mode`)
             set({ 
               error: '您目前只能使用本地同步模式，數據不會同步到雲端。如需雲端同步，請聯繫管理員。'
             })
@@ -98,11 +99,12 @@ export const useAuthStore = create<AuthStore>()(
               }
             }, 3000)
           } else {
-            console.log(`[AUTH] User ${result.user.email} authenticated with Firebase sync enabled`)
+            logger.debug(`User ${result.user.email} authenticated with Firebase sync enabled`)
           }
           
+          
         } catch (error: unknown) {
-          console.error('Google 登入失敗:', error)
+          logger.error('Google 登入失敗:', error)
           const errorMessage = error instanceof Error ? error.message : '登入失敗'
           set({
             error: errorMessage,
@@ -115,7 +117,7 @@ export const useAuthStore = create<AuthStore>()(
 
       // 進入訪客模式
       enterGuestMode: () => {
-        console.log('[AUTH] Entering guest mode')
+        logger.debug('Entering guest mode')
         set({
           user: null,
           userType: 'guest',
@@ -123,6 +125,7 @@ export const useAuthStore = create<AuthStore>()(
           isLoading: false,
           error: null
         })
+        
       },
 
       // 登出
@@ -144,9 +147,10 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false 
           })
           
-          console.log('[AUTH] User signed out, back to login selection')
+          logger.debug('User signed out, back to login selection')
+          
         } catch (error: unknown) {
-          console.error('登出失敗:', error)
+          logger.error('登出失敗:', error)
           const errorMessage = error instanceof Error ? error.message : '登出失敗'
           set({
             error: errorMessage,
@@ -173,7 +177,7 @@ export const useAuthStore = create<AuthStore>()(
               isInitialized: true
             })
             
-            console.log(`[AUTH] Firebase user restored:`, {
+            logger.debug('Firebase user restored:', {
               email: user.email,
               syncMode,
               canUseFirebase: await canUseFirebaseSync(user.email)
@@ -192,7 +196,7 @@ export const useAuthStore = create<AuthStore>()(
               isInitialized: true
             })
             
-            console.log(`[AUTH] No Firebase user, userType: ${finalUserType}`)
+            logger.debug(`No Firebase user, userType: ${finalUserType}`)
           }
         })
         

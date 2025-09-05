@@ -18,6 +18,7 @@ import { firestoreDataCleaner } from './FirestoreDataCleaner'
 import { firestoreRoundService } from './FirestoreRoundService'
 import { firestoreConnectionManager } from './FirestoreConnectionManager'
 import { safeParseProjects, assertIsProject } from '../utils/validation'
+import { logger } from '../utils/logger'
 
 /**
  * FirestoreProjectService handles all project-related operations
@@ -38,7 +39,7 @@ export class FirestoreProjectService {
    */
   async getUserProjects(userId: string): Promise<Project[]> {
     try {
-      console.log('[FIRESTORE-PROJECT] Getting user projects for:', userId)
+      logger.debug('Getting user projects for:', userId)
 
       const projectsRef = collection(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION)
       const projectsQuery = query(projectsRef, orderBy('lastModified', 'desc'))
@@ -54,14 +55,14 @@ export class FirestoreProjectService {
       // Apply runtime validation to ensure data integrity
       const validatedProjects = safeParseProjects(rawProjects)
       
-      console.log('[FIRESTORE-PROJECT] Retrieved projects:', validatedProjects.length)
+      logger.debug('Retrieved projects:', validatedProjects.length)
       if (rawProjects.length !== validatedProjects.length) {
-        console.warn('[FIRESTORE-PROJECT] Some projects failed validation:', rawProjects.length - validatedProjects.length, 'invalid')
+        logger.warn('Some projects failed validation:', rawProjects.length - validatedProjects.length, 'invalid')
       }
       
       return validatedProjects
     } catch (error) {
-      console.error('[FIRESTORE-PROJECT] Error getting user projects:', error)
+      logger.error('Error getting user projects:', error)
       throw this.createProjectServiceError('Failed to get user projects', error)
     }
   }
@@ -74,21 +75,21 @@ export class FirestoreProjectService {
    */
   async getProject(userId: string, projectId: string): Promise<Project | null> {
     try {
-      console.log('[FIRESTORE-PROJECT] Getting project:', projectId)
+      logger.debug('Getting project:', projectId)
 
       const projectRef = doc(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, projectId)
       const projectSnap = await getDoc(projectRef)
 
       if (!projectSnap.exists()) {
-        console.log('[FIRESTORE-PROJECT] Project not found:', projectId)
+        logger.debug('Project not found:', projectId)
         return null
       }
 
       const project = await this.processProjectDocument(userId, projectSnap)
-      console.log('[FIRESTORE-PROJECT] Project retrieved successfully:', projectId)
+      logger.debug('Project retrieved successfully:', projectId)
       return project
     } catch (error) {
-      console.error('[FIRESTORE-PROJECT] Error getting project:', error)
+      logger.error('Error getting project:', error)
       throw this.createProjectServiceError('Failed to get project', error)
     }
   }
@@ -100,7 +101,7 @@ export class FirestoreProjectService {
    */
   async createProject(userId: string, project: Project): Promise<void> {
     try {
-      console.log('[FIRESTORE-PROJECT] Creating project:', project.name)
+      logger.debug('Creating project:', project.name)
 
       // Validate project data with both existing and new runtime validation
       firestoreDataCleaner.validateProject(project)
@@ -116,9 +117,9 @@ export class FirestoreProjectService {
         await firestoreRoundService.batchCreateRounds(userId, project.id, project.pattern)
       }
 
-      console.log('[FIRESTORE-PROJECT] Project created successfully:', project.name)
+      logger.debug('Project created successfully:', project.name)
     } catch (error) {
-      console.error('[FIRESTORE-PROJECT] Error creating project:', error)
+      logger.error('Error creating project:', error)
       throw this.createProjectServiceError('Failed to create project', error)
     }
   }
@@ -133,10 +134,10 @@ export class FirestoreProjectService {
     const exists = await this.projectExists(userId, project.id)
     
     if (exists) {
-      console.log('[FIRESTORE-PROJECT] Project exists, updating...')
+      logger.debug('Project exists, updating...')
       await this.updateProject(userId, project, context)
     } else {
-      console.log('[FIRESTORE-PROJECT] Project does not exist, creating...')
+      logger.debug('Project does not exist, creating...')
       await this.createProject(userId, project)
     }
   }
@@ -149,7 +150,7 @@ export class FirestoreProjectService {
    */
   async updateProject(userId: string, project: Project, context?: string): Promise<void> {
     try {
-      console.log('[FIRESTORE-PROJECT] Updating project:', project.id, {
+      logger.debug('Updating project:', project.id, {
         currentRound: project.currentRound,
         currentStitch: project.currentStitch,
         isCompleted: project.isCompleted,
@@ -164,7 +165,7 @@ export class FirestoreProjectService {
       // Determine if this is a progress-only update to optimize round sync
       const isProgressUpdate = context && ['nextStitch', 'previousStitch', 'setCurrentStitch', 'setCurrentRound', 'updateChartProgress'].includes(context)
       
-      console.log('[FIRESTORE-PROJECT] Update context analysis:', {
+      logger.debug('Update context analysis:', {
         context,
         isProgressUpdate,
         hasCharts: !!(project.charts && project.charts.length > 0),
@@ -181,7 +182,7 @@ export class FirestoreProjectService {
             if (currentChart && currentChart.rounds && currentChart.rounds.length > 0) {
               const currentRound = currentChart.rounds.find(r => r.roundNumber === currentChart.currentRound)
               if (currentRound) {
-                console.log('[FIRESTORE-PROJECT] Optimized sync - only syncing current chart round:', currentChart.currentRound)
+                logger.debug('Optimized sync - only syncing current chart round:', currentChart.currentRound)
                 await firestoreRoundService.syncRounds(userId, project.id, currentChart.rounds, [currentRound.id])
               }
             }
@@ -191,14 +192,14 @@ export class FirestoreProjectService {
           if (project.pattern && project.pattern.length > 0) {
             const currentRound = project.pattern.find(r => r.roundNumber === project.currentRound)
             if (currentRound) {
-              console.log('[FIRESTORE-PROJECT] Optimized sync - only syncing current pattern round:', currentRound.roundNumber)
+              logger.debug('Optimized sync - only syncing current pattern round:', currentRound.roundNumber)
               await firestoreRoundService.syncRounds(userId, project.id, project.pattern, [currentRound.id])
             }
           }
         }
       } else {
         // For other updates, sync all rounds
-        console.log('[FIRESTORE-PROJECT] Full round sync...')
+        logger.debug('Full round sync...')
         if (project.charts && project.charts.length > 0) {
           // For multi-chart projects, sync all rounds from all charts
           const allRounds = project.charts.flatMap(chart => chart.rounds || [])
@@ -208,22 +209,22 @@ export class FirestoreProjectService {
           await firestoreRoundService.syncRounds(userId, project.id, project.pattern || [])
         }
       }
-      console.log('[FIRESTORE-PROJECT] Rounds synced successfully')
+      logger.debug('Rounds synced successfully')
       
       // Then update the main project document
       const projectRef = doc(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, project.id)
       const cleanedProjectData = firestoreDataCleaner.cleanProjectForUpdate(project)
 
-      console.log('[FIRESTORE-PROJECT] Updating project document...')
+      logger.debug('Updating project document...')
       await updateDoc(projectRef, cleanedProjectData)
       
-      console.log('[FIRESTORE-PROJECT] Project sync completed successfully')
+      logger.debug('Project sync completed successfully')
       
       // Verify sync results
       const roundStats = await firestoreRoundService.getProjectRoundStats(userId, project.id)
-      console.log('[FIRESTORE-PROJECT] Verification - Local pattern length:', project.pattern?.length || 0, 'Remote rounds count:', roundStats.totalRounds)
+      logger.debug('Verification - Local pattern length:', project.pattern?.length || 0, 'Remote rounds count:', roundStats.totalRounds)
     } catch (error) {
-      console.error('[FIRESTORE-PROJECT] Error updating project:', error)
+      logger.error('Error updating project:', error)
       
       // Handle network errors appropriately
       await firestoreConnectionManager.handleNetworkError(error, 'updateProject')
@@ -239,7 +240,7 @@ export class FirestoreProjectService {
    */
   async deleteProject(userId: string, projectId: string): Promise<void> {
     try {
-      console.log('[FIRESTORE-PROJECT] Deleting project:', projectId)
+      logger.debug('Deleting project:', projectId)
 
       // Delete all rounds first
       await firestoreRoundService.deleteAllProjectRounds(userId, projectId)
@@ -248,9 +249,9 @@ export class FirestoreProjectService {
       const projectRef = doc(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, projectId)
       await deleteDoc(projectRef)
       
-      console.log('[FIRESTORE-PROJECT] Project deleted successfully:', projectId)
+      logger.debug('Project deleted successfully:', projectId)
     } catch (error) {
-      console.error('[FIRESTORE-PROJECT] Error deleting project:', error)
+      logger.error('Error deleting project:', error)
       throw this.createProjectServiceError('Failed to delete project', error)
     }
   }
@@ -262,14 +263,14 @@ export class FirestoreProjectService {
    * @returns Unsubscribe function
    */
   subscribeToUserProjects(userId: string, callback: (projects: Project[]) => void): () => void {
-    console.log('[FIRESTORE-PROJECT] Setting up project subscription for user:', userId)
+    logger.debug('Setting up project subscription for user:', userId)
 
     const projectsRef = collection(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION)
     const projectsQuery = query(projectsRef, orderBy('lastModified', 'desc'))
     
     return onSnapshot(projectsQuery, async (snapshot) => {
       try {
-        console.log('[FIRESTORE-PROJECT-SUBSCRIPTION] Received project updates:', snapshot.docs.length)
+        logger.debug('Received project updates:', snapshot.docs.length)
 
         const rawProjects: Project[] = []
         
@@ -282,12 +283,12 @@ export class FirestoreProjectService {
         const validatedProjects = safeParseProjects(rawProjects)
         
         if (rawProjects.length !== validatedProjects.length) {
-          console.warn('[FIRESTORE-PROJECT-SUBSCRIPTION] Some projects failed validation:', rawProjects.length - validatedProjects.length, 'invalid')
+          logger.warn('Some projects failed validation:', rawProjects.length - validatedProjects.length, 'invalid')
         }
         
         callback(validatedProjects)
       } catch (error) {
-        console.error('[FIRESTORE-PROJECT-SUBSCRIPTION] Error in projects subscription:', error)
+        logger.error('Error in projects subscription:', error)
       }
     })
   }
@@ -300,7 +301,7 @@ export class FirestoreProjectService {
    */
   async migrateProjectToNewFormat(userId: string, projectId: string, migratedChart: Chart): Promise<void> {
     try {
-      console.log('[FIRESTORE-PROJECT] Starting migration for project:', projectId)
+      logger.debug('Starting migration for project:', projectId)
       
       const projectRef = doc(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, projectId)
       const cleanedChart = firestoreDataCleaner.cleanChart(migratedChart)
@@ -311,9 +312,9 @@ export class FirestoreProjectService {
         currentChartId: cleanedChart.id
       })
       
-      console.log('[FIRESTORE-PROJECT] Project migration completed:', projectId)
+      logger.debug('Project migration completed:', projectId)
     } catch (error) {
-      console.error('[FIRESTORE-PROJECT] Error migrating project:', projectId, error)
+      logger.error('Error migrating project:', projectId, error)
     }
   }
 
@@ -329,7 +330,7 @@ export class FirestoreProjectService {
       const projectSnap = await getDoc(projectRef)
       return projectSnap.exists()
     } catch (error) {
-      console.error('[FIRESTORE-PROJECT] Error checking project existence:', error)
+      logger.error('Error checking project existence:', error)
       return false
     }
   }
@@ -357,10 +358,10 @@ export class FirestoreProjectService {
           .map(p => p.name)
       }
 
-      console.log('[FIRESTORE-PROJECT] User stats:', stats)
+      logger.debug('User stats:', stats)
       return stats
     } catch (error) {
-      console.error('[FIRESTORE-PROJECT] Error getting user project stats:', error)
+      logger.error('Error getting user project stats:', error)
       throw this.createProjectServiceError('Failed to get user project stats', error)
     }
   }
@@ -382,11 +383,11 @@ export class FirestoreProjectService {
     
     // Auto-migrate legacy projects
     if (isLegacyProject) {
-      console.log('[FIRESTORE-PROJECT] Migrating legacy project to multi-chart format:', projectData.id)
+      logger.debug('Migrating legacy project to multi-chart format:', projectData.id)
       const migratedChart: Chart = {
         id: `chart-${projectData.id}`,
         name: '主織圖',
-        description: '從舊版本遷移的織圖',
+        description: '織圖',
         rounds: rounds,
         currentRound: projectData.currentRound || 1,
         currentStitch: projectData.currentStitch || 0,

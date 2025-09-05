@@ -11,6 +11,7 @@ import { db } from '../config/firebase'
 import { Round, FirestoreRound } from '../types'
 import { firestoreDataCleaner } from './FirestoreDataCleaner'
 
+import { logger } from '../utils/logger'
 /**
  * FirestoreRoundService handles all round-related operations
  * Responsible for:
@@ -32,7 +33,7 @@ export class FirestoreRoundService {
    */
   async createRound(userId: string, projectId: string, round: Round): Promise<void> {
     try {
-      console.log('[FIRESTORE-ROUND] Creating round:', {
+      logger.debug('Creating round:', {
         userId,
         projectId,
         roundId: round.id,
@@ -49,9 +50,9 @@ export class FirestoreRoundService {
 
       await setDoc(roundRef, cleanedRoundData)
       
-      console.log('[FIRESTORE-ROUND] Round created successfully:', round.id)
+      logger.debug('Round created successfully:', round.id)
     } catch (error) {
-      console.error('[FIRESTORE-ROUND] Error creating round:', round.id, error)
+      logger.error('Error creating round:', round.id, error)
       throw this.createRoundServiceError('Failed to create round', error)
     }
   }
@@ -64,7 +65,7 @@ export class FirestoreRoundService {
    */
   async updateRound(userId: string, projectId: string, round: Round): Promise<void> {
     try {
-      console.log('[FIRESTORE-ROUND] Updating round:', {
+      logger.debug('Updating round:', {
         userId,
         projectId,
         roundId: round.id,
@@ -79,7 +80,7 @@ export class FirestoreRoundService {
       const roundRef = doc(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, projectId, this.ROUNDS_COLLECTION, round.id)
       const cleanedRoundData = firestoreDataCleaner.cleanRound(round)
 
-      console.log('[FIRESTORE-ROUND] Cleaned data:', {
+      logger.debug('Cleaned data:', {
         originalStitchesLength: round.stitches?.length || 0,
         cleanStitchesLength: cleanedRoundData.stitches?.length || 0,
         originalGroupsLength: round.stitchGroups?.length || 0,
@@ -89,9 +90,9 @@ export class FirestoreRoundService {
       // Use setDoc with merge to handle both create and update cases
       await setDoc(roundRef, cleanedRoundData, { merge: true })
       
-      console.log('[FIRESTORE-ROUND] Round updated successfully:', round.id)
+      logger.debug('Round updated successfully:', round.id)
     } catch (error) {
-      console.error('[FIRESTORE-ROUND] Error updating round:', round.id, error)
+      logger.error('Error updating round:', round.id, error)
       throw this.createRoundServiceError('Failed to update round', error)
     }
   }
@@ -104,7 +105,7 @@ export class FirestoreRoundService {
    */
   async deleteRound(userId: string, projectId: string, roundId: string): Promise<void> {
     try {
-      console.log('[FIRESTORE-ROUND] Deleting round:', {
+      logger.debug('Deleting round:', {
         userId,
         projectId,
         roundId
@@ -113,9 +114,9 @@ export class FirestoreRoundService {
       const roundRef = doc(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, projectId, this.ROUNDS_COLLECTION, roundId)
       await deleteDoc(roundRef)
       
-      console.log('[FIRESTORE-ROUND] Round deleted successfully:', roundId)
+      logger.debug('Round deleted successfully:', roundId)
     } catch (error) {
-      console.error('[FIRESTORE-ROUND] Error deleting round:', roundId, error)
+      logger.error('Error deleting round:', roundId, error)
       throw this.createRoundServiceError('Failed to delete round', error)
     }
   }
@@ -128,7 +129,7 @@ export class FirestoreRoundService {
    */
   async getProjectRounds(userId: string, projectId: string): Promise<Round[]> {
     try {
-      console.log('[FIRESTORE-ROUND] Getting rounds for project:', projectId)
+      logger.debug('Getting rounds for project:', projectId)
 
       const roundsRef = collection(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, projectId, this.ROUNDS_COLLECTION)
       const roundsQuery = query(roundsRef, orderBy('roundNumber'))
@@ -145,10 +146,10 @@ export class FirestoreRoundService {
         }
       })
 
-      console.log('[FIRESTORE-ROUND] Retrieved rounds:', rounds.length)
+      logger.debug('Retrieved rounds:', rounds.length)
       return rounds
     } catch (error) {
-      console.error('[FIRESTORE-ROUND] Error getting project rounds:', error)
+      logger.error('Error getting project rounds:', error)
       throw this.createRoundServiceError('Failed to get project rounds', error)
     }
   }
@@ -163,7 +164,7 @@ export class FirestoreRoundService {
    */
   async syncRounds(userId: string, projectId: string, localRounds: Round[], modifiedRoundIds?: string[]): Promise<void> {
     try {
-      console.log('[FIRESTORE-ROUND-SYNC] Starting sync for project:', projectId, {
+      logger.debug('Starting sync for project:', projectId, {
         localRoundsCount: localRounds.length,
         modifiedRoundsCount: modifiedRoundIds?.length || 'all'
       })
@@ -171,11 +172,11 @@ export class FirestoreRoundService {
       // Optimized path: if only specific rounds are modified, skip collection scanning
       if (modifiedRoundIds && modifiedRoundIds.length > 0) {
         const roundsToProcess = localRounds.filter(round => modifiedRoundIds.includes(round.id))
-        console.log('[FIRESTORE-ROUND-SYNC] Optimized sync - only processing modified rounds:', modifiedRoundIds)
+        logger.debug('Optimized sync - only processing modified rounds:', modifiedRoundIds)
         
         // Direct update without collection scanning
         for (const round of roundsToProcess) {
-          console.log('[FIRESTORE-ROUND-SYNC] Directly updating round:', round.id, {
+          logger.debug('Directly updating round:', round.id, {
             roundNumber: round.roundNumber,
             stitchCount: round.stitches?.length || 0,
             groupCount: round.stitchGroups?.length || 0
@@ -183,7 +184,7 @@ export class FirestoreRoundService {
           await this.updateRound(userId, projectId, round)
         }
         
-        console.log('[FIRESTORE-ROUND-SYNC] Optimized sync completed')
+        logger.debug('Optimized sync completed')
         return
       }
 
@@ -193,7 +194,7 @@ export class FirestoreRoundService {
       const existingRoundIds = new Set(existingRoundsSnap.docs.map(doc => doc.id))
       const currentRoundIds = new Set(localRounds.map(round => round.id))
 
-      console.log('[FIRESTORE-ROUND-SYNC] Full sync - Round comparison:', {
+      logger.debug('Full sync - Round comparison:', {
         existingCount: existingRoundIds.size,
         currentCount: currentRoundIds.size,
         toDelete: Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id)),
@@ -206,21 +207,21 @@ export class FirestoreRoundService {
       // Delete rounds that no longer exist locally
       const roundsToDelete = Array.from(existingRoundIds).filter(id => !currentRoundIds.has(id))
       for (const roundId of roundsToDelete) {
-        console.log('[FIRESTORE-ROUND-SYNC] Deleting round:', roundId)
+        logger.debug('Deleting round:', roundId)
         await this.deleteRound(userId, projectId, roundId)
       }
 
       // Create or update all local rounds
       for (const round of localRounds) {
         if (existingRoundIds.has(round.id)) {
-          console.log('[FIRESTORE-ROUND-SYNC] Updating round:', round.id, {
+          logger.debug('Updating round:', round.id, {
             roundNumber: round.roundNumber,
             stitchCount: round.stitches?.length || 0,
             groupCount: round.stitchGroups?.length || 0
           })
           await this.updateRound(userId, projectId, round)
         } else {
-          console.log('[FIRESTORE-ROUND-SYNC] Creating new round:', round.id, {
+          logger.debug('Creating new round:', round.id, {
             roundNumber: round.roundNumber,
             stitchCount: round.stitches?.length || 0,
             groupCount: round.stitchGroups?.length || 0
@@ -229,9 +230,9 @@ export class FirestoreRoundService {
         }
       }
       
-      console.log('[FIRESTORE-ROUND-SYNC] Sync completed successfully')
+      logger.debug('Sync completed successfully')
     } catch (error) {
-      console.error('[FIRESTORE-ROUND-SYNC] Error syncing rounds:', error)
+      logger.error('Error syncing rounds:', error)
       throw this.createRoundServiceError('Failed to sync rounds', error)
     }
   }
@@ -244,15 +245,15 @@ export class FirestoreRoundService {
    */
   async batchCreateRounds(userId: string, projectId: string, rounds: Round[]): Promise<void> {
     try {
-      console.log('[FIRESTORE-ROUND] Batch creating rounds:', rounds.length)
+      logger.debug('Batch creating rounds:', rounds.length)
 
       for (const round of rounds) {
         await this.createRound(userId, projectId, round)
       }
 
-      console.log('[FIRESTORE-ROUND] Batch create completed successfully')
+      logger.debug('Batch create completed successfully')
     } catch (error) {
-      console.error('[FIRESTORE-ROUND] Error in batch create rounds:', error)
+      logger.error('Error in batch create rounds:', error)
       throw this.createRoundServiceError('Failed to batch create rounds', error)
     }
   }
@@ -265,15 +266,15 @@ export class FirestoreRoundService {
    */
   async batchUpdateRounds(userId: string, projectId: string, rounds: Round[]): Promise<void> {
     try {
-      console.log('[FIRESTORE-ROUND] Batch updating rounds:', rounds.length)
+      logger.debug('Batch updating rounds:', rounds.length)
 
       for (const round of rounds) {
         await this.updateRound(userId, projectId, round)
       }
 
-      console.log('[FIRESTORE-ROUND] Batch update completed successfully')
+      logger.debug('Batch update completed successfully')
     } catch (error) {
-      console.error('[FIRESTORE-ROUND] Error in batch update rounds:', error)
+      logger.error('Error in batch update rounds:', error)
       throw this.createRoundServiceError('Failed to batch update rounds', error)
     }
   }
@@ -285,7 +286,7 @@ export class FirestoreRoundService {
    */
   async deleteAllProjectRounds(userId: string, projectId: string): Promise<void> {
     try {
-      console.log('[FIRESTORE-ROUND] Deleting all rounds for project:', projectId)
+      logger.debug('Deleting all rounds for project:', projectId)
 
       const roundsRef = collection(db, this.USERS_COLLECTION, userId, this.PROJECTS_COLLECTION, projectId, this.ROUNDS_COLLECTION)
       const roundsSnap = await getDocs(roundsRef)
@@ -294,9 +295,9 @@ export class FirestoreRoundService {
         await deleteDoc(roundDoc.ref)
       }
       
-      console.log('[FIRESTORE-ROUND] All project rounds deleted successfully')
+      logger.debug('All project rounds deleted successfully')
     } catch (error) {
-      console.error('[FIRESTORE-ROUND] Error deleting all project rounds:', error)
+      logger.error('Error deleting all project rounds:', error)
       throw this.createRoundServiceError('Failed to delete all project rounds', error)
     }
   }
@@ -323,10 +324,10 @@ export class FirestoreRoundService {
         roundNumbers: rounds.map(round => round.roundNumber).sort((a, b) => a - b)
       }
 
-      console.log('[FIRESTORE-ROUND] Project stats:', stats)
+      logger.debug('Project stats:', stats)
       return stats
     } catch (error) {
-      console.error('[FIRESTORE-ROUND] Error getting project round stats:', error)
+      logger.error('Error getting project round stats:', error)
       throw this.createRoundServiceError('Failed to get project round stats', error)
     }
   }

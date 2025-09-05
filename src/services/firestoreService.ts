@@ -5,6 +5,7 @@ import { firestoreRoundService } from './FirestoreRoundService'
 import { firestoreDataCleaner } from './FirestoreDataCleaner'
 import { firestoreConnectionManager } from './FirestoreConnectionManager'
 
+import { logger } from '../utils/logger'
 // Re-export interfaces for backward compatibility
 export type { UserProfile } from './FirestoreUserService'
 
@@ -209,7 +210,7 @@ class FirestoreService {
    * Legacy method for getting user projects - maintained for backward compatibility
    */
   async getProjects(userId: string): Promise<Project[]> {
-    console.warn('[FIRESTORE] getProjects() is deprecated, use getUserProjects() instead')
+    logger.warn('getProjects() is deprecated, use getUserProjects() instead')
     return this.getUserProjects(userId)
   }
 
@@ -218,7 +219,7 @@ class FirestoreService {
    * Legacy method for creating projects - maintained for backward compatibility
    */
   async saveProject(userId: string, project: Project): Promise<void> {
-    console.warn('[FIRESTORE] saveProject() is deprecated, use createProject() or updateProject() instead')
+    logger.warn('saveProject() is deprecated, use createProject() or updateProject() instead')
     
     // Check if project exists to determine if this should be create or update
     const exists = await this.projectService.projectExists(userId, project.id)
@@ -235,7 +236,7 @@ class FirestoreService {
    * Legacy method - maintained for backward compatibility but delegates to project updates
    */
   async updateRounds(userId: string, projectId: string, rounds: Round[]): Promise<void> {
-    console.warn('[FIRESTORE] updateRounds() is deprecated, rounds are updated via project updates')
+    logger.warn('updateRounds() is deprecated, rounds are updated via project updates')
     return this.roundService.syncRounds(userId, projectId, rounds)
   }
 }

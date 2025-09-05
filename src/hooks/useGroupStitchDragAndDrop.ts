@@ -4,6 +4,7 @@ import { usePatternStore } from '../stores/usePatternStore'
 import { Round, Chart, StitchInfo, PatternItemType } from '../types'
 import { useDragState, DragType } from './useDragState'
 
+import { logger } from '../utils/logger'
 interface DraggedGroupStitch {
   stitchId: string
   stitchIndex: number
@@ -19,7 +20,7 @@ export function useGroupStitchDragAndDrop() {
   const { setDragState, isDragging, clearDragState } = useDragState()
 
   const handleGroupStitchDragStart = (e: React.DragEvent, stitch: StitchInfo, stitchIndex: number, groupId: string, roundNumber: number) => {
-    console.log('[GROUP_STITCH_DRAG] Starting drag:', { stitchId: stitch.id, stitchIndex, groupId, roundNumber })
+    logger.debug('Starting drag:', { stitchId: stitch.id, stitchIndex, groupId, roundNumber })
     
     // Reset any existing drag state first
     setDraggedGroupStitch(null)
@@ -75,12 +76,12 @@ export function useGroupStitchDragAndDrop() {
     
     // Check if this is a group stitch drag
     if (!isDragging(DragType.GROUP_STITCH)) {
-      console.log('[GROUP_STITCH_DRAG] Not a group stitch drag, ignoring')
+      logger.debug('Not a group stitch drag, ignoring')
       resetGroupStitchDrag()
       return
     }
     
-    console.log('[GROUP_STITCH_DRAG] Drop event:', {
+    logger.debug('Drop event:', {
       draggedGroupStitch,
       targetStitch: targetStitch.id,
       targetIndex,
@@ -92,7 +93,7 @@ export function useGroupStitchDragAndDrop() {
         draggedGroupStitch.groupId !== groupId ||
         draggedGroupStitch.roundNumber !== roundNumber ||
         draggedGroupStitch.stitchId === targetStitch.id) {
-      console.log('[GROUP_STITCH_DRAG] Drop cancelled:', {
+      logger.debug('Drop cancelled:', {
         noDraggedItem: !draggedGroupStitch,
         differentGroup: draggedGroupStitch?.groupId !== groupId,
         differentRound: draggedGroupStitch?.roundNumber !== roundNumber,
@@ -102,7 +103,7 @@ export function useGroupStitchDragAndDrop() {
       return
     }
 
-    console.log('[GROUP_STITCH_DRAG] Dropping stitch:', {
+    logger.debug('Dropping stitch:', {
       from: draggedGroupStitch.stitchIndex,
       to: targetIndex,
       groupId,
@@ -118,9 +119,9 @@ export function useGroupStitchDragAndDrop() {
         currentChart,
         chartPattern
       )
-      console.log('[GROUP_STITCH_DRAG] Reorder successful')
+      logger.debug('Reorder successful')
     } catch (error) {
-      console.error('Error reordering group stitches:', error)
+      logger.error('Error reordering group stitches:', error)
       alert('調整群組針法順序時發生錯誤')
     } finally {
       // Always reset drag state

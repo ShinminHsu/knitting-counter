@@ -6,6 +6,7 @@ import { ImportExportService } from '../services/importExportService'
 import { ExportType } from '../types'
 import SyncStatusIndicator from './SyncStatusIndicator'
 
+import { logger } from '../utils/logger'
 export default function ImportExportView() {
   const { projectId } = useParams()
   
@@ -15,6 +16,7 @@ export default function ImportExportView() {
   const [exportType, setExportType] = useState<ExportType>(ExportType.FULL_PROJECT)
   const [isExporting, setIsExporting] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning', text: string } | null>(null)
+
 
   const showMessage = (type: 'success' | 'error' | 'warning', text: string) => {
     setMessage({ type, text })
@@ -32,7 +34,7 @@ export default function ImportExportView() {
       ImportExportService.exportProjectAsFile(currentProject, exportType)
       showMessage('success', '專案匯出成功')
     } catch (error) {
-      console.error('Export error:', error)
+      logger.error('Export error:', error)
       showMessage('error', '匯出失敗，請稍後重試')
     } finally {
       setIsExporting(false)

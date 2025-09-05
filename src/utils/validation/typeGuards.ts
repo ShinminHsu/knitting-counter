@@ -1,5 +1,6 @@
 import { Project, Round, StitchInfo, StitchGroup, Chart, Yarn, WorkSession, StitchType } from '../../types'
 
+import { logger } from '../logger'
 // Basic type guards
 export function isString(value: unknown): value is string {
   return typeof value === 'string'
@@ -140,11 +141,11 @@ export function isValidChart(value: unknown): value is Chart {
     hasValidLastModified: isDate(chart.lastModified)
   }
   
-  console.log('[VALIDATION-DEBUG] Chart validation details for chart:', chart.id, chartChecks)
+  logger.debug('Chart validation details for chart:', chart.id, chartChecks)
   
   // Log type information for Date fields if they fail
   if (!chartChecks.hasValidCreatedDate) {
-    console.log('[VALIDATION-DEBUG] Chart createdDate issue:', {
+    logger.debug('Chart createdDate issue:', {
       type: typeof chart.createdDate,
       value: chart.createdDate,
       isDate: chart.createdDate instanceof Date
@@ -152,7 +153,7 @@ export function isValidChart(value: unknown): value is Chart {
   }
   
   if (!chartChecks.hasValidLastModified) {
-    console.log('[VALIDATION-DEBUG] Chart lastModified issue:', {
+    logger.debug('Chart lastModified issue:', {
       type: typeof chart.lastModified,
       value: chart.lastModified,
       isDate: chart.lastModified instanceof Date
@@ -195,11 +196,11 @@ export function isValidProject(value: unknown): value is Project {
     hasValidCharts: (project.charts === undefined || (isArray(project.charts) && project.charts.every(isValidChart)))
   }
   
-  console.log('[VALIDATION-DEBUG] Individual field checks:', checks)
+  logger.debug('Individual field checks:', checks)
   
   // Log pattern validation details if it exists
   if (project.pattern && isArray(project.pattern)) {
-    console.log('[VALIDATION-DEBUG] Pattern validation details:', {
+    logger.debug('Pattern validation details:', {
       patternLength: project.pattern.length,
       allRoundsValid: project.pattern.every(isValidRound),
       firstRoundValid: project.pattern.length > 0 ? isValidRound(project.pattern[0]) : 'N/A'
@@ -214,16 +215,16 @@ export function isValidProject(value: unknown): value is Project {
       isValid: isValidChart(chart)
     }))
     
-    console.log('[VALIDATION-DEBUG] Charts validation details:', {
+    logger.debug('Charts validation details:', {
       chartsLength: project.charts.length,
       allChartsValid: project.charts.every(isValidChart),
       individualChartValidation: chartValidations
     })
     
     // Log details for invalid charts
-    chartValidations.forEach(({index, id, isValid}) => {
+    chartValidations.forEach(({index, id: _id, isValid}) => {
       if (!isValid) {
-        console.log(`[VALIDATION-DEBUG] Invalid chart at index ${index} (id: ${id}) - validating individually...`)
+        logger.debug('[VALIDATION-DEBUG] Invalid chart at index ${index} (id: ${id}) - validating individually...')
         // This will trigger the detailed chart validation logging
         isValidChart((project.charts as any[])[index])
       }
@@ -322,13 +323,13 @@ export function safeParseProject(data: unknown): Project | null {
   if (result.isValid && result.data) {
     return result.data
   }
-  console.warn('[VALIDATION] Invalid project data:', result.errors)
+  logger.warn('Invalid project data:', result.errors)
   return null
 }
 
 export function safeParseProjects(data: unknown): Project[] {
   if (!isArray(data)) {
-    console.warn('[VALIDATION] Projects data is not an array')
+    logger.warn('Projects data is not an array')
     return []
   }
   
@@ -377,7 +378,7 @@ export function safeParseProjects(data: unknown): Project[] {
   })
   
   if (errors.length > 0) {
-    console.warn('[VALIDATION] Some projects failed strict validation but may have been sanitized:', errors.length)
+    logger.warn('Some projects failed strict validation but may have been sanitized:', errors.length)
   }
   
   return validProjects
@@ -387,13 +388,13 @@ export function safeParseProjects(data: unknown): Project[] {
 export function assertIsProject(value: unknown, context = 'unknown'): asserts value is Project {
   if (!isValidProject(value)) {
     // Enhanced error reporting for debugging
-    console.error('[VALIDATION-DEBUG] Project validation failed in context:', context)
-    console.error('[VALIDATION-DEBUG] Value type:', typeof value)
-    console.error('[VALIDATION-DEBUG] Value is object:', isObject(value))
+    logger.error('Project validation failed in context:', context)
+    logger.error('Value type:', typeof value)
+    logger.error('Value is object:', isObject(value))
     
     if (isObject(value)) {
       const project = value as Record<string, unknown>
-      console.error('[VALIDATION-DEBUG] Project validation details:', {
+      logger.error('Project validation details:', {
         hasId: !!project.id && isString(project.id),
         hasName: !!project.name && isString(project.name),
         hasCreatedDate: !!project.createdDate && isDate(project.createdDate),
@@ -413,7 +414,7 @@ export function assertIsProject(value: unknown, context = 'unknown'): asserts va
       
       // Check individual field validation
       if (project.yarns && isArray(project.yarns)) {
-        console.error('[VALIDATION-DEBUG] Yarns validation:', {
+        logger.error('Yarns validation:', {
           yarnsLength: project.yarns.length,
           allYarnsValid: project.yarns.every(isValidYarn),
           firstYarnValid: project.yarns.length > 0 ? isValidYarn(project.yarns[0]) : 'N/A'
@@ -421,7 +422,7 @@ export function assertIsProject(value: unknown, context = 'unknown'): asserts va
       }
       
       if (project.sessions && isArray(project.sessions)) {
-        console.error('[VALIDATION-DEBUG] Sessions validation:', {
+        logger.error('Sessions validation:', {
           sessionsLength: project.sessions.length,
           allSessionsValid: project.sessions.every(isValidWorkSession),
           firstSessionValid: project.sessions.length > 0 ? isValidWorkSession(project.sessions[0]) : 'N/A'
@@ -430,7 +431,7 @@ export function assertIsProject(value: unknown, context = 'unknown'): asserts va
       
       // Check charts validation if it exists
       if (project.charts !== undefined) {
-        console.error('[VALIDATION-DEBUG] Charts field validation:', {
+        logger.error('Charts field validation:', {
           chartsExists: !!project.charts,
           chartsIsArray: isArray(project.charts),
           chartsType: typeof project.charts,
@@ -440,9 +441,9 @@ export function assertIsProject(value: unknown, context = 'unknown'): asserts va
         if (isArray(project.charts)) {
           const chartValidations = project.charts.map((chart: any, index: number) => {
             const isValid = isValidChart(chart)
-            console.error(`[VALIDATION-DEBUG] Chart ${index} (id: ${chart?.id}) validation:`, isValid)
+            logger.error('[VALIDATION-DEBUG] Chart ${index} (id: ${chart?.id}) validation:', isValid)
             if (!isValid) {
-              console.error(`[VALIDATION-DEBUG] Invalid chart ${index} details:`, {
+              logger.error('[VALIDATION-DEBUG] Invalid chart ${index} details:', {
                 type: typeof chart,
                 isObject: isObject(chart),
                 hasId: isString(chart?.id),
@@ -456,7 +457,7 @@ export function assertIsProject(value: unknown, context = 'unknown'): asserts va
             return { index, id: chart?.id, isValid }
           })
           
-          console.error('[VALIDATION-DEBUG] All charts validation results:', chartValidations)
+          logger.error('All charts validation results:', chartValidations)
         }
       }
     }

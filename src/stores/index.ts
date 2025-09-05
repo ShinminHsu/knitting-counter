@@ -10,6 +10,7 @@ import { useProgressStore } from './useProgressStore'
 import { useAuthStore } from './useAuthStore'
 import { StitchInfo } from '../types'
 
+import { logger } from '../utils/logger'
 // Re-export all individual stores
 export {
   useBaseStore,
@@ -109,12 +110,12 @@ export const useAppActions = () => {
         }
         
         setLoading(false)
-        console.log('[APP] App initialized successfully')
+        logger.debug('App initialized successfully')
       } catch (error) {
         const { setLoading, setError } = useBaseStore.getState()
         setLoading(false)
         setError(error instanceof Error ? error.message : 'Failed to initialize app')
-        console.error('[APP] Initialization failed:', error)
+        logger.error('Initialization failed:', error)
       }
     },
 
@@ -135,7 +136,7 @@ export const useAppActions = () => {
           })
         }
 
-        console.log('[APP] Created new project:', projectName)
+        logger.debug('Created new project:', projectName)
       } catch (error) {
         const { setError } = useBaseStore.getState()
         setError(error instanceof Error ? error.message : 'Failed to create project')
@@ -160,7 +161,7 @@ export const useAppActions = () => {
         await deleteProject(projectId)
         
         setLoading(false)
-        console.log('[APP] Deleted project:', projectId)
+        logger.debug('Deleted project:', projectId)
       } catch (error) {
         const { setLoading, setError } = useBaseStore.getState()
         setLoading(false)
@@ -184,7 +185,7 @@ export const useAppActions = () => {
         }
         
         setLoading(false)
-        console.log('[APP] Switched to project:', projectId)
+        logger.debug('Switched to project:', projectId)
       } catch (error) {
         const { setLoading, setError } = useBaseStore.getState()
         setLoading(false)
@@ -207,7 +208,7 @@ export const useAppActions = () => {
         const currentRound = currentProject.currentRound || 1
         await addStitch(currentRound, stitchData)
         
-        console.log('[APP] Added stitch to current round:', currentRound)
+        logger.debug('Added stitch to current round:', currentRound)
       } catch (error) {
         const { setError } = useBaseStore.getState()
         setError(error instanceof Error ? error.message : 'Failed to add stitch')
@@ -230,7 +231,7 @@ export const useAppActions = () => {
         await markProjectComplete()
         setLoading(false)
         
-        console.log('[APP] Marked project as complete')
+        logger.debug('Marked project as complete')
       } catch (error) {
         const { setLoading, setError } = useBaseStore.getState()
         setLoading(false)

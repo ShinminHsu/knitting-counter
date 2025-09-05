@@ -8,13 +8,14 @@ vi.mock('../utils', () => ({
 }))
 
 vi.mock('./useBaseStore', () => ({
-  handleAsyncError: vi.fn((error, context) => {
-    console.error(`[${context}]`, error)
+  handleAsyncError: vi.fn((error, _context) => {
+    logger.error('[${_context}]', error)
   })
 }))
 
 // Import the mocked function after vi.mock
 import { generateId } from '../utils'
+import { logger } from '../utils/logger'
 const mockGenerateId = vi.mocked(generateId)
 
 describe('useTemplateStore', () => {

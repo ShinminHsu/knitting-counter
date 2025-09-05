@@ -4,6 +4,8 @@ import { useProjectStore } from '../stores/useProjectStore'
 import { useChartStore } from '../stores/useChartStore'
 import { usePatternStore } from '../stores/usePatternStore'
 
+import { logger } from '../utils/logger'
+import { googleAnalytics } from '../services/googleAnalytics'
 export function usePatternOperations() {
   const { currentProject } = useProjectStore()
   const { updateChart } = useChartStore()
@@ -39,11 +41,24 @@ export function usePatternOperations() {
           lastModified: new Date()
         }
         await updateChart(updatedChart.id, updatedChart)
+        
+        // Track round addition
+        googleAnalytics.trackPatternEvent('add_round', {
+          project_id: currentProject?.id,
+          chart_id: currentChart.id,
+          round_number: nextRoundNumber
+        })
       } else {
         await addRound(newRound)
+        
+        // Track round addition  
+        googleAnalytics.trackPatternEvent('add_round', {
+          project_id: currentProject?.id,
+          round_number: nextRoundNumber
+        })
       }
     } catch (error) {
-      console.error('Error adding round:', error)
+      logger.error('Error adding round:', error)
       alert('新增圈數時發生錯誤')
       throw error
     } finally {
@@ -68,8 +83,21 @@ export function usePatternOperations() {
           lastModified: new Date()
         }
         await updateChart(updatedChart.id, updatedChart)
+        
+        // Track round deletion
+        googleAnalytics.trackPatternEvent('delete_round', {
+          project_id: currentProject?.id,
+          chart_id: currentChart.id,
+          round_number: roundNumber
+        })
       } else {
         await deleteRound(roundNumber)
+        
+        // Track round deletion
+        googleAnalytics.trackPatternEvent('delete_round', {
+          project_id: currentProject?.id,
+          round_number: roundNumber
+        })
       }
     }
   }
@@ -116,12 +144,29 @@ export function usePatternOperations() {
             ),
             lastModified: new Date()
           })
+          
+          // Track stitch addition
+          googleAnalytics.trackPatternEvent('add_stitch', {
+            project_id: currentProject?.id,
+            chart_id: currentChart.id,
+            round_number: roundNumber,
+            stitch_type: stitchType,
+            stitch_count: count
+          })
         }
       } else {
         await addStitch(roundNumber, newStitch)
+        
+        // Track stitch addition
+        googleAnalytics.trackPatternEvent('add_stitch', {
+          project_id: currentProject?.id,
+          round_number: roundNumber,
+          stitch_type: stitchType,
+          stitch_count: count
+        })
       }
     } catch (error) {
-      console.error('Error adding stitch:', error)
+      logger.error('Error adding stitch:', error)
       alert('新增針法時發生錯誤')
       throw error
     } finally {
@@ -161,13 +206,30 @@ export function usePatternOperations() {
       if (currentChart) {
         const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
         if (targetRound) {
+          // Import PatternItemType for compatibility
+          const { PatternItemType } = await import('../types')
+          
           const updatedRound = {
             ...targetRound,
+            // 更新舊格式的 stitchGroups 陣列
             stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) =>
               g.id === groupId
                 ? { ...g, stitches: [...g.stitches, newStitch] }
                 : g
-            )
+            ),
+            // 更新新格式的 patternItems 陣列中的群組針法
+            patternItems: targetRound.patternItems?.map((item: any) => {
+              if (item.type === PatternItemType.GROUP && item.data.id === groupId) {
+                return {
+                  ...item,
+                  data: {
+                    ...item.data,
+                    stitches: [...item.data.stitches, newStitch]
+                  }
+                }
+              }
+              return item
+            }) || []
           }
           const updatedChart = {
             ...currentChart,
@@ -194,7 +256,7 @@ export function usePatternOperations() {
         }
       }
     } catch (error) {
-      console.error('Error adding group stitch:', error)
+      logger.error('Error adding group stitch:', error)
       alert('新增群組針法時發生錯誤')
       throw error
     } finally {
@@ -251,7 +313,7 @@ export function usePatternOperations() {
         }
       }
     } catch (error) {
-      console.error('Error adding group:', error)
+      logger.error('Error adding group:', error)
       alert('新增群組時發生錯誤')
       throw error
     }

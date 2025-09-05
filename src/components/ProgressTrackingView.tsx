@@ -9,6 +9,7 @@ import ChartSelector from './ProgressTracking/ChartSelector'
 import ProgressDisplay from './ProgressTracking/ProgressDisplay'
 import StitchRenderer from './ProgressTracking/StitchRenderer'
 import ActionControls from './ProgressTracking/ActionControls'
+import { googleAnalytics } from '../services/googleAnalytics'
 
 export default function ProgressTrackingView() {
   const { projectId } = useParams()
@@ -44,6 +45,15 @@ export default function ProgressTrackingView() {
       
       if (project) {
         setCurrentProjectById(projectId)
+        
+        // Track page view
+        googleAnalytics.trackPageView(`/project/${projectId}/progress`, 'Progress Tracking')
+        
+        // Track progress start
+        googleAnalytics.trackProgressEvent('start', {
+          project_id: projectId,
+          project_name: project.name
+        })
       } else {
         navigate('/404')
       }
@@ -79,6 +89,12 @@ export default function ProgressTrackingView() {
   const handleChartChange = useCallback(async (chartId: string) => {
     if (!currentProject) return
     await setCurrentChart(chartId)
+    
+    // Track chart selection
+    googleAnalytics.trackChartEvent('select', {
+      project_id: currentProject.id,
+      chart_id: chartId
+    })
   }, [currentProject, setCurrentChart])
 
   // Handle jump to round
@@ -136,6 +152,29 @@ export default function ProgressTrackingView() {
       currentStitch: newStitch,
       isCompleted
     })
+    
+    // Track progress events
+    googleAnalytics.trackProgressEvent('next_stitch', {
+      project_id: currentProject.id,
+      chart_id: currentChart.id,
+      round_number: newRound,
+      stitch_number: newStitch
+    })
+    
+    if (newRound > currentChart.currentRound) {
+      googleAnalytics.trackProgressEvent('complete_round', {
+        project_id: currentProject.id,
+        chart_id: currentChart.id,
+        round_number: currentChart.currentRound
+      })
+    }
+    
+    if (isCompleted) {
+      googleAnalytics.trackProjectEvent('complete', {
+        project_id: currentProject.id,
+        project_name: currentProject.name
+      })
+    }
   }, [currentProject, currentChart, updateChartProgress])
 
   // Handle previous stitch using direct store operations
@@ -174,6 +213,14 @@ export default function ProgressTrackingView() {
       currentRound: newRound,
       currentStitch: newStitch,
       isCompleted: false
+    })
+    
+    // Track previous stitch event
+    googleAnalytics.trackProgressEvent('previous_stitch', {
+      project_id: currentProject.id,
+      chart_id: currentChart.id,
+      round_number: newRound,
+      stitch_number: newStitch
     })
   }, [currentProject, currentChart, updateChartProgress])
 

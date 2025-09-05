@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore'
+import { logger } from '../utils/logger'
 import {
   Project, Round, StitchInfo, StitchGroup, Yarn, WorkSession, Chart,
   FirestoreYarn, FirestoreWorkSession, FirestoreStitchInfo, FirestoreStitchGroup,
@@ -346,7 +347,7 @@ export class FirestoreDataCleaner {
    * @param operation - Operation being performed
    */
   logCleaningSummary(originalData: unknown, cleanedData: unknown, operation: string): void {
-    console.log(`[FIRESTORE-CLEANER] ${operation} cleaning summary:`, {
+    logger.debug('[FIRESTORE-CLEANER] ${operation} cleaning summary:', {
       originalUndefinedPaths: this.findUndefinedValues(originalData),
       cleanedUndefinedPaths: this.findUndefinedValues(cleanedData),
       operation

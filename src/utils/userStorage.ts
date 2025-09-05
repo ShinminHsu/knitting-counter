@@ -1,3 +1,5 @@
+import { logger } from './logger'
+
 /**
  * 用戶專屬的 localStorage 管理工具
  * 確保不同用戶的數據完全隔離
@@ -15,7 +17,7 @@ export const getUserData = <T>(userId: string, key: string): T | null => {
     const data = localStorage.getItem(storageKey)
     return data ? JSON.parse(data) : null
   } catch (error) {
-    console.error(`Error getting user data for ${userId}:${key}`, error)
+    logger.error('Error getting user data for ${userId}:${key}', error)
     return null
   }
 }
@@ -26,7 +28,7 @@ export const setUserData = <T>(userId: string, key: string, data: T): void => {
     const storageKey = getUserStorageKey(userId, key)
     localStorage.setItem(storageKey, JSON.stringify(data))
   } catch (error) {
-    console.error(`Error setting user data for ${userId}:${key}`, error)
+    logger.error('Error setting user data for ${userId}:${key}', error)
   }
 }
 
@@ -36,7 +38,7 @@ export const removeUserData = (userId: string, key: string): void => {
     const storageKey = getUserStorageKey(userId, key)
     localStorage.removeItem(storageKey)
   } catch (error) {
-    console.error(`Error removing user data for ${userId}:${key}`, error)
+    logger.error('Error removing user data for ${userId}:${key}', error)
   }
 }
 
@@ -57,9 +59,9 @@ export const clearUserData = (userId: string): void => {
     // 移除所有該用戶的數據
     keysToRemove.forEach(key => localStorage.removeItem(key))
     
-    console.log(`Cleared ${keysToRemove.length} items for user ${userId}`)
+    logger.debug('Cleared ${keysToRemove.length} items for user ${userId}')
   } catch (error) {
-    console.error(`Error clearing user data for ${userId}`, error)
+    logger.error('Error clearing user data for ${userId}', error)
   }
 }
 
@@ -77,9 +79,9 @@ export const clearAllUserData = (): void => {
     
     keysToRemove.forEach(key => localStorage.removeItem(key))
     
-    console.log(`Cleared all user data (${keysToRemove.length} items)`)
+    logger.debug('Cleared all user data (${keysToRemove.length} items)')
   } catch (error) {
-    console.error('Error clearing all user data', error)
+    logger.error('Error clearing all user data', error)
   }
 }
 
@@ -100,7 +102,7 @@ export const getAllUserIds = (): string[] => {
     
     return Array.from(userIds)
   } catch (error) {
-    console.error('Error getting all user IDs', error)
+    logger.error('Error getting all user IDs', error)
     return []
   }
 }

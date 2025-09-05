@@ -5,6 +5,7 @@
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
+import { logger } from '../utils/logger'
 /**
  * 從 Firestore 檢查用戶是否在白名單中
  * @param email 用戶 email
@@ -12,7 +13,7 @@ import { db } from '../config/firebase'
  */
 export const checkWhitelistStatus = async (email: string | null | undefined): Promise<boolean> => {
   if (!email) {
-    console.log('[WHITELIST] No email provided')
+    logger.debug('No email provided')
     return false
   }
 
@@ -21,10 +22,10 @@ export const checkWhitelistStatus = async (email: string | null | undefined): Pr
     const docSnap = await getDoc(whitelistDoc)
     const isWhitelisted = docSnap.exists()
     
-    console.log(`[WHITELIST] Firestore check for ${email}: ${isWhitelisted ? 'ALLOWED' : 'DENIED'}`)
+    logger.debug(`[WHITELIST] Firestore check for ${email}: ${isWhitelisted ? 'ALLOWED' : 'DENIED'}`)
     return isWhitelisted
   } catch (error) {
-    console.error('[WHITELIST] Error checking whitelist status:', error)
+    logger.error('Error checking whitelist status:', error)
     // 發生錯誤時，為了安全起見返回 false
     return false
   }
@@ -60,7 +61,7 @@ const ENABLE_WHITELIST_IN_DEV = true
 export const canUseFirebaseSync = async (email: string | null | undefined): Promise<boolean> => {
   // 開發環境下是否繞過白名單檢查
   if (isDevelopmentMode() && !ENABLE_WHITELIST_IN_DEV) {
-    console.log('[WHITELIST] Development mode: bypassing whitelist check')
+    logger.debug('Development mode: bypassing whitelist check')
     return true
   }
   

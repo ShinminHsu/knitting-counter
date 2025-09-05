@@ -70,6 +70,19 @@ interface StitchSelectionModalProps {
   initialStitch?: StitchInfo
 }
 
+const IncreaseTooltipContent = () => (
+  <div className="text-sm text-text-primary leading-relaxed">
+    <p className="mb-2"><strong>加針說明：</strong></p>
+    <p className="mb-2">
+      <strong>短針加針</strong>、<strong>中長針加針</strong>、<strong>長針加針</strong>、<strong>長長針加針</strong>
+      這四個針目會自動讓針目數量變二，代表的是一個對應的針法跟一個加針。
+    </p>
+    <p>
+      如果只是選擇 <strong>加針</strong>，那麼針目計算數量會為1，讓用戶自由選擇需要加幾針時使用。
+    </p>
+  </div>
+)
+
 export default function StitchSelectionModal({
   isOpen,
   onClose,
@@ -84,6 +97,28 @@ export default function StitchSelectionModal({
   const [selectedYarnId, setSelectedYarnId] = useState<string>(availableYarns[0]?.id || '')
   const [customName, setCustomName] = useState<string>('')
   const [customSymbol, setCustomSymbol] = useState<string>('')
+  const [showIncreaseTooltip, setShowIncreaseTooltip] = useState<boolean>(false)
+
+  // Body scroll lock for mobile
+  useEffect(() => {
+    if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+      document.body.style.overflow = 'hidden'
+      
+      return () => {
+        // Restore scroll position
+        document.body.style.position = ''
+        document.body.style.top = ''
+        document.body.style.width = ''
+        document.body.style.overflow = ''
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [isOpen])
 
   // 當有初始針法時，預填表單
   useEffect(() => {
@@ -141,7 +176,22 @@ export default function StitchSelectionModal({
 
         {/* 分組針法選擇 */}
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-text-secondary mb-3">針法類型</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-medium text-text-secondary">針法類型</h3>
+            <div className="relative sm:hidden">
+              <div
+                className="w-3 h-3 rounded-full border border-text-tertiary flex items-center justify-center cursor-help"
+                onClick={() => setShowIncreaseTooltip(!showIncreaseTooltip)}
+              >
+                <span className="text-xs">?</span>
+              </div>
+              {showIncreaseTooltip && (
+                <div className="absolute z-10 w-80 p-3 bg-background-secondary border border-border rounded-lg shadow-lg top-6 -left-32">
+                  <IncreaseTooltipContent />
+                </div>
+              )}
+            </div>
+          </div>
           
           {/* 手機版：分組下拉選單 */}
           <div className="block sm:hidden">
@@ -171,7 +221,26 @@ export default function StitchSelectionModal({
           <div className="hidden sm:block space-y-4">
             {Object.entries(stitchGroups).map(([groupKey, group]) => (
               <div key={groupKey}>
-                <h4 className="text-xs font-medium text-text-tertiary mb-2">{group.title}</h4>
+                <div className="flex items-center gap-2 mb-2">
+                  <h4 className="text-xs font-medium text-text-tertiary">{group.title}</h4>
+                  {groupKey === 'increase' && (
+                    <div className="relative">
+                      <div
+                        className="w-3 h-3 rounded-full border border-text-tertiary flex items-center justify-center cursor-help hover:border-primary hover:text-primary transition-colors"
+                        onMouseEnter={() => setShowIncreaseTooltip(true)}
+                        onMouseLeave={() => setShowIncreaseTooltip(false)}
+                        onClick={() => setShowIncreaseTooltip(!showIncreaseTooltip)}
+                      >
+                        <span className="text-xs">?</span>
+                      </div>
+                      {showIncreaseTooltip && (
+                        <div className="absolute z-10 w-80 p-3 bg-background-secondary border border-border rounded-lg shadow-lg -top-2 left-6">
+                          <IncreaseTooltipContent />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-8 gap-2">
                   {group.stitches.map((stitchType) => {
                     const info = StitchTypeInfo[stitchType]

@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
+import { logger } from '../utils/logger'
 export interface UserProfile {
   uid: string
   displayName: string | null
@@ -34,7 +35,7 @@ export class FirestoreUserService {
    */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
-      console.log('[FIRESTORE-USER] Getting user profile:', userId)
+      logger.debug('Getting user profile:', userId)
       
       const userRef = doc(db, this.COLLECTION_NAME, userId, this.PROFILE_SUBCOLLECTION, this.PROFILE_DOCUMENT)
       const userSnap = await getDoc(userRef)
@@ -49,14 +50,14 @@ export class FirestoreUserService {
           lastLogin: data.lastLogin.toDate()
         }
         
-        console.log('[FIRESTORE-USER] User profile found:', profile.email)
+        logger.debug('User profile found:', profile.email)
         return profile
       }
       
-      console.log('[FIRESTORE-USER] User profile not found for:', userId)
+      logger.debug('User profile not found for:', userId)
       return null
     } catch (error) {
-      console.error('[FIRESTORE-USER] Error getting user profile:', error)
+      logger.error('Error getting user profile:', error)
       throw this.createUserServiceError('Failed to get user profile', error)
     }
   }
@@ -67,7 +68,7 @@ export class FirestoreUserService {
    */
   async createUserProfile(profile: UserProfile): Promise<void> {
     try {
-      console.log('[FIRESTORE-USER] Creating user profile:', profile.email)
+      logger.debug('Creating user profile:', profile.email)
       
       this.validateUserProfile(profile)
       
@@ -81,9 +82,9 @@ export class FirestoreUserService {
       }
       
       await setDoc(userRef, profileData)
-      console.log('[FIRESTORE-USER] User profile created successfully:', profile.email)
+      logger.debug('User profile created successfully:', profile.email)
     } catch (error) {
-      console.error('[FIRESTORE-USER] Error creating user profile:', error)
+      logger.error('Error creating user profile:', error)
       throw this.createUserServiceError('Failed to create user profile', error)
     }
   }
@@ -94,7 +95,7 @@ export class FirestoreUserService {
    */
   async updateUserLastLogin(userId: string): Promise<void> {
     try {
-      console.log('[FIRESTORE-USER] Updating last login for user:', userId)
+      logger.debug('Updating last login for user:', userId)
       
       const userRef = doc(db, this.COLLECTION_NAME, userId, this.PROFILE_SUBCOLLECTION, this.PROFILE_DOCUMENT)
       const updateData = {
@@ -102,9 +103,9 @@ export class FirestoreUserService {
       }
       
       await updateDoc(userRef, updateData)
-      console.log('[FIRESTORE-USER] Last login updated successfully for:', userId)
+      logger.debug('Last login updated successfully for:', userId)
     } catch (error) {
-      console.error('[FIRESTORE-USER] Error updating last login:', error)
+      logger.error('Error updating last login:', error)
       throw this.createUserServiceError('Failed to update last login', error)
     }
   }
@@ -116,7 +117,7 @@ export class FirestoreUserService {
    */
   async updateUserProfile(userId: string, updates: Partial<Omit<UserProfile, 'uid'>>): Promise<void> {
     try {
-      console.log('[FIRESTORE-USER] Updating user profile:', userId, updates)
+      logger.debug('Updating user profile:', userId, updates)
       
       const userRef = doc(db, this.COLLECTION_NAME, userId, this.PROFILE_SUBCOLLECTION, this.PROFILE_DOCUMENT)
       const updateData: Record<string, unknown> = {}
@@ -132,9 +133,9 @@ export class FirestoreUserService {
       }
       
       await updateDoc(userRef, updateData)
-      console.log('[FIRESTORE-USER] User profile updated successfully:', userId)
+      logger.debug('User profile updated successfully:', userId)
     } catch (error) {
-      console.error('[FIRESTORE-USER] Error updating user profile:', error)
+      logger.error('Error updating user profile:', error)
       throw this.createUserServiceError('Failed to update user profile', error)
     }
   }
@@ -150,7 +151,7 @@ export class FirestoreUserService {
       const userSnap = await getDoc(userRef)
       return userSnap.exists()
     } catch (error) {
-      console.error('[FIRESTORE-USER] Error checking user profile existence:', error)
+      logger.error('Error checking user profile existence:', error)
       return false
     }
   }

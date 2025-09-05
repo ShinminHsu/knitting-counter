@@ -13,10 +13,13 @@ import ProgressTrackingView from './components/ProgressTrackingView'
 import YarnManagerView from './components/YarnManagerView'
 import ImportExportView from './components/ImportExportView'
 import NotFoundView from './components/NotFoundView'
+import UserGuideView from './components/UserGuideView'
 import { GuestModeLogin } from './components/GuestModeLogin'
 import { GuestDataRecovery } from './components/GuestDataRecovery'
 import LoadingPage from './components/LoadingPage'
 
+import { logger } from './utils/logger'
+import { googleAnalytics } from './services/googleAnalytics'
 function AppWithSync() {
   const {
     setError,
@@ -35,11 +38,14 @@ function AppWithSync() {
   useEffect(() => {
     const unsubscribe = initialize()
     
+    // 初始化 Google Analytics
+    googleAnalytics.initialize()
+    
     // 設置認證狀態監聽器
     const authUnsubscribe = authListener.setupAuthStateListener()
     
     // 初始化網絡狀態監聽器
-    console.log('[NETWORK] Initializing network status monitoring')
+    logger.debug('Initializing network status monitoring')
     
     // 測試Firebase連接 - 只在用戶登入後執行
     if (user) {
@@ -55,19 +61,22 @@ function AppWithSync() {
 
   useEffect(() => {
     if (user) {
-      console.log(`使用者已登入 (${user.uid})，開始同步...`)
+      logger.debug('使用者已登入 (${user.uid})，開始同步...')
       
       // 使用新的認證監聽器處理登入
       authListener.handleUserLogin(user).catch((err: any) => {
-        console.error('處理用戶登入錯誤:', err)
+        logger.error('處理用戶登入錯誤:', err)
         setError('登入處理失敗')
       })
     } else if (userType === 'guest') {
-      console.log('訪客模式，使用本地數據...')
+      logger.debug('訪客模式，使用本地數據...')
       // 訪客模式需要載入本地項目
-      authListener.handleUserLogout()
+      authListener.handleGuestMode().catch((err: any) => {
+        logger.error('處理訪客模式錯誤:', err)
+        setError('載入本地數據失敗')
+      })
     } else {
-      console.log('使用者已登出，清空數據...')
+      logger.debug('使用者已登出，清空數據...')
       authListener.handleUserLogout()
     }
   }, [user, userType, setError])
@@ -146,6 +155,9 @@ function AppWithSync() {
         
         {/* 匯出/匯入 */}
         <Route path="/project/:projectId/import-export" element={<ImportExportView />} />
+        
+        {/* 使用說明 */}
+        <Route path="/guide" element={<UserGuideView />} />
         
         {/* 404 頁面 */}
         <Route path="/404" element={<NotFoundView />} />

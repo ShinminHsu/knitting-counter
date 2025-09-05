@@ -92,7 +92,7 @@ export function migrateProjectToMultiChart(project: Project): ProjectMigrationRe
       const defaultChart: Chart = {
         id: generateId(),
         name: '主織圖',
-        description: '從舊版本遷移的織圖',
+        description: '織圖',
         rounds: project.pattern || [],
         currentRound: project.currentRound || 1,
         currentStitch: project.currentStitch || 0,

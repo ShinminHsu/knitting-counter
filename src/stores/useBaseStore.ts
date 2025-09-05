@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+import { logger } from '../utils/logger'
 // Base store interface for common state and actions
 export interface BaseStoreState {
   isLoading: boolean
@@ -60,7 +61,7 @@ export const useBaseStore = create<BaseStore>((set, get) => ({
 
 // Common error handling utilities
 export const handleAsyncError = (error: unknown, context: string) => {
-  console.error(`[${context}] Error:`, error)
+  logger.error('[${context}] Error:', error)
   const errorMessage = error instanceof Error ? error.message : '未知錯誤'
   useBaseStore.getState().setError(`${context}: ${errorMessage}`)
 }

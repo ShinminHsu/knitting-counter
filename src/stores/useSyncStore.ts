@@ -8,6 +8,7 @@ import { useBaseStore, handleAsyncError } from './useBaseStore'
 import { User } from 'firebase/auth'
 import { getSyncConfig } from '../config/syncConfig'
 
+import { logger } from '../utils/logger'
 interface SyncStoreState {
   isSyncing: boolean
   lastSyncTime: Date | null
@@ -61,11 +62,11 @@ export const useSyncStore = create<SyncStore>()(
         }
 
         const listener = networkStatus.addListener((isOnline) => {
-          console.log('[SYNC] Network status changed:', isOnline ? 'online' : 'offline')
+          logger.debug('Network status changed:', isOnline ? 'online' : 'offline')
           
           if (isOnline) {
             // Network restored, attempt to sync pending data
-            console.log('[SYNC] Network restored, attempting to sync pending data...')
+            logger.debug('Network restored, attempting to sync pending data...')
             // This will be handled by individual stores when they detect network restoration
           }
         })
@@ -108,7 +109,7 @@ export const useSyncStore = create<SyncStore>()(
       syncWithFirestore: async () => {
         const { user } = useAuthStore.getState()
         if (!user) {
-          console.log('[SYNC] No user found for sync')
+          logger.debug('No user found for sync')
           return []
         }
         
@@ -122,7 +123,7 @@ export const useSyncStore = create<SyncStore>()(
             isSyncing: false
           })
           
-          console.log('[SYNC] Successfully synced', firestoreProjects.length, 'projects from Firestore')
+          logger.debug('Successfully synced', firestoreProjects.length, 'projects from Firestore')
           return firestoreProjects
         } catch (error) {
           set({ isSyncing: false })
@@ -139,7 +140,7 @@ export const useSyncStore = create<SyncStore>()(
           const currentState = get()
           const baseStore = useBaseStore.getState()
           
-          console.log('[FIRESTORE-SUBSCRIPTION] Received update from Firestore:', {
+          logger.debug('Received update from Firestore:', {
             receivedProjectsCount: projects.length,
             timestamp: new Date().toISOString()
           })
@@ -159,13 +160,13 @@ export const useSyncStore = create<SyncStore>()(
                            timeSinceLastLocalUpdate > config.subscription.localUpdateCooldown
           
           if (canUpdate) {
-            console.log('[FIRESTORE-SUBSCRIPTION] Updating local data from Firestore')
+            logger.debug('Updating local data from Firestore')
             set({ lastSyncTime: new Date() })
             
             // The actual project update will be handled by the project store
             // This store just manages the sync timing and validation
           } else {
-            console.log('[FIRESTORE-SUBSCRIPTION] Skipping update', {
+            logger.debug('Skipping update', {
               canUpdate,
               isSyncing: currentState.isSyncing,
               isLocallyUpdating: baseStore.isLocallyUpdating,
@@ -183,14 +184,14 @@ export const useSyncStore = create<SyncStore>()(
       syncProjectToFirestore: async (project: Project, context?: string): Promise<boolean> => {
         const { user } = useAuthStore.getState()
         if (!user) {
-          console.log('[SYNC] No user found for project sync')
+          logger.debug('No user found for project sync')
           return false
         }
 
         try {
           await firestoreService.upsertProject(user.uid, project, context)
           set({ lastSyncTime: new Date() })
-          console.log('[SYNC] Project synced successfully to Firestore:', project.id, context ? `(context: ${context})` : '')
+          logger.debug('Project synced successfully to Firestore:', project.id, context ? `(context: ${context})` : '')
           return true
         } catch (error) {
           handleAsyncError(error, 'Sync Project to Firestore')
@@ -213,17 +214,17 @@ export const useSyncStore = create<SyncStore>()(
           // Check if user can use Firebase (whitelist check)
           const { canUseFirebase } = useAuthStore.getState()
           if (!canUseFirebase()) {
-            console.log('[SYNC] User not in whitelist, skipping Firebase sync')
+            logger.debug('User not in whitelist, skipping Firebase sync')
             return true // Return true to indicate "successful" local-only operation
           }
           
           // Check network status
           if (!networkStatus.getIsOnline()) {
-            console.log('[SYNC] Device is offline, waiting for connection...')
+            logger.debug('Device is offline, waiting for connection...')
             const isConnected = await networkStatus.waitForConnection(5000)
             
             if (!isConnected) {
-              console.log('[SYNC] Still offline after waiting')
+              logger.debug('Still offline after waiting')
               if (retryCount < maxRetries) {
                 retryCount++
                 const delay = Math.pow(2, retryCount - 1) * 1000
@@ -249,23 +250,23 @@ export const useSyncStore = create<SyncStore>()(
               // Desktop connection test
               const connectionOk = await firestoreService.testConnection()
               if (!connectionOk && retryCount === 0) {
-                console.log('[SYNC] Firestore connection test failed, attempting to restart connection...')
+                logger.debug('Firestore connection test failed, attempting to restart connection...')
                 await firestoreService.enableOfflineSupport()
                 await new Promise(resolve => setTimeout(resolve, 1000))
                 await firestoreService.disableOfflineSupport()
                 await new Promise(resolve => setTimeout(resolve, 1000))
               }
             } else {
-              console.log('[SYNC] Mobile device detected, skipping connection test')
+              logger.debug('Mobile device detected, skipping connection test')
             }
             
             await firestoreService.upsertProject(user.uid, project, context)
             set({ lastSyncTime: new Date() })
-            console.log('[SYNC] Project synced successfully with retry mechanism:', project.id, context ? `(context: ${context})` : '')
+            logger.debug('Project synced successfully with retry mechanism:', project.id, context ? `(context: ${context})` : '')
             return true
             
           } catch (error) {
-            console.error(`[SYNC] Error syncing project (attempt ${retryCount + 1}):`, error)
+            logger.error('[SYNC] Error syncing project (attempt ${retryCount + 1}):', error)
             
             // Check if it's a network error
             const isNetworkError = error instanceof Error && (
@@ -289,7 +290,7 @@ export const useSyncStore = create<SyncStore>()(
               const baseDelay = isMobile ? 1500 : (isNetworkError ? 2000 : 1000)
               const delay = Math.pow(2, retryCount - 1) * baseDelay
               
-              console.log(`[SYNC] Retrying sync in ${delay}ms... (Mobile: ${isMobile}, Network error: ${isNetworkError})`)
+              logger.debug('[SYNC] Retrying sync in ${delay}ms... (Mobile: ${isMobile}, Network error: ${isNetworkError})')
               
               if (onRetry) {
                 onRetry(retryCount, maxRetries)
@@ -298,7 +299,7 @@ export const useSyncStore = create<SyncStore>()(
               setTimeout(() => attemptSync(), delay)
               return false
             } else {
-              console.error('[SYNC] Max retries reached, sync failed for project:', project.id)
+              logger.error('Max retries reached, sync failed for project:', project.id)
               
               const errorMessage = isMobile
                 ? '手機網路同步失敗，資料已保存在本地'
