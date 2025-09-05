@@ -162,13 +162,30 @@ export function usePatternOperations() {
       if (currentChart) {
         const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
         if (targetRound) {
+          // Import PatternItemType for compatibility
+          const { PatternItemType } = await import('../types')
+          
           const updatedRound = {
             ...targetRound,
+            // 更新舊格式的 stitchGroups 陣列
             stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) =>
               g.id === groupId
                 ? { ...g, stitches: [...g.stitches, newStitch] }
                 : g
-            )
+            ),
+            // 更新新格式的 patternItems 陣列中的群組針法
+            patternItems: targetRound.patternItems?.map((item: any) => {
+              if (item.type === PatternItemType.GROUP && item.data.id === groupId) {
+                return {
+                  ...item,
+                  data: {
+                    ...item.data,
+                    stitches: [...item.data.stitches, newStitch]
+                  }
+                }
+              }
+              return item
+            }) || []
           }
           const updatedChart = {
             ...currentChart,
