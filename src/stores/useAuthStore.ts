@@ -5,7 +5,6 @@ import { auth, googleProvider } from '../config/firebase'
 import { AuthState, UserType, SyncMode, UnifiedUser } from '../types/auth'
 import { canUseFirebaseSync, getUserSyncModeFromFirestore } from '../services/whitelistService'
 import { generateId } from '../utils'
-import { analyticsService } from '../services/analyticsService'
 import { logger } from '../utils/logger'
 
 interface AuthStore extends AuthState {
@@ -103,11 +102,6 @@ export const useAuthStore = create<AuthStore>()(
             logger.debug(`User ${result.user.email} authenticated with Firebase sync enabled`)
           }
           
-          // 記錄認證統計
-          analyticsService.recordUsageEvent('auth_action', 'google_signin', {
-            userEmail: result.user.email,
-            canUseFirebase: canSync
-          })
           
         } catch (error: unknown) {
           logger.error('Google 登入失敗:', error)
@@ -132,8 +126,6 @@ export const useAuthStore = create<AuthStore>()(
           error: null
         })
         
-        // 記錄訪客模式統計
-        analyticsService.recordUsageEvent('auth_action', 'guest_mode_enter')
       },
 
       // 登出
@@ -157,8 +149,6 @@ export const useAuthStore = create<AuthStore>()(
           
           logger.debug('User signed out, back to login selection')
           
-          // 記錄登出統計
-          analyticsService.recordUsageEvent('auth_action', 'signout')
         } catch (error: unknown) {
           logger.error('登出失敗:', error)
           const errorMessage = error instanceof Error ? error.message : '登出失敗'

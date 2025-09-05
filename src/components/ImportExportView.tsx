@@ -1,10 +1,9 @@
 import { useParams, Link } from 'react-router-dom'
 import { BsHouse } from 'react-icons/bs'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useProjectStore } from '../stores/useProjectStore'
 import { ImportExportService } from '../services/importExportService'
 import { ExportType } from '../types'
-import { analyticsService } from '../services/analyticsService'
 import SyncStatusIndicator from './SyncStatusIndicator'
 
 import { logger } from '../utils/logger'
@@ -18,15 +17,6 @@ export default function ImportExportView() {
   const [isExporting, setIsExporting] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning', text: string } | null>(null)
 
-  useEffect(() => {
-    if (currentProject) {
-      // 記錄匯入匯出功能使用統計
-      analyticsService.recordUsageEvent('export_data', 'enter_import_export', {
-        projectId: currentProject.id,
-        projectName: currentProject.name
-      })
-    }
-  }, [currentProject])
 
   const showMessage = (type: 'success' | 'error' | 'warning', text: string) => {
     setMessage({ type, text })

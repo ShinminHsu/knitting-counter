@@ -8,7 +8,6 @@ import { firestoreService } from '../services/firestoreService'
 import { useSyncStore } from './useSyncStore'
 import { useBaseStore, handleAsyncError } from './useBaseStore'
 import { guestDataBackup } from '../services/guestDataBackup'
-import { analyticsService } from '../services/analyticsService'
 
 import { logger } from '../utils/logger'
 interface ProjectStoreState {
@@ -118,12 +117,6 @@ export const useProjectStore = create<ProjectStore>()(
         // 自動備份訪客數據
         backupGuestDataIfNeeded(newState.projects, newState.currentProject)
         
-        // 記錄統計數據
-        analyticsService.recordProjectAction('create', newProject.id, newProject.name, {
-          roundsCount: newProject.pattern?.length || 0,
-          stitchesCount: newProject.pattern?.reduce((sum, round) => sum + (round.stitches?.length || 0), 0) || 0,
-          chartsCount: newProject.charts?.length || 0
-        })
         
         // Sync to Firestore (only if user can use Firebase)
         const { canUseFirebase } = useAuthStore.getState()
@@ -163,13 +156,6 @@ export const useProjectStore = create<ProjectStore>()(
         // 自動備份訪客數據
         backupGuestDataIfNeeded(newState.projects, newState.currentProject)
         
-        // 記錄統計數據
-        analyticsService.recordProjectAction('update', updatedProjectWithTimestamp.id, updatedProjectWithTimestamp.name, {
-          roundsCount: updatedProjectWithTimestamp.pattern?.length || 0,
-          stitchesCount: updatedProjectWithTimestamp.pattern?.reduce((sum, round) => sum + (round.stitches?.length || 0), 0) || 0,
-          chartsCount: updatedProjectWithTimestamp.charts?.length || 0,
-          isCompleted: updatedProjectWithTimestamp.isCompleted
-        })
         
         // Sync to Firestore (only if user can use Firebase)
         const { canUseFirebase } = useAuthStore.getState()
@@ -262,11 +248,6 @@ export const useProjectStore = create<ProjectStore>()(
         // 自動備份訪客數據
         backupGuestDataIfNeeded(newState.projects, newState.currentProject)
         
-        // 記錄統計數據
-        const deletedProject = get().projects.find(p => p.id === id)
-        if (deletedProject) {
-          analyticsService.recordProjectAction('delete', id, deletedProject.name)
-        }
         
         // Sync to Firestore (only if user can use Firebase)
         const { canUseFirebase } = useAuthStore.getState()
@@ -288,8 +269,6 @@ export const useProjectStore = create<ProjectStore>()(
         const project = get().projects.find(p => p.id === id)
         if (project) {
           set({ currentProject: project })
-          // 記錄專案查看統計
-          analyticsService.recordProjectAction('view', project.id, project.name)
         }
       },
 
