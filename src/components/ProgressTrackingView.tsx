@@ -278,6 +278,27 @@ export default function ProgressTrackingView() {
     })
   }, [currentProject, currentChart, updateChartProgress])
 
+  // Handle restart current round
+  const handleRestartCurrentRound = useCallback(async () => {
+    if (!currentProject || !currentChart) {
+      return
+    }
+    
+    // Reset current stitch to 0 for the current round
+    await updateChartProgress(currentChart.id, {
+      currentRound: currentChart.currentRound,
+      currentStitch: 0,
+      isCompleted: false
+    })
+    
+    // Track restart round event
+    googleAnalytics.trackProgressEvent('restart_round', {
+      project_id: currentProject.id,
+      chart_id: currentChart.id,
+      round_number: currentChart.currentRound
+    })
+  }, [currentProject, currentChart, updateChartProgress])
+
   // Handle share success
   const handleShareSuccess = useCallback(() => {
     if (!currentProject) return
@@ -401,6 +422,7 @@ export default function ProgressTrackingView() {
               onNextStitch={handleNextStitch}
               onPreviousStitch={handlePreviousStitch}
               onCompleteRound={handleCompleteRound}
+              onRestartCurrentRound={handleRestartCurrentRound}
               onExitViewMode={handleExitViewMode}
               onResetProject={handleResetProject}
               onShareSuccess={handleShareSuccess}

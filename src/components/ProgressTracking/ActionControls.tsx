@@ -12,6 +12,7 @@ interface ActionControlsProps {
   onNextStitch: () => void
   onPreviousStitch: () => void
   onCompleteRound: () => void
+  onRestartCurrentRound: () => void
   onExitViewMode: () => void
   onResetProject: () => void
   onShareSuccess: () => void
@@ -31,6 +32,7 @@ export const ActionControls = memo<ActionControlsProps>(({
   onNextStitch,
   onPreviousStitch,
   onCompleteRound,
+  onRestartCurrentRound,
   onExitViewMode,
   onResetProject,
   onShareSuccess
@@ -51,6 +53,7 @@ export const ActionControls = memo<ActionControlsProps>(({
       onNextStitch={onNextStitch}
       onPreviousStitch={onPreviousStitch}
       onCompleteRound={onCompleteRound}
+      onRestartCurrentRound={onRestartCurrentRound}
       onExitViewMode={onExitViewMode}
       onResetProject={onResetProject}
       onShareSuccess={onShareSuccess}
