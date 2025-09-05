@@ -41,8 +41,7 @@ export default function PatternEditorContainer() {
   
   const {
     updateChart,
-    getChartSummaries,
-    setCurrentChart
+    getChartSummaries
   } = useChartStore()
   
   const {
@@ -122,6 +121,26 @@ export default function PatternEditorContainer() {
       setChartPattern(targetChart.rounds || [])
     }
   }, [currentProject, searchParams])
+
+  // Listen for manual URL parameter changes (e.g., from chart selector)
+  useEffect(() => {
+    const handlePopState = () => {
+      // Force re-read of search params when popstate event is fired
+      const newSearchParams = new URLSearchParams(window.location.search)
+      const chartId = newSearchParams.get('chartId')
+      
+      if (currentProject && chartId) {
+        const targetChart = currentProject.charts?.find(c => c.id === chartId)
+        if (targetChart && targetChart.id !== currentChart?.id) {
+          setCurrentChartLocal(targetChart)
+          setChartPattern(targetChart.rounds || [])
+        }
+      }
+    }
+    
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [currentProject, currentChart?.id])
 
   // 關鍵修復：強制監聽 currentProject 的所有變化，確保狀態同步
   useEffect(() => {
@@ -717,11 +736,14 @@ export default function PatternEditorContainer() {
             chartSummaries={chartSummaries}
             hasMultipleCharts={hasMultipleCharts}
             onChartChange={async (chartId: string) => {
-              await setCurrentChart(chartId)
-              // Update URL to reflect chart selection
+              // For PatternEditor, just update the URL without changing global current chart
+              // This allows local chart selection without affecting the project's default chart
               const searchParams = new URLSearchParams(window.location.search)
               searchParams.set('chartId', chartId)
               window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`)
+              
+              // Trigger useEffect to re-evaluate currentChart based on new URL params
+              window.dispatchEvent(new PopStateEvent('popstate'))
             }}
             isViewMode={false}
             displayRoundNumber={currentChart?.currentRound || 1}
