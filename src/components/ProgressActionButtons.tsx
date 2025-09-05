@@ -12,6 +12,7 @@ interface ProgressActionButtonsProps {
   onNextStitch: () => void
   onPreviousStitch: () => void
   onCompleteRound: () => void
+  onRestartCurrentRound: () => void
   onExitViewMode: () => void
   onResetProject: () => void
   onShareSuccess: () => void
@@ -32,6 +33,7 @@ export const ProgressActionButtons = memo<ProgressActionButtonsProps>(({
   onNextStitch,
   onPreviousStitch,
   onCompleteRound,
+  onRestartCurrentRound,
   onExitViewMode,
   onResetProject,
   onShareSuccess
@@ -123,15 +125,25 @@ export const ProgressActionButtons = memo<ProgressActionButtonsProps>(({
         </button>
       </div>
 
-      {/* Complete Round Button */}
-      {canCompleteRound() && (
+      <div className="flex gap-3">
+
         <button
-          onClick={onCompleteRound}
-          className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-        >
-          完成第 {displayRoundNumber} 圈
-        </button>
-      )}
+            onClick={onRestartCurrentRound}
+            className="flex-1 btn btn-secondary text-sm sm:text-lg py-3 px-4 rounded-lg transition-colors"
+          >
+            重新開始此圈
+          </button>
+
+        {/* Round Action Buttons */}
+        {canCompleteRound() && (
+          <button
+            onClick={onCompleteRound}
+            className="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-sm sm:text-lg py-3 px-4 rounded-lg transition-colors"
+          >
+            完成第 {displayRoundNumber} 圈
+          </button>)}
+        </div>
+      
     </div>
   )
 })
