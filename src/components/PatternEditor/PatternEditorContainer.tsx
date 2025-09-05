@@ -27,6 +27,7 @@ import CopyRoundModal from '../CopyRoundModal'
 import EditChartModal from '../ProjectDetail/modals/EditChartModal'
 
 import { logger } from '../../utils/logger'
+import { googleAnalytics } from '../../services/googleAnalytics'
 export default function PatternEditorContainer() {
   const { projectId } = useParams()
   const [searchParams] = useSearchParams()
@@ -66,6 +67,14 @@ export default function PatternEditorContainer() {
       if (project) {
         setCurrentProjectById(projectId)
         
+        // Track page view
+        googleAnalytics.trackPageView(`/project/${projectId}/pattern`, 'Pattern Editor')
+        
+        // Track pattern editing start
+        googleAnalytics.trackPatternEvent('start', {
+          project_id: projectId,
+          project_name: project.name
+        })
         
         // 舊格式專案的自動遷移已在 store 層處理
       } else {

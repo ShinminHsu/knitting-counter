@@ -19,6 +19,7 @@ import { GuestDataRecovery } from './components/GuestDataRecovery'
 import LoadingPage from './components/LoadingPage'
 
 import { logger } from './utils/logger'
+import { googleAnalytics } from './services/googleAnalytics'
 function AppWithSync() {
   const {
     setError,
@@ -36,6 +37,9 @@ function AppWithSync() {
 
   useEffect(() => {
     const unsubscribe = initialize()
+    
+    // 初始化 Google Analytics
+    googleAnalytics.initialize()
     
     // 設置認證狀態監聽器
     const authUnsubscribe = authListener.setupAuthStateListener()

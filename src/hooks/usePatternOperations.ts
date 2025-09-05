@@ -5,6 +5,7 @@ import { useChartStore } from '../stores/useChartStore'
 import { usePatternStore } from '../stores/usePatternStore'
 
 import { logger } from '../utils/logger'
+import { googleAnalytics } from '../services/googleAnalytics'
 export function usePatternOperations() {
   const { currentProject } = useProjectStore()
   const { updateChart } = useChartStore()
@@ -40,8 +41,21 @@ export function usePatternOperations() {
           lastModified: new Date()
         }
         await updateChart(updatedChart.id, updatedChart)
+        
+        // Track round addition
+        googleAnalytics.trackPatternEvent('add_round', {
+          project_id: currentProject?.id,
+          chart_id: currentChart.id,
+          round_number: nextRoundNumber
+        })
       } else {
         await addRound(newRound)
+        
+        // Track round addition  
+        googleAnalytics.trackPatternEvent('add_round', {
+          project_id: currentProject?.id,
+          round_number: nextRoundNumber
+        })
       }
     } catch (error) {
       logger.error('Error adding round:', error)
@@ -69,8 +83,21 @@ export function usePatternOperations() {
           lastModified: new Date()
         }
         await updateChart(updatedChart.id, updatedChart)
+        
+        // Track round deletion
+        googleAnalytics.trackPatternEvent('delete_round', {
+          project_id: currentProject?.id,
+          chart_id: currentChart.id,
+          round_number: roundNumber
+        })
       } else {
         await deleteRound(roundNumber)
+        
+        // Track round deletion
+        googleAnalytics.trackPatternEvent('delete_round', {
+          project_id: currentProject?.id,
+          round_number: roundNumber
+        })
       }
     }
   }
@@ -117,9 +144,26 @@ export function usePatternOperations() {
             ),
             lastModified: new Date()
           })
+          
+          // Track stitch addition
+          googleAnalytics.trackPatternEvent('add_stitch', {
+            project_id: currentProject?.id,
+            chart_id: currentChart.id,
+            round_number: roundNumber,
+            stitch_type: stitchType,
+            stitch_count: count
+          })
         }
       } else {
         await addStitch(roundNumber, newStitch)
+        
+        // Track stitch addition
+        googleAnalytics.trackPatternEvent('add_stitch', {
+          project_id: currentProject?.id,
+          round_number: roundNumber,
+          stitch_type: stitchType,
+          stitch_count: count
+        })
       }
     } catch (error) {
       logger.error('Error adding stitch:', error)

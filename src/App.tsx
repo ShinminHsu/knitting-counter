@@ -16,6 +16,7 @@ import { GuestModeLogin } from './components/GuestModeLogin'
 import WelcomeLoadingView from './components/WelcomeLoadingView'
 
 import { logger } from './utils/logger'
+import { googleAnalytics } from './services/googleAnalytics'
 function App() {
   const { loadUserProjects, clearUserDataSilently, projects } = useProjectStore()
   const { setError, error, isLoading: appIsLoading } = useBaseStore()
@@ -25,6 +26,9 @@ function App() {
   useEffect(() => {
     const unsubscribe = initialize()
     
+    // 初始化 Google Analytics
+    googleAnalytics.initialize()
+    
     // 清理舊的共享數據
     cleanupLegacyData()
     
@@ -32,8 +36,6 @@ function App() {
     if (import.meta.env.DEV) {
       debugStorageInfo()
     }
-    
-    
     
     return () => {
       unsubscribe()

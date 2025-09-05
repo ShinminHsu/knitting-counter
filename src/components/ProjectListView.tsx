@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useProjectStore } from '../stores/useProjectStore'
 import UserProfile from './UserProfile'
@@ -10,6 +10,8 @@ import { ImportMode } from '../types'
 import knittingIcon from '../assets/images/kniitingIcon.png'
 
 import { logger } from '../utils/logger'
+import { googleAnalytics } from '../services/googleAnalytics'
+import { ANALYTICS_EVENTS } from '../config/analytics'
 export default function ProjectListView() {
   const { projects, createProject, deleteProject, setProjects, setCurrentProject, updateProjectLocally } = useProjectStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -28,6 +30,27 @@ export default function ProjectListView() {
   logger.debug('ProjectListView 渲染，專案數量:', projects.length)
 
   const { getChartSummaries } = useChartStore()
+
+  // Track page view
+  useEffect(() => {
+    googleAnalytics.trackPageView('/', 'Project List')
+  }, [])
+  
+  // Track project creation by watching projects length
+  const previousProjectCount = useRef(projects.length)
+  useEffect(() => {
+    if (projects.length > previousProjectCount.current) {
+      // A new project was added
+      const latestProject = projects[projects.length - 1]
+      if (latestProject) {
+        googleAnalytics.trackProjectEvent('create', {
+          project_id: latestProject.id,
+          project_name: latestProject.name
+        })
+      }
+    }
+    previousProjectCount.current = projects.length
+  }, [projects])
 
   const showMessage = (type: 'success' | 'error' | 'warning', text: string) => {
     setMessage({ type, text })
@@ -73,16 +96,35 @@ export default function ProjectListView() {
         // 使用本地更新方法來處理同步
         await updateProjectLocally(projectToCreate)
         
+        // Track import success
+        googleAnalytics.trackImportExportEvent('import', {
+          project_id: projectToCreate.id,
+          project_name: projectToCreate.name,
+          success: true
+        })
+        
         let successMessage = '專案匯入成功'
         if (result.warnings.length > 0) {
           successMessage += `，${result.warnings.join('，')}`
         }
         showMessage('success', successMessage)
       } else {
+        // Track import failure
+        googleAnalytics.trackImportExportEvent('import', {
+          success: false,
+          error: result.errors.join('，')
+        })
         showMessage('error', `匯入失敗：${result.errors.join('，')}`)
       }
     } catch (error) {
       logger.error('Import error:', error)
+      
+      // Track import error
+      googleAnalytics.trackImportExportEvent('import', {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+      
       showMessage('error', '匯入失敗，請檢查檔案格式')
     } finally {
       setIsImporting(false)
@@ -118,11 +160,12 @@ export default function ProjectListView() {
     fileInputRef.current?.click()
   }
 
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newProjectName.trim()) return
 
-    createProject(newProjectName.trim(), newProjectSource.trim() || undefined)
+    await createProject(newProjectName.trim(), newProjectSource.trim() || undefined)
+    
     setNewProjectName('')
     setNewProjectSource('')
     setShowCreateForm(false)
@@ -131,6 +174,12 @@ export default function ProjectListView() {
   const handleDeleteProject = (projectId: string, projectName: string) => {
     if (confirm(`確定要刪除專案「${projectName}」嗎？此操作無法復原。`)) {
       deleteProject(projectId)
+      
+      // Track project deletion
+      googleAnalytics.trackProjectEvent('delete', {
+        project_id: projectId,
+        project_name: projectName
+      })
     }
   }
 
@@ -257,12 +306,30 @@ export default function ProjectListView() {
                   <Link
                     to={`/project/${project.id}/progress`}
                     className="btn btn-primary flex-1"
+                    onClick={() => {
+                      googleAnalytics.trackProjectEvent('view', {
+                        project_id: project.id,
+                        project_name: project.name
+                      })
+                      googleAnalytics.trackEvent(ANALYTICS_EVENTS.NAVIGATE_TO_PROGRESS, {
+                        project_id: project.id
+                      })
+                    }}
                   >
                     開始編織
                   </Link>
                   <Link
                     to={`/project/${project.id}`}
                     className="btn btn-secondary"
+                    onClick={() => {
+                      googleAnalytics.trackProjectEvent('view', {
+                        project_id: project.id,
+                        project_name: project.name
+                      })
+                      googleAnalytics.trackEvent(ANALYTICS_EVENTS.NAVIGATE_TO_DETAILS, {
+                        project_id: project.id
+                      })
+                    }}
                   >
                     詳情
                   </Link>
