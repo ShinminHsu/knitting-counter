@@ -292,7 +292,7 @@ export default function ProgressTrackingView() {
     })
     
     // Track restart round event
-    googleAnalytics.trackProgressEvent('restart_round', {
+    googleAnalytics.trackProgressEvent('reset', {
       project_id: currentProject.id,
       chart_id: currentChart.id,
       round_number: currentChart.currentRound
