@@ -28,10 +28,10 @@ export default function UserGuideView() {
             <section className="card">
               <h2 className="text-xl font-semibold text-text-primary mb-4">快速開始</h2>
               <div className="space-y-3 text-text-secondary leading-relaxed">
-                <p>歡迎使用 Stitchie！這是一個專為編織愛好者設計的工具，幫助您追蹤編織進度、管理織圖和記錄編織專案。</p>
+                <p>歡迎來到 Stitchie！這是一個提供給編織愛好者的小工具，讓你輕鬆記錄每一針每一圈，管理你的織圖，還能追蹤專案進度。</p>
                 <div className="bg-background-secondary p-4 rounded-lg">
-                  <h3 className="font-medium text-text-primary mb-2">第一次使用？</h3>
-                  <p>我們為您準備了一個範例杯墊專案，您可以先探索各項功能，熟悉介面操作。</p>
+                  <h3 className="font-medium text-text-primary mb-2">第一次來玩？</h3>
+                  <p>別擔心，我們準備了一個範例杯墊專案，跟著它操作就能快速熟悉功能，慢慢發現這個小工具的樂趣！</p>
                 </div>
               </div>
             </section>
@@ -141,7 +141,7 @@ export default function UserGuideView() {
                     <div className="bg-background-secondary p-4 rounded-lg">
                       <h4 className="font-medium text-text-primary mb-2">登入模式</h4>
                       <ul className="list-disc list-inside space-y-1 text-text-secondary text-sm">
-                        <li>目前僅開放給特定用戶</li>
+                        <li>目前仍在開發中，僅開放給特定用戶</li>
                         <li>支援跨裝置資料同步</li>
                         <li>資料安全存放在雲端</li>
                         <li>可在多個裝置間使用</li>
@@ -188,7 +188,7 @@ export default function UserGuideView() {
                 </div>
                 <div>
                   <h3 className="font-medium text-text-primary mb-2">Q: 如何申請雲端同步功能？</h3>
-                  <p className="text-text-secondary ml-4">目前雲端同步功能處於測試階段，僅開放給特定用戶。如需申請，請聯繫開發團隊。</p>
+                  <p className="text-text-secondary ml-4">目前雲端同步功能處於測試階段，僅開放給特定用戶。</p>
                 </div>
               </div>
             </section>

@@ -80,7 +80,7 @@ export default function GoogleSignIn() {
       <ConfirmDialog
         isOpen={showConfirmDialog}
         title="確認登入"
-        message="注意：如果您不是特定用戶，您的資料將不會同步到雲端，與訪客模式相同。確定要使用Google帳號登入嗎？"
+        message="注意：目前此功能尚在開發中，即便登入後，您的資料也不會同步到雲端，與訪客模式相同。確定要使用Google帳號登入嗎？"
         onConfirm={handleConfirmSignIn}
         onCancel={handleCancelSignIn}
         confirmText="確定登入"

@@ -127,7 +127,7 @@ export const GuestModeLogin: React.FC = () => {
                 </h3>
                 <div className="mt-2 text-sm text-text-secondary">
                   <p className="mb-2">
-                    目前雲端同步功能<b>只開放給特定用戶使用</b>。<br />
+                    目前雲端同步功能處於測試階段，<b>只開放給特定用戶使用</b>。<br />
                     即便登入，您的帳號仍會使用本地模式，數據不會同步到雲端。
                   </p>
                 </div>
@@ -141,7 +141,7 @@ export const GuestModeLogin: React.FC = () => {
       <ConfirmDialog
         isOpen={showConfirmDialog}
         title="確認登入"
-        message="注意：如果您不是特定用戶，您的資料將不會同步到雲端，與訪客模式相同。確定要使用Google帳號登入嗎？"
+        message="注意：目前此功能尚在開發中，即便登入後，您的資料也不會同步到雲端，與訪客模式相同。確定要使用Google帳號登入嗎？"
         onConfirm={handleConfirmSignIn}
         onCancel={handleCancelSignIn}
         confirmText="確定登入"
