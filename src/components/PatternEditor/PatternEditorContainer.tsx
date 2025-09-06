@@ -582,6 +582,7 @@ export default function PatternEditorContainer() {
         if (targetRound) {
           const updatedRound = {
             ...targetRound,
+            // 更新舊格式的 stitchGroups 陣列
             stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) => {
               if (g.id === groupId) {
                 const newStitches = [...g.stitches]
@@ -590,7 +591,23 @@ export default function PatternEditorContainer() {
                 return { ...g, stitches: newStitches }
               }
               return g
-            })
+            }),
+            // 更新新格式的 patternItems 陣列中的群組針法
+            patternItems: targetRound.patternItems?.map((item: any) => {
+              if (item.type === PatternItemType.GROUP && item.data.id === groupId) {
+                const newStitches = [...item.data.stitches]
+                const [movedStitch] = newStitches.splice(stitchIndex, 1)
+                newStitches.splice(stitchIndex - 1, 0, movedStitch)
+                return {
+                  ...item,
+                  data: {
+                    ...item.data,
+                    stitches: newStitches
+                  }
+                }
+              }
+              return item
+            }) || []
           }
           
           await updateChart(currentChart.id, {
@@ -618,6 +635,7 @@ export default function PatternEditorContainer() {
           
           const updatedRound = {
             ...targetRound,
+            // 更新舊格式的 stitchGroups 陣列
             stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) => {
               if (g.id === groupId) {
                 const newStitches = [...g.stitches]
@@ -626,7 +644,23 @@ export default function PatternEditorContainer() {
                 return { ...g, stitches: newStitches }
               }
               return g
-            })
+            }),
+            // 更新新格式的 patternItems 陣列中的群組針法
+            patternItems: targetRound.patternItems?.map((item: any) => {
+              if (item.type === PatternItemType.GROUP && item.data.id === groupId) {
+                const newStitches = [...item.data.stitches]
+                const [movedStitch] = newStitches.splice(stitchIndex, 1)
+                newStitches.splice(stitchIndex + 1, 0, movedStitch)
+                return {
+                  ...item,
+                  data: {
+                    ...item.data,
+                    stitches: newStitches
+                  }
+                }
+              }
+              return item
+            }) || []
           }
           
           await updateChart(currentChart.id, {
