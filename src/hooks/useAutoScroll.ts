@@ -28,7 +28,6 @@ export function useAutoScroll({
   
   // Use refs to store previous values to avoid unnecessary re-renders
   const previousStitchRef = useRef<number>(-1)
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>()
   
   // Memoized scroll calculation function
   const calculateScrollPosition = useCallback((
@@ -36,78 +35,54 @@ export function useAutoScroll({
     totalStitches: number,
     container: HTMLElement
   ) => {
-    const stitchesPerRow = 12 // Desktop shows 12 stitches per row
-    const maxVisibleRows = 4 // Maximum 4 rows visible at once
+    const gridContainer = container.querySelector('.grid')
+    if (!gridContainer) return 0
     
-    if (totalStitches === 0) return 0
+    const stitchElements = gridContainer.children
+    if (stitchElements.length === 0) return 0
     
-    // Calculate current row (1-based)
-    const currentRow = Math.ceil((currentStitch + 1) / stitchesPerRow)
+    // Get computed style to determine current grid columns
+    const computedStyle = window.getComputedStyle(gridContainer)
+    const gridTemplateColumns = computedStyle.gridTemplateColumns
+    const stitchesPerRow = gridTemplateColumns.split(' ').length
+    
+    if (totalStitches === 0 || stitchesPerRow === 0) return 0
+    
+    // Calculate current row (0-based index)
+    const currentRowIndex = Math.floor(currentStitch / stitchesPerRow)
+    
+    // Calculate row height from first stitch element
+    const firstStitch = stitchElements[0] as HTMLElement
+    const computedStyles = window.getComputedStyle(firstStitch)
+    const rowHeight = firstStitch.offsetHeight + parseFloat(computedStyles.marginBottom || '0') + 8
+    
+    // Get container height to determine visible rows
+    const containerHeight = container.clientHeight
+    const visibleRows = Math.floor(containerHeight / rowHeight)
     
     // Calculate total rows
     const totalRows = Math.ceil(totalStitches / stitchesPerRow)
     
-    // If total rows <= max visible rows, no scrolling needed
-    if (totalRows <= maxVisibleRows) return 0
+    // If all rows fit in container, no scrolling needed
+    if (totalRows <= visibleRows) return 0
     
-    // Calculate target start row
-    let startRow = 1
+    // Keep current row in the middle of visible area if possible
+    const targetMiddleRow = Math.floor(visibleRows / 2)
+    let targetTopRow = currentRowIndex - targetMiddleRow
     
-    // Start scrolling when user reaches 3rd row
-    if (currentRow >= 3) {
-      // Keep current row in 2nd position
-      startRow = currentRow - 1
-      
-      // Special handling when approaching the end
-      const isNearEnd = currentRow > totalRows - maxVisibleRows + 1
-      if (isNearEnd) {
-        // When near end, keep current row visible
-        startRow = Math.max(1, currentRow - 1)
-      } else {
-        // In middle section, use standard range limiting
-        startRow = Math.max(1, Math.min(startRow, totalRows - maxVisibleRows + 1))
-      }
-    }
+    // Ensure we don't scroll past the beginning or end
+    targetTopRow = Math.max(0, Math.min(targetTopRow, totalRows - visibleRows))
     
-    // Calculate stitch height dynamically
-    const stitchElements = container.querySelectorAll('.grid > div')
-    if (stitchElements.length === 0) return 0
-    
-    const firstStitch = stitchElements[0] as HTMLElement
-    const stitchHeight = firstStitch.offsetHeight + 8 // Include gap
-    
-    // Calculate scroll position
-    return (startRow - 1) * stitchHeight
+    return targetTopRow * rowHeight
   }, [])
   
-  // Optimized scroll function with debouncing
+  // Simplified scroll function
   const performScroll = useCallback((targetScrollTop: number, container: HTMLElement) => {
-    // Clear any existing pending scroll
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current)
-    }
-    
-    // Use RAF for smooth animation
-    const startScrollTop = container.scrollTop
-    const distance = targetScrollTop - startScrollTop
-    const duration = 300 // ms
-    const startTime = performance.now()
-    
-    const animateScroll = (currentTime: number) => {
-      const elapsed = currentTime - startTime
-      const progress = Math.min(elapsed / duration, 1)
-      
-      // Easing function for smooth animation
-      const easeOutCubic = 1 - Math.pow(1 - progress, 3)
-      
-      container.scrollTop = startScrollTop + distance * easeOutCubic
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateScroll)
-      }
-    }
-    
-    requestAnimationFrame(animateScroll)
+    // Use smooth scrolling with behavior
+    container.scrollTo({
+      top: targetScrollTop,
+      behavior: 'smooth'
+    })
   }, [])
   
   // Main auto-scroll effect
@@ -125,31 +100,18 @@ export function useAutoScroll({
     }
     previousStitchRef.current = currentStitch
     
-    // Debounce the scroll calculation to avoid excessive calculations
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current)
-    }
-    
-    scrollTimeoutRef.current = setTimeout(() => {
-      if (!container) return
-      
+    // Calculate scroll position with a small delay to allow DOM updates
+    const timeoutId = setTimeout(() => {
       const totalStitches = getRoundTotalStitches(displayRound)
       const targetScrollTop = calculateScrollPosition(currentStitch, totalStitches, container)
       
-      // Only scroll if there's a meaningful difference
-      const currentScrollTop = container.scrollTop
-      const scrollThreshold = 10 // pixels
-      
-      if (Math.abs(targetScrollTop - currentScrollTop) > scrollThreshold) {
-        performScroll(targetScrollTop, container)
-      }
-    }, 100) // 100ms debounce
+      // Always scroll to calculated position (removed threshold check)
+      performScroll(targetScrollTop, container)
+    }, 50) // Reduced debounce time
     
     // Cleanup timeout on unmount or dependency change
     return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current)
-      }
+      clearTimeout(timeoutId)
     }
   }, [
     currentChart?.currentStitch,
@@ -162,14 +124,7 @@ export function useAutoScroll({
     patternContainerRef
   ])
   
-  // Cleanup effect
-  useEffect(() => {
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current)
-      }
-    }
-  }, [])
+  // No cleanup effect needed since we use local timeout variables
   
   return {}
 }
