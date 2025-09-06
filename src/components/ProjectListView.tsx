@@ -22,9 +22,6 @@ export default function ProjectListView() {
   
   // 匯入相關狀態
   const [isImporting, setIsImporting] = useState(false)
-  const [showNameInput, setShowNameInput] = useState(false)
-  const [importProjectName, setImportProjectName] = useState('')
-  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning', text: string } | null>(null)
   
   logger.debug('ProjectListView 渲染，專案數量:', projects.length)
@@ -66,9 +63,8 @@ export default function ProjectListView() {
       return
     }
 
-    // 彈出名稱輸入對話框
-    setPendingImportFile(file)
-    setShowNameInput(true)
+    // 直接執行匯入，使用檔案中的原始專案名稱
+    await executeImport(file)
     
     // 清除檔案選擇
     if (fileInputRef.current) {
@@ -76,17 +72,14 @@ export default function ProjectListView() {
     }
   }
 
-  const executeImport = async (file: File, customName: string) => {
+  const executeImport = async (file: File) => {
     try {
       setIsImporting(true)
       const result = await ImportExportService.importProjectFromFile(file, ImportMode.CREATE_NEW)
       
       if (result.success && result.project) {
-        // 使用自定義名稱
-        const projectToCreate = {
-          ...result.project,
-          name: customName.trim()
-        }
+        // 直接使用檔案中的原始專案名稱
+        const projectToCreate = result.project
         
         // 直接添加到本地專案列表
         const updatedProjects = [...projects, projectToCreate]
@@ -131,30 +124,6 @@ export default function ProjectListView() {
     }
   }
 
-  const handleNameInputConfirm = async () => {
-    if (!importProjectName.trim()) {
-      showMessage('error', '請輸入專案名稱')
-      return
-    }
-
-    if (!pendingImportFile) {
-      showMessage('error', '找不到要匯入的檔案')
-      return
-    }
-
-    setShowNameInput(false)
-    await executeImport(pendingImportFile, importProjectName.trim())
-    
-    // 清除狀態
-    setPendingImportFile(null)
-    setImportProjectName('')
-  }
-
-  const handleNameInputCancel = () => {
-    setShowNameInput(false)
-    setPendingImportFile(null)
-    setImportProjectName('')
-  }
 
   const triggerFileSelect = () => {
     fileInputRef.current?.click()
@@ -397,49 +366,6 @@ export default function ProjectListView() {
         </div>
       )}
 
-      {/* 專案名稱輸入對話框 */}
-      {showNameInput && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background-secondary rounded-lg p-6 max-w-md w-full border border-border">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">設定專案名稱</h3>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-text-primary mb-2">
-                新專案名稱
-              </label>
-              <input
-                type="text"
-                value={importProjectName}
-                onChange={(e) => setImportProjectName(e.target.value)}
-                placeholder="請輸入專案名稱"
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background-primary text-text-primary focus:outline-none focus:border-accent"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleNameInputConfirm()
-                  } else if (e.key === 'Escape') {
-                    handleNameInputCancel()
-                  }
-                }}
-              />
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={handleNameInputCancel}
-                className="px-4 py-2 text-text-secondary hover:text-text-primary transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleNameInputConfirm}
-                disabled={!importProjectName.trim() || isImporting}
-                className="px-4 py-2 bg-accent text-background rounded-lg hover:bg-accent-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                {isImporting ? '匯入中...' : '確認'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
