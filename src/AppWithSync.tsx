@@ -15,7 +15,6 @@ import ImportExportView from './components/ImportExportView'
 import NotFoundView from './components/NotFoundView'
 import UserGuideView from './components/UserGuideView'
 import { GuestModeLogin } from './components/GuestModeLogin'
-import { GuestDataRecovery } from './components/GuestDataRecovery'
 import LoadingPage from './components/LoadingPage'
 
 import { logger } from './utils/logger'
@@ -32,7 +31,6 @@ function AppWithSync() {
   const { user, userType, isLoading: authLoading, isInitialized, initialize } = useAuthStore()
   
   // 恢復流程狀態
-  const [showRecovery, setShowRecovery] = useState(false)
   const [recoveryCompleted, setRecoveryCompleted] = useState(false)
 
   useEffect(() => {
@@ -81,28 +79,79 @@ function AppWithSync() {
     }
   }, [user, userType, setError])
 
-  // 檢查是否需要顯示數據恢復界面
+  // 自動恢復數據（訪客模式或無法使用Firebase的用戶）
   useEffect(() => {
     const { canUseFirebase } = useAuthStore.getState()
-    const shouldShowRecovery = isInitialized && 
+    const shouldAutoRestore = isInitialized && 
       (userType === 'guest' || (user && !canUseFirebase())) && 
       !recoveryCompleted
     
-    if (shouldShowRecovery) {
-      setShowRecovery(true)
+    if (shouldAutoRestore) {
+      handleAutoRestore()
     }
   }, [isInitialized, userType, user, recoveryCompleted])
 
-  // 數據恢復完成回調
-  const handleRecoveryComplete = () => {
-    setShowRecovery(false)
-    setRecoveryCompleted(true)
-  }
-
-  // 顯示數據恢復界面（訪客用戶或非白名單用戶）
-  const { canUseFirebase } = useAuthStore.getState()
-  if (showRecovery && (userType === 'guest' || (user && !canUseFirebase()))) {
-    return <GuestDataRecovery onRecoveryComplete={handleRecoveryComplete} />
+  // 自動恢復數據函數
+  const handleAutoRestore = async () => {
+    try {
+      const { guestDataBackup } = await import('./services/guestDataBackup')
+      const { useProjectStore } = await import('./stores/useProjectStore')
+      
+      const userIdentity = userType === 'guest' ? 'guest' : user?.email || 'unknown'
+      const hasData = await guestDataBackup.hasBackupData(userIdentity)
+      
+      if (hasData) {
+        logger.debug('Found backup data, restoring automatically...')
+        const backupData = await guestDataBackup.restoreGuestData(userIdentity)
+        
+        if (backupData) {
+          const { projects: currentProjects, setProjects, setCurrentProject } = useProjectStore.getState()
+          
+          // 智能合併：以最新修改時間為準
+          const allProjects = [...currentProjects]
+          const existingIds = new Set(currentProjects.map(p => p.id))
+          
+          // 添加備份中不存在於當前項目列表的項目
+          for (const backupProject of backupData.projects) {
+            if (!existingIds.has(backupProject.id)) {
+              allProjects.push(backupProject)
+              logger.debug('Added missing project from backup:', backupProject.name)
+            } else {
+              // 如果項目存在，比較修改時間，選擇更新的版本
+              const currentProject = currentProjects.find(p => p.id === backupProject.id)
+              if (currentProject && backupProject.lastModified > currentProject.lastModified) {
+                const index = allProjects.findIndex(p => p.id === backupProject.id)
+                allProjects[index] = backupProject
+                logger.debug('Updated project from backup (newer):', backupProject.name)
+              }
+            }
+          }
+          
+          // 設置合併後的項目
+          setProjects(allProjects)
+          
+          // 設置當前項目：優先使用備份的當前項目
+          const { currentProject: localCurrentProject } = useProjectStore.getState()
+          if (backupData.currentProject && allProjects.find(p => p.id === backupData.currentProject!.id)) {
+            setCurrentProject(backupData.currentProject)
+          } else if (localCurrentProject && allProjects.find(p => p.id === localCurrentProject.id)) {
+            // 保持現有的當前項目
+          } else if (allProjects.length > 0) {
+            // 如果都沒有，選擇最後修改的項目
+            const latestProject = allProjects.reduce((latest, project) => 
+              project.lastModified > latest.lastModified ? project : latest
+            )
+            setCurrentProject(latestProject)
+          }
+          
+          logger.debug('Data restored automatically, total projects:', allProjects.length)
+        }
+      }
+    } catch (error) {
+      logger.error('Error during auto restore:', error)
+    } finally {
+      setRecoveryCompleted(true)
+    }
   }
 
   // 載入中狀態
