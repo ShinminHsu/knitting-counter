@@ -21,6 +21,7 @@ import PatternEditorToolbar from './PatternEditorToolbar'
 import PatternRoundsList from './PatternRoundsList'
 import CustomGroupCreationModal from './CustomGroupCreationModal'
 import PatternPreview from './PatternPreview'
+import AddRoundForm from './AddRoundForm'
 import StitchSelectionModal from '../StitchSelectionModal'
 import StitchGroupTemplateModal from '../StitchGroupTemplateModal'
 import CopyRoundModal from '../CopyRoundModal'
@@ -56,6 +57,12 @@ export default function PatternEditorContainer() {
   const [currentChart, setCurrentChartLocal] = useState<any>(null)
   const [chartPattern, setChartPattern] = useState<Round[]>([])
   const [editingChart, setEditingChart] = useState<any>(null)
+  
+  // AddRoundForm 狀態
+  const [showAddRoundForm, setShowAddRoundForm] = useState(false)
+  const [newRoundNotes, setNewRoundNotes] = useState('')
+  const [roundCount, setRoundCount] = useState(1)
+  const [shouldScrollToNew, setShouldScrollToNew] = useState(false)
   
   // Get chart summaries for selector
   const chartSummaries = getChartSummaries()
@@ -251,27 +258,75 @@ export default function PatternEditorContainer() {
     )
   }
 
-  const handleAddRound = async (scrollToNew: boolean = false) => {
-    const initialRoundsCount = chartPattern.length
+  const handleAddRound = (scrollToNew: boolean = false) => {
+    // 顯示AddRoundForm讓用戶輸入數量和備註
+    setShowAddRoundForm(true)
+    setNewRoundNotes('')
+    setRoundCount(1)
+    setShouldScrollToNew(scrollToNew)
+  }
+
+  const handleAddRoundConfirm = async () => {
+    if (!currentChart || !updateChart || roundCount <= 0) return
     
-    await patternOperations.handleAddRound(
-      currentChart,
-      chartPattern,
-      '', // 不需要備註，直接傳空字串
-      patternEditorState.isLoading,
-      patternEditorState.setIsLoading
-    )
-    
-    // 如果需要跳轉到新圈數，等待一小段時間讓新圈數渲染完成後再跳轉
-    if (scrollToNew) {
-      setTimeout(() => {
-        const newRoundNumber = initialRoundsCount + 1
-        const newRoundElement = document.querySelector(`[data-round-card="${newRoundNumber}"]`)
-        if (newRoundElement) {
-          newRoundElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    try {
+      patternEditorState.setIsLoading(true)
+      
+      // 計算新增圈數的起始編號
+      const roundNumbers = chartPattern?.map(r => r.roundNumber) || []
+      const nextRoundNumber = Math.max(0, ...roundNumbers) + 1
+      
+      // 批量創建新圈數
+      const newRounds: Round[] = []
+      for (let i = 0; i < roundCount; i++) {
+        const newRound: Round = {
+          id: generateId(),
+          roundNumber: nextRoundNumber + i,
+          stitches: [],
+          stitchGroups: [],
+          notes: newRoundNotes.trim() || undefined,
+          patternItems: [] // 確保有 patternItems 陣列
         }
-      }, 100)
+        newRounds.push(newRound)
+      }
+      
+      // 更新chart，新增所有圈數
+      const updatedRounds = [...currentChart.rounds, ...newRounds]
+      await updateChart(currentChart.id, {
+        ...currentChart,
+        rounds: updatedRounds,
+        lastModified: new Date()
+      })
+      
+      // 如果需要滾動到新圈數，滾動到新增的第一圈（最上面那圈）
+      if (shouldScrollToNew) {
+        setTimeout(() => {
+          const firstNewRoundNumber = nextRoundNumber
+          const newRoundElement = document.querySelector(`[data-round-card="${firstNewRoundNumber}"]`)
+          if (newRoundElement) {
+            newRoundElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 100)
+      }
+      
+      // 關閉modal並重置狀態
+      setShowAddRoundForm(false)
+      setNewRoundNotes('')
+      setRoundCount(1)
+      setShouldScrollToNew(false)
+    } catch (error) {
+      logger.error('Error adding rounds:', error)
+      alert('新增圈數時發生錯誤')
+    } finally {
+      patternEditorState.setIsLoading(false)
     }
+  }
+
+  const handleAddRoundCancel = () => {
+    setShowAddRoundForm(false)
+    setNewRoundNotes('')
+    setRoundCount(1)
+    setShouldScrollToNew(false)
   }
 
   const handleStitchModalConfirm = async (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => {
@@ -344,8 +399,8 @@ export default function PatternEditorContainer() {
     }
   }
 
-  const handleCopyRoundConfirm = async (targetRoundNumber: number, insertPosition: 'before' | 'after') => {
-    if (!modalStates.showCopyRoundModal?.sourceRound || !currentChart) return
+  const handleCopyRoundConfirm = async (targetRoundNumber: number, insertPosition: 'before' | 'after', copyCount: number = 1) => {
+    if (!modalStates.showCopyRoundModal?.sourceRound || !currentChart || copyCount <= 0) return
 
     const sourceRound = modalStates.showCopyRoundModal.sourceRound
     let insertAfterRoundNumber: number
@@ -356,36 +411,42 @@ export default function PatternEditorContainer() {
       insertAfterRoundNumber = targetRoundNumber
     }
 
+    // 調整所有在插入位置之後的圈數編號
     const updatedRounds = currentChart.rounds.map((round: Round) => {
       if (round.roundNumber > insertAfterRoundNumber) {
         return {
           ...round,
-          roundNumber: round.roundNumber + 1
+          roundNumber: round.roundNumber + copyCount
         }
       }
       return round
     })
 
-    const newRoundNumber = insertAfterRoundNumber + 1
-    const newRound: Round = {
-      id: generateId(),
-      roundNumber: newRoundNumber,
-      stitches: sourceRound.stitches.map(stitch => ({
-        ...stitch,
-        id: generateId()
-      })),
-      stitchGroups: sourceRound.stitchGroups.map(group => ({
-        ...group,
+    // 批量創建新圈數
+    const newRounds: Round[] = []
+    for (let i = 0; i < copyCount; i++) {
+      const newRoundNumber = insertAfterRoundNumber + 1 + i
+      const newRound: Round = {
         id: generateId(),
-        stitches: group.stitches.map(stitch => ({
+        roundNumber: newRoundNumber,
+        stitches: sourceRound.stitches.map(stitch => ({
           ...stitch,
           id: generateId()
-        }))
-      })),
-      notes: sourceRound.notes
+        })),
+        stitchGroups: sourceRound.stitchGroups.map(group => ({
+          ...group,
+          id: generateId(),
+          stitches: group.stitches.map(stitch => ({
+            ...stitch,
+            id: generateId()
+          }))
+        })),
+        notes: sourceRound.notes
+      }
+      newRounds.push(newRound)
     }
 
-    const finalRounds = [...updatedRounds, newRound].sort((a, b) => a.roundNumber - b.roundNumber)
+    const finalRounds = [...updatedRounds, ...newRounds].sort((a, b) => a.roundNumber - b.roundNumber)
 
     await updateChart(currentChart.id, {
       ...currentChart,
@@ -1191,6 +1252,18 @@ export default function PatternEditorContainer() {
         title="新增群組針法"
       />
 
+      {/* Add Round Form */}
+      <AddRoundForm
+        isOpen={showAddRoundForm}
+        isLoading={patternEditorState.isLoading}
+        newRoundNotes={newRoundNotes}
+        roundCount={roundCount}
+        onNotesChange={setNewRoundNotes}
+        onRoundCountChange={setRoundCount}
+        onCancel={handleAddRoundCancel}
+        onConfirm={handleAddRoundConfirm}
+      />
+      
       {/* Copy Round Modal */}
       <CopyRoundModal
         isOpen={modalStates.showCopyRoundModal !== null}

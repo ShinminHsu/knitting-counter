@@ -2,7 +2,9 @@ interface AddRoundFormProps {
   isOpen: boolean
   isLoading: boolean
   newRoundNotes: string
+  roundCount: number
   onNotesChange: (notes: string) => void
+  onRoundCountChange: (count: number) => void
   onCancel: () => void
   onConfirm: () => void
 }
@@ -11,7 +13,9 @@ export default function AddRoundForm({
   isOpen,
   isLoading,
   newRoundNotes,
+  roundCount,
   onNotesChange,
+  onRoundCountChange,
   onCancel,
   onConfirm
 }: AddRoundFormProps) {
@@ -26,6 +30,44 @@ export default function AddRoundForm({
         
         <div className="mb-4">
           <label className="block text-sm font-medium text-text-secondary mb-1">
+            新增數量
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={roundCount === 0 ? '' : roundCount.toString()}
+            onChange={(e) => {
+              const value = e.target.value
+              if (value === '') {
+                onRoundCountChange(0) // 用0表示空值
+                return
+              }
+              // 只允許數字
+              if (!/^\d+$/.test(value)) return
+              
+              const numValue = parseInt(value)
+              if (!isNaN(numValue)) {
+                onRoundCountChange(Math.min(100, numValue))
+              }
+            }}
+            onBlur={(e) => {
+              // 失去焦點時，如果為空或0則設為1
+              const value = e.target.value
+              if (value === '' || parseInt(value) === 0) {
+                onRoundCountChange(1)
+              }
+            }}
+            className="input"
+            placeholder="輸入要新增的圈數..."
+          />
+          <div className="text-xs text-text-tertiary mt-1">
+            最多可同時新增 100 圈
+          </div>
+        </div>
+        
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
             備註（選填）
           </label>
           <input
@@ -35,6 +77,9 @@ export default function AddRoundForm({
             className="input"
             placeholder="輸入備註..."
           />
+          <div className="text-xs text-text-tertiary mt-1">
+            {roundCount > 1 ? '此備註將套用到所有新增的圈數' : ''}
+          </div>
         </div>
         
         <div className="flex gap-3">
@@ -49,7 +94,7 @@ export default function AddRoundForm({
             className="btn btn-primary flex-1"
             disabled={isLoading}
           >
-            {isLoading ? '新增中...' : '新增'}
+            {isLoading ? '新增中...' : `新增 ${roundCount} 圈`}
           </button>
         </div>
       </div>
