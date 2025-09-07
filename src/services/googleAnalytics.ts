@@ -10,12 +10,41 @@ declare global {
 }
 
 /**
+ * Device type detection
+ */
+export const getDeviceType = (): 'mobile' | 'tablet' | 'desktop' => {
+  const userAgent = navigator.userAgent.toLowerCase()
+  const screenWidth = window.screen.width
+  
+  // Mobile devices (phones)
+  if (/android|webos|iphone|ipod|blackberry|iemobile|opera mini/i.test(userAgent)) {
+    return 'mobile'
+  }
+  
+  // Tablets
+  if (/ipad|android/i.test(userAgent) && screenWidth >= 768) {
+    return 'tablet'
+  }
+  
+  // Screen size based detection
+  if (screenWidth < 768) {
+    return 'mobile'
+  } else if (screenWidth < 1024) {
+    return 'tablet'
+  }
+  
+  return 'desktop'
+}
+
+/**
  * Google Analytics 4 Service
  * Provides a clean interface for tracking events and page views
  */
 class GoogleAnalyticsService {
   private isInitialized = false
   private isEnabled = true
+  private currentUserId: string | null = null
+  private deviceType: string | null = null
 
   /**
    * Initialize Google Analytics
@@ -72,6 +101,9 @@ class GoogleAnalyticsService {
 
   private configureGA4() {
     try {
+      // Detect and store device type
+      this.deviceType = getDeviceType()
+      
       // Configure GA4
       window.gtag('js', new Date())
       window.gtag('config', GA_MEASUREMENT_ID, {
@@ -83,8 +115,13 @@ class GoogleAnalyticsService {
         send_page_view: false, // We'll handle page views manually
       })
 
+      // Set device type as custom dimension
+      this.setUserProperties({
+        device_type: this.deviceType
+      })
+
       this.isInitialized = true
-      logger.debug('GA4 configured successfully with ID:', GA_MEASUREMENT_ID)
+      logger.debug('GA4 configured successfully with ID:', GA_MEASUREMENT_ID, 'Device:', this.deviceType)
     } catch (error) {
       logger.error('Failed to configure GA4:', error)
       this.isEnabled = false
@@ -274,6 +311,48 @@ class GoogleAnalyticsService {
   }
 
   /**
+   * Set user ID for tracking distinct users
+   */
+  setUserId(userId: string | null, userType: 'authenticated' | 'guest') {
+    if (!this.isEnabled || !this.isInitialized) return
+    
+    // Check if gtag is available
+    if (typeof window.gtag !== 'function') {
+      logger.debug('GA4 gtag not ready, skipping user ID')
+      return
+    }
+
+    try {
+      this.currentUserId = userId
+      
+      if (userId) {
+        // Hash the user ID for privacy
+        const hashedUserId = userId.startsWith('guest-') ? userId : `auth-${userId.slice(-8)}`
+        
+        window.gtag('config', GA_MEASUREMENT_ID, {
+          user_id: hashedUserId
+        })
+        
+        // Set user type as custom property
+        this.setUserProperties({
+          user_type: userType,
+          device_type: this.deviceType || getDeviceType()
+        })
+        
+        logger.debug('GA4 user ID set:', { hashedUserId, userType, deviceType: this.deviceType })
+      } else {
+        // Clear user ID
+        window.gtag('config', GA_MEASUREMENT_ID, {
+          user_id: null
+        })
+        logger.debug('GA4 user ID cleared')
+      }
+    } catch (error) {
+      logger.error('Failed to set user ID:', error)
+    }
+  }
+
+  /**
    * Set user properties (for user segmentation)
    */
   setUserProperties(properties: Record<string, string | number | boolean>) {
@@ -287,8 +366,10 @@ class GoogleAnalyticsService {
 
     try {
       const cleanProperties = this.cleanParameters(properties)
-      window.gtag('config', GA_MEASUREMENT_ID, {
-        custom_map: cleanProperties
+      
+      // Set custom dimensions
+      Object.entries(cleanProperties).forEach(([key, value]) => {
+        window.gtag('set', { [key]: value })
       })
       
       logger.debug('GA4 user properties set:', cleanProperties)
@@ -313,6 +394,8 @@ class GoogleAnalyticsService {
       isInitialized: this.isInitialized,
       isEnabled: this.isEnabled,
       measurementId: GA_MEASUREMENT_ID,
+      currentUserId: this.currentUserId,
+      deviceType: this.deviceType,
     }
   }
 }
