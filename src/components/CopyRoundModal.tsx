@@ -4,7 +4,7 @@ import { Round } from '../types'
 interface CopyRoundModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (targetRoundNumber: number, insertPosition: 'before' | 'after') => void
+  onConfirm: (targetRoundNumber: number, insertPosition: 'before' | 'after', copyCount: number) => void
   sourceRound: Round | null
   allRounds: Round[]
 }
@@ -19,6 +19,7 @@ export default function CopyRoundModal({
   const [insertType, setInsertType] = useState<'start' | 'end' | 'before' | 'after'>('end')
   const [targetRoundNumber, setTargetRoundNumber] = useState<number>(1)
   const [insertPosition, setInsertPosition] = useState<'before' | 'after'>('after')
+  const [copyCount, setCopyCount] = useState<number>(1)
 
   // 重置表單
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function CopyRoundModal({
       setInsertType('end')
       setTargetRoundNumber(allRounds.length > 0 ? allRounds[0].roundNumber : 1)
       setInsertPosition('after')
+      setCopyCount(1)
     }
   }, [isOpen, allRounds])
 
@@ -51,7 +53,7 @@ export default function CopyRoundModal({
         break
     }
 
-    onConfirm(finalTargetRoundNumber, finalInsertPosition)
+    onConfirm(finalTargetRoundNumber, finalInsertPosition, copyCount)
     onClose() // Close modal after confirmation
   }
 
@@ -76,6 +78,48 @@ export default function CopyRoundModal({
           )}
         </div>
 
+        {/* 複製數量 */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-text-secondary mb-3">複製數量</h3>
+          <div className="bg-background-tertiary rounded-lg p-3">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-text-primary">數量：</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={copyCount === 0 ? '' : copyCount.toString()}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value === '') {
+                    setCopyCount(0) // 用0表示空值
+                    return
+                  }
+                  // 只允許數字
+                  if (!/^\d+$/.test(value)) return
+                  
+                  const numValue = parseInt(value)
+                  if (!isNaN(numValue)) {
+                    setCopyCount(Math.min(50, numValue))
+                  }
+                }}
+                onBlur={(e) => {
+                  // 失去焦點時，如果為空或0則設為1
+                  const value = e.target.value
+                  if (value === '' || parseInt(value) === 0) {
+                    setCopyCount(1)
+                  }
+                }}
+                className="input w-20 text-center"
+              />
+              <span className="text-sm text-text-secondary">圈</span>
+            </div>
+            <div className="text-xs text-text-tertiary mt-2">
+              最多可同時複製 50 圈
+            </div>
+          </div>
+        </div>
+
         {/* 插入位置選擇 */}
         <div className="mb-6">
           <h3 className="text-sm font-medium text-text-secondary mb-3">插入位置</h3>
@@ -93,7 +137,9 @@ export default function CopyRoundModal({
               />
               <div>
                 <div className="font-medium text-text-primary">插入到最前面</div>
-                <div className="text-sm text-text-secondary">成為第 1 圈，其他圈數後移</div>
+                <div className="text-sm text-text-secondary">
+                  成為第 1 圈{copyCount > 1 ? ` 到第 ${copyCount} 圈` : ''}，其他圈數後移
+                </div>
               </div>
             </label>
 
@@ -111,6 +157,7 @@ export default function CopyRoundModal({
                 <div className="font-medium text-text-primary">插入到最後面</div>
                 <div className="text-sm text-text-secondary">
                   成為第 {Math.max(...allRounds.map(r => r.roundNumber)) + 1} 圈
+                  {copyCount > 1 ? ` 到第 ${Math.max(...allRounds.map(r => r.roundNumber)) + copyCount} 圈` : ''}
                 </div>
               </div>
             </label>
@@ -183,8 +230,8 @@ export default function CopyRoundModal({
                     {/* 預覽結果 */}
                     <div className="p-2 bg-primary/10 rounded text-sm text-primary">
                       {insertPosition === 'before' 
-                        ? `將插入到第 ${targetRoundNumber} 圈的前面`
-                        : `將插入到第 ${targetRoundNumber} 圈的後面`
+                        ? `將插入 ${copyCount} 圈到第 ${targetRoundNumber} 圈的前面`
+                        : `將插入 ${copyCount} 圈到第 ${targetRoundNumber} 圈的後面`
                       }
                     </div>
                   </div>
@@ -206,7 +253,7 @@ export default function CopyRoundModal({
             onClick={handleConfirm}
             className="btn btn-primary flex-1"
           >
-            確認複製
+            確認複製 {copyCount} 圈
           </button>
         </div>
       </div>

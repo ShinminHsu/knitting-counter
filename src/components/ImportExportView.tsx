@@ -7,6 +7,7 @@ import { ExportType } from '../types'
 import SyncStatusIndicator from './SyncStatusIndicator'
 
 import { logger } from '../utils/logger'
+import { googleAnalytics } from '../services/googleAnalytics'
 export default function ImportExportView() {
   const { projectId } = useParams()
   
@@ -32,6 +33,16 @@ export default function ImportExportView() {
     try {
       setIsExporting(true)
       ImportExportService.exportProjectAsFile(currentProject, exportType)
+      
+      // Track export event
+      googleAnalytics.trackImportExportEvent('export', {
+        project_id: currentProject.id,
+        project_name: currentProject.name,
+        export_type: exportType,
+        rounds_count: currentProject.charts?.reduce((total, chart) => total + (chart.rounds?.length || 0), 0) || 0,
+        charts_count: currentProject.charts?.length || 0
+      })
+      
       showMessage('success', '專案匯出成功')
     } catch (error) {
       logger.error('Export error:', error)

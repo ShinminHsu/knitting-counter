@@ -6,6 +6,7 @@ import { AuthState, UserType, SyncMode, UnifiedUser } from '../types/auth'
 import { canUseFirebaseSync, getUserSyncModeFromFirestore } from '../services/whitelistService'
 import { generateId } from '../utils'
 import { logger } from '../utils/logger'
+import { googleAnalytics } from '../services/googleAnalytics'
 
 interface AuthStore extends AuthState {
   // 錯誤狀態（為了向後兼容）
@@ -102,6 +103,16 @@ export const useAuthStore = create<AuthStore>()(
             logger.debug(`User ${result.user.email} authenticated with Firebase sync enabled`)
           }
           
+          // Track login event
+          googleAnalytics.trackAuthEvent('login', {
+            login_method: 'google',
+            sync_mode: syncMode,
+            can_use_firebase: canSync
+          })
+          
+          // Set user ID for tracking
+          googleAnalytics.setUserId(result.user.uid, 'authenticated')
+          
           
         } catch (error: unknown) {
           logger.error('Google 登入失敗:', error)
@@ -118,6 +129,8 @@ export const useAuthStore = create<AuthStore>()(
       // 進入訪客模式
       enterGuestMode: () => {
         logger.debug('Entering guest mode')
+        const guestId = 'guest-' + generateId()
+        
         set({
           user: null,
           userType: 'guest',
@@ -125,6 +138,14 @@ export const useAuthStore = create<AuthStore>()(
           isLoading: false,
           error: null
         })
+        
+        // Track guest mode entry
+        googleAnalytics.trackAuthEvent('guest_mode', {
+          guest_id: guestId
+        })
+        
+        // Set guest user ID for tracking
+        googleAnalytics.setUserId(guestId, 'guest')
         
       },
 
@@ -135,9 +156,20 @@ export const useAuthStore = create<AuthStore>()(
           
           // 如果有 Firebase 用戶，執行 Firebase 登出
           const currentState = get()
+          const wasAuthenticated = !!currentState.user
+          
           if (currentState.user) {
             await firebaseSignOut(auth)
           }
+          
+          // Track logout event
+          googleAnalytics.trackAuthEvent('logout', {
+            was_authenticated: wasAuthenticated,
+            previous_sync_mode: currentState.syncMode
+          })
+          
+          // Clear user ID tracking
+          googleAnalytics.setUserId(null, 'guest')
           
           // 重置為未初始化狀態，讓用戶重新選擇登入方式
           set({ 
@@ -176,6 +208,9 @@ export const useAuthStore = create<AuthStore>()(
               isLoading: false,
               isInitialized: true
             })
+            
+            // Set user ID for tracking restored user
+            googleAnalytics.setUserId(user.uid, 'authenticated')
             
             logger.debug('Firebase user restored:', {
               email: user.email,
