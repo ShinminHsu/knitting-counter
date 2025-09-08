@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { StitchType, StitchTypeInfo, Yarn, StitchInfo } from '../types'
 import { getStitchDisplayInfo } from '../utils'
+import { useCustomStitchStore } from '../stores'
 
 // 針法分組定義
 const stitchGroups = {
@@ -97,7 +98,13 @@ export default function StitchSelectionModal({
   const [selectedYarnId, setSelectedYarnId] = useState<string>(availableYarns[0]?.id || '')
   const [customName, setCustomName] = useState<string>('')
   const [customSymbol, setCustomSymbol] = useState<string>('')
+  const [customEnglishName, setCustomEnglishName] = useState<string>('')
   const [showIncreaseTooltip, setShowIncreaseTooltip] = useState<boolean>(false)
+  const [showSaveCustomModal, setShowSaveCustomModal] = useState<boolean>(false)
+  const [selectedCustomStitchId, setSelectedCustomStitchId] = useState<string>('')
+  
+  // 自定義針法 store
+  const { customStitches, createCustomStitch, useCustomStitch } = useCustomStitchStore()
 
   // Body scroll lock for mobile
   useEffect(() => {
@@ -129,39 +136,73 @@ export default function StitchSelectionModal({
       setSelectedYarnId(initialStitch.yarnId)
       setCustomName(initialStitch.customName || '')
       setCustomSymbol(initialStitch.customSymbol || '')
+      
+      // 如果是自定義針法，嘗試從自定義針法庫中找到對應的英文縮寫
+      if (initialStitch.type === StitchType.CUSTOM && initialStitch.customName && initialStitch.customSymbol) {
+        const matchingCustomStitch = customStitches.find(
+          stitch => stitch.name === initialStitch.customName && stitch.symbol === initialStitch.customSymbol
+        )
+        if (matchingCustomStitch) {
+          setCustomEnglishName(matchingCustomStitch.englishName)
+          setSelectedCustomStitchId(matchingCustomStitch.id)
+        } else {
+          // 如果在庫中找不到，可能是舊的自定義針法，設置一個默認的英文縮寫
+          setCustomEnglishName('custom')
+          setSelectedCustomStitchId('')
+        }
+      } else {
+        setCustomEnglishName('')
+        setSelectedCustomStitchId('')
+      }
     } else if (isOpen && !initialStitch) {
       // 重置為預設值
-      setSelectedStitchType(StitchType.SINGLE)
-      setCount(1)
-      setCountText("1")
-      setSelectedYarnId(availableYarns[0]?.id || '')
-      setCustomName('')
-      setCustomSymbol('')
+      resetForm()
     }
-  }, [isOpen, initialStitch, availableYarns])
+  }, [isOpen, initialStitch, availableYarns, customStitches])
+
+  const resetForm = () => {
+    setSelectedStitchType(StitchType.SINGLE)
+    setCount(1)
+    setCountText("1")
+    setSelectedYarnId(availableYarns[0]?.id || '')
+    setCustomName('')
+    setCustomSymbol('')
+    setCustomEnglishName('')
+    setSelectedCustomStitchId('')
+    setShowSaveCustomModal(false)
+  }
 
   const handleConfirm = () => {
     onConfirm(selectedStitchType, count, selectedYarnId, customName || undefined, customSymbol || undefined)
     onClose()
-    // Reset form
-    setSelectedStitchType(StitchType.SINGLE)
-    setCount(1)
-    setCountText("1")
-    setSelectedYarnId(availableYarns[0]?.id || '')
-    setCustomName('')
-    setCustomSymbol('')
+    resetForm()
   }
 
   const handleClose = () => {
     onClose()
-    // Reset form
-    setSelectedStitchType(StitchType.SINGLE)
-    setCount(1)
-    setCountText("1")
-    setSelectedYarnId(availableYarns[0]?.id || '')
-    setCustomName('')
-    setCustomSymbol('')
+    resetForm()
   }
+
+  // 選擇自定義針法
+  const handleSelectCustomStitch = async (customStitchId: string) => {
+    const customStitch = await useCustomStitch(customStitchId)
+    if (customStitch) {
+      setSelectedStitchType(StitchType.CUSTOM)
+      setCustomName(customStitch.name)
+      setCustomSymbol(customStitch.symbol)
+      setCustomEnglishName(customStitch.englishName)
+      setSelectedCustomStitchId(customStitchId)
+    }
+  }
+
+  // 保存當前自定義針法
+  const handleSaveCustomStitch = async (name: string, englishName: string) => {
+    if (selectedStitchType === StitchType.CUSTOM && customName.trim() && customSymbol.trim()) {
+      await createCustomStitch(name || customName, customSymbol, englishName)
+      setShowSaveCustomModal(false)
+    }
+  }
+
 
   if (!isOpen) return null
 
@@ -196,11 +237,39 @@ export default function StitchSelectionModal({
           {/* 手機版：分組下拉選單 */}
           <div className="block sm:hidden">
             <select
-              value={selectedStitchType}
-              onChange={(e) => setSelectedStitchType(e.target.value as StitchType)}
+              value={selectedCustomStitchId ? `custom-${selectedCustomStitchId}` : selectedStitchType}
+              onChange={(e) => {
+                const value = e.target.value
+                if (value.startsWith('custom-')) {
+                  const customStitchId = value.replace('custom-', '')
+                  handleSelectCustomStitch(customStitchId)
+                } else {
+                  setSelectedStitchType(value as StitchType)
+                  setSelectedCustomStitchId('')
+                  setCustomName('')
+                  setCustomSymbol('')
+                  setCustomEnglishName('')
+                }
+              }}
               className="input w-full text-base"
               style={{ fontSize: '16px' }}
             >
+              {/* 我的自定義針法分組 */}
+              {customStitches.length > 0 && (
+                <optgroup label="我的自定義針法">
+                  {customStitches.slice(0, 10).map((customStitch) => (
+                    <option 
+                      key={`custom-${customStitch.id}`} 
+                      value={`custom-${customStitch.id}`}
+                      style={{ fontSize: '16px' }}
+                    >
+                      {customStitch.symbol} {customStitch.name} ({customStitch.englishName})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              
+              {/* 預設針法分組 */}
               {Object.entries(stitchGroups).map(([groupKey, group]) => (
                 <optgroup key={groupKey} label={group.title}>
                   {group.stitches.map((stitchType) => {
@@ -219,6 +288,56 @@ export default function StitchSelectionModal({
 
           {/* 電腦版：分組網格選擇 */}
           <div className="hidden sm:block space-y-4">
+            {/* 我的自定義針法 */}
+            {customStitches.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-medium text-text-tertiary">我的自定義針法</h4>
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault()
+                      // TODO: 導航到自定義針法管理頁面
+                      alert('自定義針法管理功能即將推出！')
+                    }}
+                    className="text-xs text-primary hover:text-primary/80 transition-colors"
+                  >
+                    管理
+                  </button>
+                </div>
+                <div className="grid grid-cols-8 gap-2">
+                  {customStitches.slice(0, 16).map((customStitch) => (
+                    <div
+                      key={customStitch.id}
+                      className={`
+                        p-2 rounded-lg border-2 cursor-pointer transition-all
+                        flex flex-col items-center justify-center min-h-[70px]
+                        ${selectedCustomStitchId === customStitch.id
+                          ? 'border-primary bg-primary/10' 
+                          : 'border-border hover:border-primary/50 hover:bg-background-tertiary'
+                        }
+                      `}
+                      onClick={() => handleSelectCustomStitch(customStitch.id)}
+                    >
+                      <div className={`text-lg font-bold mb-1 ${
+                        selectedCustomStitchId === customStitch.id ? 'text-primary' : 'text-text-primary'
+                      }`}>
+                        {customStitch.symbol}
+                      </div>
+                      <div className={`text-xs font-medium text-center leading-tight ${
+                        selectedCustomStitchId === customStitch.id ? 'text-text-primary' : 'text-text-secondary'
+                      }`}>
+                        {customStitch.name}
+                      </div>
+                      <div className="text-xs text-text-tertiary mt-1">
+                        {customStitch.englishName}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* 預設針法分組 */}
             {Object.entries(stitchGroups).map(([groupKey, group]) => (
               <div key={groupKey}>
                 <div className="flex items-center gap-2 mb-2">
@@ -279,26 +398,34 @@ export default function StitchSelectionModal({
             
             {/* 自定義針法 */}
             <div>
-              <h4 className="text-xs font-medium text-text-tertiary mb-2">自定義</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-xs font-medium text-text-tertiary">自定義</h4>
+              </div>
               <div className="grid grid-cols-8 gap-2">
                 <div
                   className={`
                     p-2 rounded-lg border-2 cursor-pointer transition-all
                     flex flex-col items-center justify-center min-h-[70px]
-                    ${selectedStitchType === StitchType.CUSTOM 
+                    ${selectedStitchType === StitchType.CUSTOM && !selectedCustomStitchId
                       ? 'border-primary bg-primary/10' 
                       : 'border-border hover:border-primary/50 hover:bg-background-tertiary'
                     }
                   `}
-                  onClick={() => setSelectedStitchType(StitchType.CUSTOM)}
+                  onClick={() => {
+                    setSelectedStitchType(StitchType.CUSTOM)
+                    setSelectedCustomStitchId('')
+                    setCustomName('')
+                    setCustomSymbol('')
+                    setCustomEnglishName('')
+                  }}
                 >
                   <div className={`text-lg font-bold mb-1 ${
-                    selectedStitchType === StitchType.CUSTOM ? 'text-primary' : 'text-text-primary'
+                    selectedStitchType === StitchType.CUSTOM && !selectedCustomStitchId ? 'text-primary' : 'text-text-primary'
                   }`}>
                     ?
                   </div>
                   <div className={`text-xs font-medium text-center leading-tight ${
-                    selectedStitchType === StitchType.CUSTOM ? 'text-text-primary' : 'text-text-secondary'
+                    selectedStitchType === StitchType.CUSTOM && !selectedCustomStitchId ? 'text-text-primary' : 'text-text-secondary'
                   }`}>
                     自定義
                   </div>
@@ -311,7 +438,21 @@ export default function StitchSelectionModal({
         {/* 自定義針法輸入 */}
         {selectedStitchType === StitchType.CUSTOM && (
           <div className="mb-6">
-            <h3 className="text-sm font-medium text-text-secondary mb-3">自定義針法</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-text-secondary">自定義針法</h3>
+              {customStitches.length > 0 && (
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault()
+                    // TODO: 導航到自定義針法管理頁面
+                    alert('自定義針法管理功能即將推出！')
+                  }}
+                  className="text-xs text-primary hover:text-primary/80 transition-colors"
+                >
+                  管理已保存的針法
+                </button>
+              )}
+            </div>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
@@ -339,6 +480,27 @@ export default function StitchSelectionModal({
                   maxLength={3}
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  英文縮寫
+                </label>
+                <input
+                  type="text"
+                  value={customEnglishName}
+                  onChange={(e) => setCustomEnglishName(e.target.value)}
+                  className="input text-center"
+                  placeholder="例如: dc, sc, hdc"
+                  maxLength={10}
+                />
+              </div>
+              {selectedStitchType === StitchType.CUSTOM && customName.trim() && customSymbol.trim() && customEnglishName.trim() && (
+                  <button
+                    onClick={() => setShowSaveCustomModal(true)}
+                    className="text-sm px-2 py-1 btn btn-primary mb-4"
+                  >
+                    點此保存此自定義針法
+                  </button>
+                )}
             </div>
           </div>
         )}
@@ -502,12 +664,78 @@ export default function StitchSelectionModal({
           <button
             onClick={handleConfirm}
             className="btn btn-primary flex-1"
-            disabled={selectedStitchType === StitchType.CUSTOM && (!customName.trim() || !customSymbol.trim())}
+            disabled={selectedStitchType === StitchType.CUSTOM && (!customName.trim() || !customSymbol.trim() || !customEnglishName.trim())}
           >
             確認
           </button>
         </div>
       </div>
+
+      {/* 保存自定義針法模態框 */}
+      {showSaveCustomModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-[90]">
+          <div className="bg-background-secondary rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-text-primary mb-4">
+              保存自定義針法
+            </h3>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-2">
+                  針法名稱
+                </label>
+                <input
+                  type="text"
+                  defaultValue={customName}
+                  className="input"
+                  placeholder="輸入針法名稱"
+                  id="save-custom-name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-2">
+                  英文縮寫
+                </label>
+                <input
+                  type="text"
+                  defaultValue={customEnglishName}
+                  className="input"
+                  placeholder="例如: dc, sc, hdc"
+                  id="save-custom-english"
+                  maxLength={10}
+                />
+              </div>
+              
+              <div className="p-3 bg-background-tertiary rounded-lg">
+                <div className="text-sm text-text-secondary mb-1">預覽：</div>
+                <div className="text-xl font-bold text-text-primary">
+                  {customSymbol} {customName} ({customEnglishName})
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSaveCustomModal(false)}
+                className="btn btn-secondary flex-1"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  const nameInput = document.getElementById('save-custom-name') as HTMLInputElement
+                  const englishInput = document.getElementById('save-custom-english') as HTMLInputElement
+                  handleSaveCustomStitch(nameInput.value.trim(), englishInput.value.trim())
+                }}
+                className="btn btn-primary flex-1"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

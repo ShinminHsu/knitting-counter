@@ -397,6 +397,18 @@ export interface DateSerializationHelpers {
 }
 
 // Timestamp conversion utilities type
+// 自定義針法類型
+export interface CustomStitchPattern {
+  id: string
+  name: string
+  symbol: string
+  englishName: string
+  description?: string
+  createdDate: Date
+  lastUsed?: Date
+  useCount: number
+}
+
 export interface TimestampConvertible {
   createdDate?: any
   lastModified?: any
