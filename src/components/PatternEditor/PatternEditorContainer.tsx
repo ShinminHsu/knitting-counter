@@ -332,17 +332,74 @@ export default function PatternEditorContainer() {
   const handleStitchModalConfirm = async (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => {
     if (!modalStates.showStitchModal) return
     
-    await patternOperations.handleStitchModalConfirm(
-      stitchType,
-      count,
-      yarnId,
-      customName,
-      customSymbol,
-      currentChart,
-      modalStates.showStitchModal.roundNumber,
-      patternEditorState.isLoading,
-      patternEditorState.setIsLoading
-    )
+    const { mode, roundNumber, stitchId } = modalStates.showStitchModal
+    
+    if (mode === 'edit' && stitchId) {
+      // Handle edit mode
+      try {
+        if (currentChart) {
+          const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+          if (targetRound) {
+            // Update stitch - support both regular and custom stitches
+            const updatedRound = {
+              ...targetRound,
+              // Update legacy stitches array
+              stitches: targetRound.stitches.map((s: StitchInfo) =>
+                s.id === stitchId
+                  ? { 
+                      ...s, 
+                      type: stitchType, 
+                      count,
+                      yarnId,
+                      ...(stitchType === StitchType.CUSTOM && { customName, customSymbol })
+                    }
+                  : s
+              ),
+              // Update new patternItems array
+              patternItems: targetRound.patternItems?.map((item: any) => {
+                if (item.type === PatternItemType.STITCH && item.data.id === stitchId) {
+                  return {
+                    ...item,
+                    data: {
+                      ...item.data,
+                      type: stitchType,
+                      count,
+                      yarnId,
+                      ...(stitchType === StitchType.CUSTOM && { customName, customSymbol })
+                    }
+                  }
+                }
+                return item
+              }) || []
+            }
+            
+            await updateChart(currentChart.id, {
+              ...currentChart,
+              rounds: currentChart.rounds.map((r: Round) =>
+                r.roundNumber === roundNumber ? updatedRound : r
+              ),
+              lastModified: new Date()
+            })
+          }
+        }
+      } catch (error) {
+        logger.error('Error updating stitch:', error)
+        alert('更新針法時發生錯誤')
+      }
+    } else {
+      // Handle add mode (existing logic)
+      await patternOperations.handleStitchModalConfirm(
+        stitchType,
+        count,
+        yarnId,
+        customName,
+        customSymbol,
+        currentChart,
+        roundNumber,
+        patternEditorState.isLoading,
+        patternEditorState.setIsLoading
+      )
+    }
     
     modalStates.setShowStitchModal(null)
   }
@@ -891,79 +948,16 @@ export default function PatternEditorContainer() {
           onCopyRound={handleCopyRound}
           onDeleteRound={(roundNumber) => patternOperations.handleDeleteRound(currentChart, roundNumber)}
           onEditStitch={(roundNumber, stitch) => {
-            patternEditorState.setEditingStitch({ roundNumber, stitchId: stitch.id })
-            patternEditorState.handleStitchTypeChange(stitch.type)
-            patternEditorState.handleStitchCountChange(String(stitch.count))
+            // Use modal for editing to support custom stitches
+            modalStates.setShowStitchModal({ 
+              roundNumber, 
+              mode: 'edit', 
+              stitchId: stitch.id,
+              initialStitch: stitch
+            })
           }}
           onUpdateStitch={async () => {
-            if (!patternEditorState.editingStitch) return
-            
-            const { roundNumber, stitchId } = patternEditorState.editingStitch
-            const count = parseInt(patternEditorState.editStitchCount) || 1
-            
-            try {
-              if (currentChart) {
-                const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
-                if (targetRound) {
-                  // 更新針法 - 需要同時更新 stitches (舊格式) 和 patternItems (新格式)
-                  const updatedRound = {
-                    ...targetRound,
-                    // 更新舊格式的 stitches 陣列
-                    stitches: targetRound.stitches.map((s: StitchInfo) =>
-                      s.id === stitchId
-                        ? { ...s, type: patternEditorState.editStitchType, count }
-                        : s
-                    ),
-                    // 更新新格式的 patternItems 陣列
-                    patternItems: targetRound.patternItems?.map((item: any) => {
-                      if (item.type === PatternItemType.STITCH && item.data.id === stitchId) {
-                        return {
-                          ...item,
-                          data: {
-                            ...item.data,
-                            type: patternEditorState.editStitchType,
-                            count
-                          }
-                        }
-                      }
-                      return item
-                    }) || []
-                  }
-                  
-                  
-                  await updateChart(currentChart.id, {
-                    ...currentChart,
-                    rounds: currentChart.rounds.map((r: Round) =>
-                      r.roundNumber === roundNumber ? updatedRound : r
-                    ),
-                    lastModified: new Date()
-                  })
-                }
-              } else {
-                // Handle legacy project structure
-                const targetRound = chartPattern.find(r => r.roundNumber === roundNumber)
-                if (targetRound) {
-                  const updatedRound = {
-                    ...targetRound,
-                    stitches: targetRound.stitches.map((s: StitchInfo) =>
-                      s.id === stitchId
-                        ? { ...s, type: patternEditorState.editStitchType, count }
-                        : s
-                    )
-                  }
-                  
-                  await updateRound(roundNumber, updatedRound)
-                }
-              }
-            } catch (error) {
-              logger.error('Error updating stitch:', error)
-              alert('更新針法時發生錯誤')
-            }
-            
-            // 延遲重置編輯狀態，確保數據更新完成
-            setTimeout(() => {
-              patternEditorState.setEditingStitch(null)
-            }, 100)
+            // No longer used - editing now uses modal
           }}
           onDeleteStitch={async (roundNumber, stitchId) => {
             if (confirm('確定要刪除這個針法嗎？')) {
@@ -1240,7 +1234,8 @@ export default function PatternEditorContainer() {
         onClose={() => modalStates.setShowStitchModal(null)}
         onConfirm={handleStitchModalConfirm}
         availableYarns={currentProject?.yarns || []}
-        title="新增針法"
+        title={modalStates.showStitchModal?.mode === 'edit' ? '編輯針法' : '新增針法'}
+        initialStitch={modalStates.showStitchModal?.initialStitch}
       />
 
       {/* Group Stitch Selection Modal */}

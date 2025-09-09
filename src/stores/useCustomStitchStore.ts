@@ -310,8 +310,27 @@ export const useCustomStitchStore = create<CustomStitchStore>()(
       }
     }),
     {
-      name: getStorageKey(),
+      name: 'custom-stitch-store',
       version: 1,
+      partialize: (state) => ({
+        customStitches: state.customStitches,
+        isLoading: false // Reset loading state on persist
+      }),
+      storage: {
+        getItem: (name) => {
+          const key = getStorageKey()
+          const value = localStorage.getItem(key)
+          return value ? JSON.parse(value) : null
+        },
+        setItem: (name, value) => {
+          const key = getStorageKey()
+          localStorage.setItem(key, JSON.stringify(value))
+        },
+        removeItem: (name) => {
+          const key = getStorageKey()
+          localStorage.removeItem(key)
+        }
+      },
       // 自定義序列化處理 Date 物件
       serialize: (state) => {
         return JSON.stringify({

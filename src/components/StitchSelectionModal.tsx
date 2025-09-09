@@ -105,6 +105,9 @@ export default function StitchSelectionModal({
   
   // 自定義針法 store
   const { customStitches, createCustomStitch, useCustomStitch } = useCustomStitchStore()
+  
+  // Debug: 檢查 customStitches
+  console.log('StitchSelectionModal customStitches:', customStitches, 'length:', customStitches.length)
 
   // Body scroll lock for mobile
   useEffect(() => {
@@ -198,7 +201,11 @@ export default function StitchSelectionModal({
   // 保存當前自定義針法
   const handleSaveCustomStitch = async (name: string, englishName: string) => {
     if (selectedStitchType === StitchType.CUSTOM && customName.trim() && customSymbol.trim()) {
-      await createCustomStitch(name || customName, customSymbol, englishName)
+      const savedStitch = await createCustomStitch(name || customName, customSymbol, englishName)
+      if (savedStitch) {
+        // 保存成功後，選中新保存的自定義針法
+        setSelectedCustomStitchId(savedStitch.id)
+      }
       setShowSaveCustomModal(false)
     }
   }
@@ -255,8 +262,8 @@ export default function StitchSelectionModal({
               style={{ fontSize: '16px' }}
             >
               {/* 我的自定義針法分組 */}
-              {customStitches.length > 0 && (
-                <optgroup label="我的自定義針法">
+              {true && (
+                <optgroup label={`我的自定義針法 DEBUG (${customStitches.length})`}>
                   {customStitches.slice(0, 10).map((customStitch) => (
                     <option 
                       key={`custom-${customStitch.id}`} 
@@ -289,10 +296,10 @@ export default function StitchSelectionModal({
           {/* 電腦版：分組網格選擇 */}
           <div className="hidden sm:block space-y-4">
             {/* 我的自定義針法 */}
-            {customStitches.length > 0 && (
+            {true ? (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-medium text-text-tertiary">我的自定義針法</h4>
+                  <h4 className="text-xs font-medium text-text-tertiary">我的自定義針法 DEBUG ({customStitches.length})</h4>
                   <button 
                     onClick={(e) => {
                       e.preventDefault()
@@ -334,6 +341,10 @@ export default function StitchSelectionModal({
                     </div>
                   ))}
                 </div>
+              </div>
+            ) : (
+              <div className="text-xs text-text-tertiary">
+                沒有自定義針法 (customStitches.length: {customStitches.length})
               </div>
             )}
             

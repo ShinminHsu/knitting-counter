@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Round, StitchGroup } from '../types'
+import { Round, StitchGroup, StitchInfo } from '../types'
 
 interface StitchModalState {
   roundNumber: number
   mode: 'add' | 'edit'
   stitchId?: string
+  initialStitch?: StitchInfo
 }
 
 interface EditNewGroupStitchModalState {

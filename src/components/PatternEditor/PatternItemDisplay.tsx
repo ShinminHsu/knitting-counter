@@ -285,7 +285,6 @@ export default function PatternItemDisplay({
             const isEditingGroupStitch = editingGroupStitch?.stitchId === stitch.id &&
                                        editingGroupStitch?.groupId === group.id
 
-
             return (
               <div
                 key={stitch.id}
