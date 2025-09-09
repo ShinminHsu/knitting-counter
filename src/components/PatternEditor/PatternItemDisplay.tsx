@@ -3,6 +3,7 @@ import { BsTrash, BsChevronUp, BsChevronDown } from 'react-icons/bs'
 import { StitchInfo, StitchGroup, PatternItemType, PatternItem, StitchType, Chart, Round } from '../../types'
 import { getStitchDisplayInfo, getStitchGroupTotalStitches } from '../../utils'
 import GroupEditor from './GroupEditor'
+import StitchEditor from './StitchEditor'
 
 interface PatternItemDisplayProps {
   patternItem: PatternItem

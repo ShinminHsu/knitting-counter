@@ -988,11 +988,8 @@ export default function PatternEditorContainer() {
           editingRound={patternEditorState.editingRound}
           editingStitch={patternEditorState.editingStitch}
           editingGroup={patternEditorState.editingGroup}
-          editingGroupStitch={patternEditorState.editingGroupStitch}
           editStitchType={patternEditorState.editStitchType}
           editStitchCount={patternEditorState.editStitchCount}
-          editGroupStitchType={patternEditorState.editGroupStitchType}
-          editGroupStitchCount={patternEditorState.editGroupStitchCount}
           editGroupName={patternEditorState.editGroupName}
           editGroupRepeatCount={patternEditorState.editGroupRepeatCount}
           onEditRound={patternEditorState.setEditingRound}
@@ -1223,8 +1220,6 @@ export default function PatternEditorContainer() {
           }}
           onStitchTypeChange={patternEditorState.handleStitchTypeChange}
           onStitchCountChange={patternEditorState.handleStitchCountChange}
-          onGroupStitchTypeChange={patternEditorState.handleGroupStitchTypeChange}
-          onGroupStitchCountChange={patternEditorState.handleGroupStitchCountChange}
           onGroupNameChange={patternEditorState.handleGroupNameChange}
           onGroupRepeatCountChange={patternEditorState.handleGroupRepeatCountChange}
           onCancelEdit={patternEditorState.resetEditingStates}

@@ -317,16 +317,16 @@ export const useCustomStitchStore = create<CustomStitchStore>()(
         isLoading: false // Reset loading state on persist
       }),
       storage: {
-        getItem: (name) => {
+        getItem: (_name) => {
           const key = getStorageKey()
           const value = localStorage.getItem(key)
           return value ? JSON.parse(value) : null
         },
-        setItem: (name, value) => {
+        setItem: (_name, value) => {
           const key = getStorageKey()
           localStorage.setItem(key, JSON.stringify(value))
         },
-        removeItem: (name) => {
+        removeItem: (_name) => {
           const key = getStorageKey()
           localStorage.removeItem(key)
         }
