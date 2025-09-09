@@ -3,8 +3,9 @@ import { Round, StitchGroup, StitchInfo } from '../types'
 
 interface StitchModalState {
   roundNumber: number
-  mode: 'add' | 'edit'
+  mode: 'add' | 'edit' | 'editGroupStitch'
   stitchId?: string
+  groupId?: string
   initialStitch?: StitchInfo
 }
 

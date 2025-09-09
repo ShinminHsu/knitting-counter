@@ -11,11 +11,8 @@ interface RoundCardProps {
   editingRound: Round | null
   editingStitch: { roundNumber: number, stitchId: string } | null
   editingGroup: { roundNumber: number, groupId: string } | null
-  editingGroupStitch: { roundNumber: number, groupId: string, stitchId: string } | null
   editStitchType: StitchType
   editStitchCount: string
-  editGroupStitchType: StitchType
-  editGroupStitchCount: string
   editGroupName: string
   editGroupRepeatCount: string
   isDraggedOver?: boolean
@@ -32,13 +29,10 @@ interface RoundCardProps {
   onUpdateGroup: (roundNumber: number, groupId: string) => void
   onDeleteGroup: (roundNumber: number, groupId: string) => void
   onEditGroupStitch: (roundNumber: number, groupId: string, stitch: StitchInfo) => void
-  onUpdateGroupStitch: () => void
   onDeleteGroupStitch: (roundNumber: number, groupId: string, stitchId: string) => void
   onAddStitchToGroup: (roundNumber: number, groupId: string) => void
   onStitchTypeChange: (newType: StitchType) => void
   onStitchCountChange: (newCount: string) => void
-  onGroupStitchTypeChange: (newType: StitchType) => void
-  onGroupStitchCountChange: (newCount: string) => void
   onGroupNameChange: (newName: string) => void
   onGroupRepeatCountChange: (newCount: string) => void
   onSaveAsTemplate: (group: StitchGroup) => void
@@ -59,11 +53,8 @@ export default function RoundCard({
   editingRound,
   editingStitch,
   editingGroup,
-  editingGroupStitch,
   editStitchType,
   editStitchCount,
-  editGroupStitchType,
-  editGroupStitchCount,
   editGroupName,
   editGroupRepeatCount,
   onEditRound,
@@ -79,15 +70,12 @@ export default function RoundCard({
   onUpdateGroup,
   onDeleteGroup,
   onEditGroupStitch,
-  onUpdateGroupStitch,
   onDeleteGroupStitch,
   onAddStitchToGroup,
   onSaveAsTemplate,
   onCancelEdit,
   onStitchTypeChange,
   onStitchCountChange,
-  onGroupStitchTypeChange,
-  onGroupStitchCountChange,
   onGroupNameChange,
   onGroupRepeatCountChange,
   onMoveUp,
@@ -277,11 +265,8 @@ export default function RoundCard({
                 chartPattern={chartPattern}
                 editingStitch={editingStitch}
                 editingGroup={editingGroup}
-                editingGroupStitch={editingGroupStitch}
                 editStitchType={editStitchType}
                 editStitchCount={editStitchCount}
-                editGroupStitchType={editGroupStitchType}
-                editGroupStitchCount={editGroupStitchCount}
                 editGroupName={editGroupName}
                 editGroupRepeatCount={editGroupRepeatCount}
                 onEditStitch={onEditStitch}
@@ -291,15 +276,12 @@ export default function RoundCard({
                 onUpdateGroup={onUpdateGroup}
                 onDeleteGroup={onDeleteGroup}
                 onEditGroupStitch={onEditGroupStitch}
-                onUpdateGroupStitch={onUpdateGroupStitch}
                 onDeleteGroupStitch={onDeleteGroupStitch}
                 onAddStitchToGroup={onAddStitchToGroup}
                 onSaveAsTemplate={onSaveAsTemplate}
                 onCancelEdit={onCancelEdit}
                 onStitchTypeChange={onStitchTypeChange}
                 onStitchCountChange={onStitchCountChange}
-                onGroupStitchTypeChange={onGroupStitchTypeChange}
-                onGroupStitchCountChange={onGroupStitchCountChange}
                 onGroupNameChange={onGroupNameChange}
                 onGroupRepeatCountChange={onGroupRepeatCountChange}
                 onMoveUp={onMoveUp}

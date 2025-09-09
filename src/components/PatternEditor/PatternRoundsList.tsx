@@ -9,11 +9,8 @@ interface PatternRoundsListProps {
   editingRound: Round | null
   editingStitch: { roundNumber: number, stitchId: string } | null
   editingGroup: { roundNumber: number, groupId: string } | null
-  editingGroupStitch: { roundNumber: number, groupId: string, stitchId: string } | null
   editStitchType: StitchType
   editStitchCount: string
-  editGroupStitchType: StitchType
-  editGroupStitchCount: string
   editGroupName: string
   editGroupRepeatCount: string
   onEditRound: (round: Round | null) => void
@@ -29,14 +26,11 @@ interface PatternRoundsListProps {
   onUpdateGroup: (roundNumber: number, groupId: string) => Promise<void>
   onDeleteGroup: (roundNumber: number, groupId: string) => Promise<void>
   onEditGroupStitch: (roundNumber: number, groupId: string, stitch: StitchInfo) => void
-  onUpdateGroupStitch: () => Promise<void>
   onDeleteGroupStitch: (roundNumber: number, groupId: string, stitchId: string) => Promise<void>
   onAddStitchToGroup: (roundNumber: number, groupId: string) => void
   onSaveAsTemplate: (group: StitchGroup) => void
   onStitchTypeChange: (newType: StitchType) => void
   onStitchCountChange: (newCount: string) => void
-  onGroupStitchTypeChange: (newType: StitchType) => void
-  onGroupStitchCountChange: (newCount: string) => void
   onGroupNameChange: (newName: string) => void
   onGroupRepeatCountChange: (newCount: string) => void
   onCancelEdit: () => void
@@ -56,11 +50,8 @@ export default function PatternRoundsList({
   editingRound,
   editingStitch,
   editingGroup,
-  editingGroupStitch,
   editStitchType,
   editStitchCount,
-  editGroupStitchType,
-  editGroupStitchCount,
   editGroupName,
   editGroupRepeatCount,
   onEditRound,
@@ -76,14 +67,11 @@ export default function PatternRoundsList({
   onUpdateGroup,
   onDeleteGroup,
   onEditGroupStitch,
-  onUpdateGroupStitch,
   onDeleteGroupStitch,
   onAddStitchToGroup,
   onSaveAsTemplate,
   onStitchTypeChange,
   onStitchCountChange,
-  onGroupStitchTypeChange,
-  onGroupStitchCountChange,
   onGroupNameChange,
   onGroupRepeatCountChange,
   onCancelEdit,
@@ -131,11 +119,8 @@ export default function PatternRoundsList({
             editingRound={editingRound}
             editingStitch={editingStitch}
             editingGroup={editingGroup}
-            editingGroupStitch={editingGroupStitch}
             editStitchType={editStitchType}
             editStitchCount={editStitchCount}
-            editGroupStitchType={editGroupStitchType}
-            editGroupStitchCount={editGroupStitchCount}
             editGroupName={editGroupName}
             editGroupRepeatCount={editGroupRepeatCount}
             onEditRound={onEditRound}
@@ -151,14 +136,11 @@ export default function PatternRoundsList({
             onUpdateGroup={onUpdateGroup}
             onDeleteGroup={onDeleteGroup}
             onEditGroupStitch={onEditGroupStitch}
-            onUpdateGroupStitch={onUpdateGroupStitch}
             onDeleteGroupStitch={onDeleteGroupStitch}
             onAddStitchToGroup={onAddStitchToGroup}
             onSaveAsTemplate={onSaveAsTemplate}
             onStitchTypeChange={onStitchTypeChange}
             onStitchCountChange={onStitchCountChange}
-            onGroupStitchTypeChange={onGroupStitchTypeChange}
-            onGroupStitchCountChange={onGroupStitchCountChange}
             onGroupNameChange={onGroupNameChange}
             onGroupRepeatCountChange={onGroupRepeatCountChange}
             onCancelEdit={onCancelEdit}

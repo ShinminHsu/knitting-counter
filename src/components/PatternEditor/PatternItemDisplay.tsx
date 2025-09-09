@@ -2,7 +2,6 @@ import { VscEdit } from 'react-icons/vsc'
 import { BsTrash, BsChevronUp, BsChevronDown } from 'react-icons/bs'
 import { StitchInfo, StitchGroup, PatternItemType, PatternItem, StitchType, Chart, Round } from '../../types'
 import { getStitchDisplayInfo, getStitchGroupTotalStitches } from '../../utils'
-import StitchEditor from './StitchEditor'
 import GroupEditor from './GroupEditor'
 
 interface PatternItemDisplayProps {
@@ -13,11 +12,8 @@ interface PatternItemDisplayProps {
   chartPattern: Round[]
   editingStitch: { roundNumber: number, stitchId: string } | null
   editingGroup: { roundNumber: number, groupId: string } | null
-  editingGroupStitch: { roundNumber: number, groupId: string, stitchId: string } | null
   editStitchType: StitchType
   editStitchCount: string
-  editGroupStitchType: StitchType
-  editGroupStitchCount: string
   editGroupName: string
   editGroupRepeatCount: string
   onEditStitch: (roundNumber: number, stitch: StitchInfo) => void
@@ -27,15 +23,12 @@ interface PatternItemDisplayProps {
   onUpdateGroup: (roundNumber: number, groupId: string) => void
   onDeleteGroup: (roundNumber: number, groupId: string) => void
   onEditGroupStitch: (roundNumber: number, groupId: string, stitch: StitchInfo) => void
-  onUpdateGroupStitch: () => void
   onDeleteGroupStitch: (roundNumber: number, groupId: string, stitchId: string) => void
   onAddStitchToGroup: (roundNumber: number, groupId: string) => void
   onSaveAsTemplate: (group: StitchGroup) => void
   onCancelEdit: () => void
   onStitchTypeChange: (newType: StitchType) => void
   onStitchCountChange: (newCount: string) => void
-  onGroupStitchTypeChange: (newType: StitchType) => void
-  onGroupStitchCountChange: (newCount: string) => void
   onGroupNameChange: (newName: string) => void
   onGroupRepeatCountChange: (newCount: string) => void
   onMoveUp: (index: number, roundNumber: number) => void
@@ -50,11 +43,8 @@ export default function PatternItemDisplay({
   index,
   editingStitch,
   editingGroup,
-  editingGroupStitch,
   editStitchType,
   editStitchCount,
-  editGroupStitchType,
-  editGroupStitchCount,
   editGroupName,
   editGroupRepeatCount,
   onEditStitch,
@@ -64,15 +54,12 @@ export default function PatternItemDisplay({
   onUpdateGroup,
   onDeleteGroup,
   onEditGroupStitch,
-  onUpdateGroupStitch,
   onDeleteGroupStitch,
   onAddStitchToGroup,
   onSaveAsTemplate,
   onCancelEdit,
   onStitchTypeChange,
   onStitchCountChange,
-  onGroupStitchTypeChange,
-  onGroupStitchCountChange,
   onGroupNameChange,
   onGroupRepeatCountChange,
   onMoveUp,
@@ -205,15 +192,9 @@ export default function PatternItemDisplay({
         data-group-id={group.id}
         tabIndex={0}
         onKeyDown={(e) => {
-          // 檢查是否有任何群組內的針目正在編輯
-          const hasEditingGroupStitch = group.stitches.some(stitch =>
-            editingGroupStitch?.stitchId === stitch.id &&
-            editingGroupStitch?.groupId === group.id
-          )
-          
           if (e.key === 'Delete' || e.key === 'Backspace') {
-            // 編輯模式時（包括群組本身編輯或群組內針目編輯）完全阻止事件傳播，讓輸入框正常處理
-            if (isEditingGroup || hasEditingGroupStitch) {
+            // 編輯模式時完全阻止事件傳播，讓輸入框正常處理
+            if (isEditingGroup) {
               e.stopPropagation()
               return
             }
@@ -282,20 +263,12 @@ export default function PatternItemDisplay({
         {/* Group Stitches */}
         <div className="space-y-2">
           {group.stitches.map((stitch, stitchIndex) => {
-            const isEditingGroupStitch = editingGroupStitch?.stitchId === stitch.id &&
-                                       editingGroupStitch?.groupId === group.id
-
             return (
               <div
                 key={stitch.id}
                 className="grid grid-cols-[15px_40px_1fr_60px] items-center gap-3 p-2 bg-background-tertiary rounded ml-4 focus:outline-none"
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  // 編輯模式時完全不處理父容器的鍵盤事件，讓輸入框正常處理
-                  if (isEditingGroupStitch) {
-                    return
-                  }
-                  
                   if (e.key === 'Delete' || e.key === 'Backspace') {
                     e.preventDefault()
                     onDeleteGroupStitch(roundNumber, group.id, stitch.id)
@@ -304,24 +277,20 @@ export default function PatternItemDisplay({
               >
                 {/* 順序調整按鈕 */}
                 <div className="flex flex-col gap-1">
-                  {!isEditingGroupStitch && (
-                    <>
-                      <button
-                        onClick={() => onMoveGroupStitchUp(roundNumber, group.id, stitchIndex)}
-                        className="text-text-tertiary hover:text-primary p-1 w-6 h-6 flex items-center justify-center"
-                        title="上移"
-                      >
-                        <BsChevronUp className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => onMoveGroupStitchDown(roundNumber, group.id, stitchIndex)}
-                        className="text-text-tertiary hover:text-primary p-1 w-6 h-6 flex items-center justify-center"
-                        title="下移"
-                      >
-                        <BsChevronDown className="w-3 h-3" />
-                      </button>
-                    </>
-                  )}
+                  <button
+                    onClick={() => onMoveGroupStitchUp(roundNumber, group.id, stitchIndex)}
+                    className="text-text-tertiary hover:text-primary p-1 w-6 h-6 flex items-center justify-center"
+                    title="上移"
+                  >
+                    <BsChevronUp className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => onMoveGroupStitchDown(roundNumber, group.id, stitchIndex)}
+                    className="text-text-tertiary hover:text-primary p-1 w-6 h-6 flex items-center justify-center"
+                    title="下移"
+                  >
+                    <BsChevronDown className="w-3 h-3" />
+                  </button>
                 </div>
                 {/* 針目圖標 */}
                 <div className="text-lg flex items-center justify-center">
@@ -329,54 +298,33 @@ export default function PatternItemDisplay({
                 </div>
                 
                 {/* 針目資訊 */}
-                {isEditingGroupStitch ? (
-                  <div className="col-span-2 min-w-0">
-                    <StitchEditor
-                      stitchType={editGroupStitchType}
-                      stitchCount={editGroupStitchCount}
-                      onTypeChange={onGroupStitchTypeChange}
-                      onCountChange={onGroupStitchCountChange}
-                      onConfirm={() => onUpdateGroupStitch()}
-                      onCancel={onCancelEdit}
-                    />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-text-primary">
+                      {getStitchDisplayInfo(stitch).rawValue}
+                    </span>
+                    <span className="text-sm text-text-secondary">
+                      ×{stitch.count}
+                    </span>
                   </div>
-                ) : (
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-text-primary">
-                        {getStitchDisplayInfo(stitch).rawValue}
-                      </span>
-                      <span className="text-sm text-text-secondary">
-                        ×{stitch.count}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                </div>
                 
                 {/* 操作按鈕 */}
                 <div className="flex items-center justify-end gap-1">
-                  {isEditingGroupStitch ? (
-                    <div className="flex gap-1">
-                      {/* Already handled in StitchEditor */}
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => onEditGroupStitch(roundNumber, group.id, stitch)}
-                        className="text-text-tertiary hover:text-primary p-1 w-8 h-8 flex items-center justify-center"
-                        title="編輯"
-                      >
-                        <VscEdit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteGroupStitch(roundNumber, group.id, stitch.id)}
-                        className="text-text-tertiary hover:text-red-500 p-1 w-8 h-8 flex items-center justify-center"
-                        title="刪除"
-                      >
-                        <BsTrash className="w-4 h-4" />
-                      </button>
-                    </>
-                  )}
+                  <button
+                    onClick={() => onEditGroupStitch(roundNumber, group.id, stitch)}
+                    className="text-text-tertiary hover:text-primary p-1 w-8 h-8 flex items-center justify-center"
+                    title="編輯"
+                  >
+                    <VscEdit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onDeleteGroupStitch(roundNumber, group.id, stitch.id)}
+                    className="text-text-tertiary hover:text-red-500 p-1 w-8 h-8 flex items-center justify-center"
+                    title="刪除"
+                  >
+                    <BsTrash className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             )

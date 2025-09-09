@@ -332,7 +332,7 @@ export default function PatternEditorContainer() {
   const handleStitchModalConfirm = async (stitchType: StitchType, count: number, yarnId: string, customName?: string, customSymbol?: string) => {
     if (!modalStates.showStitchModal) return
     
-    const { mode, roundNumber, stitchId } = modalStates.showStitchModal
+    const { mode, roundNumber, stitchId, groupId } = modalStates.showStitchModal
     
     if (mode === 'edit' && stitchId) {
       // Handle edit mode
@@ -385,6 +385,72 @@ export default function PatternEditorContainer() {
       } catch (error) {
         logger.error('Error updating stitch:', error)
         alert('更新針法時發生錯誤')
+      }
+    } else if (mode === 'editGroupStitch' && stitchId && groupId) {
+      // Handle group stitch edit mode
+      try {
+        if (currentChart) {
+          const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
+          if (targetRound) {
+            // Update group stitch - support both regular and custom stitches
+            const updatedRound = {
+              ...targetRound,
+              // Update legacy stitchGroups array
+              stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) =>
+                g.id === groupId
+                  ? {
+                      ...g,
+                      stitches: g.stitches.map((s: StitchInfo) =>
+                        s.id === stitchId
+                          ? { 
+                              ...s, 
+                              type: stitchType, 
+                              count,
+                              yarnId,
+                              ...(stitchType === StitchType.CUSTOM && { customName, customSymbol })
+                            }
+                          : s
+                      )
+                    }
+                  : g
+              ),
+              // Update new patternItems array
+              patternItems: targetRound.patternItems?.map((item: any) => {
+                if (item.type === PatternItemType.GROUP && item.data.id === groupId) {
+                  return {
+                    ...item,
+                    data: {
+                      ...item.data,
+                      stitches: item.data.stitches.map((s: StitchInfo) =>
+                        s.id === stitchId
+                          ? { 
+                              ...s, 
+                              type: stitchType, 
+                              count,
+                              yarnId,
+                              ...(stitchType === StitchType.CUSTOM && { customName, customSymbol })
+                            }
+                          : s
+                      )
+                    }
+                  }
+                }
+                return item
+              }) || []
+            }
+            
+            await updateChart(currentChart.id, {
+              ...currentChart,
+              rounds: currentChart.rounds.map((r: Round) =>
+                r.roundNumber === roundNumber ? updatedRound : r
+              ),
+              lastModified: new Date()
+            })
+          }
+        }
+      } catch (error) {
+        logger.error('Error updating group stitch:', error)
+        alert('更新群組針法時發生錯誤')
       }
     } else {
       // Handle add mode (existing logic)
@@ -1091,69 +1157,14 @@ export default function PatternEditorContainer() {
           }}
           onEditGroupStitch={(roundNumber, groupId, stitch) => {
             logger.debug('onEditGroupStitch called:', { roundNumber, groupId, stitch })
-            patternEditorState.setEditingGroupStitch({ roundNumber, groupId, stitchId: stitch.id })
-            patternEditorState.handleGroupStitchTypeChange(stitch.type)
-            patternEditorState.handleGroupStitchCountChange(String(stitch.count))
-          }}
-          onUpdateGroupStitch={async () => {
-            if (!patternEditorState.editingGroupStitch) return
-            
-            const { roundNumber, groupId, stitchId } = patternEditorState.editingGroupStitch
-            const count = parseInt(patternEditorState.editGroupStitchCount) || 1
-            
-            
-            try {
-              if (currentChart) {
-                const targetRound = currentChart.rounds.find((r: Round) => r.roundNumber === roundNumber)
-                if (targetRound) {
-                  // 更新群組針法 - 需要同時更新 stitchGroups (舊格式) 和 patternItems (新格式)
-                  const updatedRound = {
-                    ...targetRound,
-                    // 更新舊格式的 stitchGroups 陣列
-                    stitchGroups: targetRound.stitchGroups.map((g: StitchGroup) =>
-                      g.id === groupId
-                        ? {
-                            ...g,
-                            stitches: g.stitches.map((s: StitchInfo) =>
-                              s.id === stitchId
-                                ? { ...s, type: patternEditorState.editGroupStitchType, count }
-                                : s
-                            )
-                          }
-                        : g
-                    ),
-                    // 更新新格式的 patternItems 陣列中的群組針法
-                    patternItems: targetRound.patternItems?.map((item: any) => {
-                      if (item.type === PatternItemType.GROUP && item.data.id === groupId) {
-                        return {
-                          ...item,
-                          data: {
-                            ...item.data,
-                            stitches: item.data.stitches.map((s: StitchInfo) =>
-                              s.id === stitchId
-                                ? { ...s, type: patternEditorState.editGroupStitchType, count }
-                                : s
-                            )
-                          }
-                        }
-                      }
-                      return item
-                    }) || []
-                  }
-                  
-                  await updateChart(currentChart.id, {
-                    rounds: currentChart.rounds.map((r: Round) =>
-                      r.roundNumber === roundNumber ? updatedRound : r
-                    )
-                  })
-                }
-              }
-            } catch (error) {
-              logger.error('Error updating group stitch:', error)
-              alert('更新群組針法時發生錯誤')
-            }
-            
-            patternEditorState.setEditingGroupStitch(null)
+            // Use modal for editing to support custom stitches
+            modalStates.setShowStitchModal({ 
+              roundNumber, 
+              mode: 'editGroupStitch', 
+              stitchId: stitch.id,
+              groupId: groupId,
+              initialStitch: stitch
+            })
           }}
           onDeleteGroupStitch={async (roundNumber: number, groupId: string, stitchId: string) => {
             if (!confirm('確定要刪除這個針法嗎？')) return
@@ -1234,7 +1245,11 @@ export default function PatternEditorContainer() {
         onClose={() => modalStates.setShowStitchModal(null)}
         onConfirm={handleStitchModalConfirm}
         availableYarns={currentProject?.yarns || []}
-        title={modalStates.showStitchModal?.mode === 'edit' ? '編輯針法' : '新增針法'}
+        title={
+          modalStates.showStitchModal?.mode === 'edit' ? '編輯針法' :
+          modalStates.showStitchModal?.mode === 'editGroupStitch' ? '編輯群組針法' :
+          '新增針法'
+        }
         initialStitch={modalStates.showStitchModal?.initialStitch}
       />
 
