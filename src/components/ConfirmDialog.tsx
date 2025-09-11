@@ -1,3 +1,5 @@
+import { useModalPWAFix } from '../hooks/useModalPWAFix'
+
 export interface ConfirmDialogProps {
   isOpen: boolean
   title: string
@@ -17,11 +19,13 @@ export default function ConfirmDialog({
   confirmText = '確定',
   cancelText = '取消'
 }: ConfirmDialogProps) {
+  useModalPWAFix(isOpen)
+  
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-background-secondary rounded-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 safe-area-inset">
+      <div className="bg-background-secondary rounded-xl p-6 w-full max-w-md mx-auto my-auto">
         <h2 className="text-xl font-semibold text-text-primary mb-4">
           {title}
         </h2>

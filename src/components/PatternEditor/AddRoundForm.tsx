@@ -1,12 +1,17 @@
+import { useState } from 'react'
+import { useModalPWAFix } from '../../hooks/useModalPWAFix'
+import { Round } from '../../types'
+
 interface AddRoundFormProps {
   isOpen: boolean
   isLoading: boolean
   newRoundNotes: string
   roundCount: number
+  existingRounds: Round[]
   onNotesChange: (notes: string) => void
   onRoundCountChange: (count: number) => void
   onCancel: () => void
-  onConfirm: () => void
+  onConfirm: (insertAfterRound?: number) => void
 }
 
 export default function AddRoundForm({
@@ -14,16 +19,24 @@ export default function AddRoundForm({
   isLoading,
   newRoundNotes,
   roundCount,
+  existingRounds,
   onNotesChange,
   onRoundCountChange,
   onCancel,
   onConfirm
 }: AddRoundFormProps) {
+  useModalPWAFix(isOpen)
+  
+  const [insertAfterRound, setInsertAfterRound] = useState<number | undefined>(undefined)
+  
   if (!isOpen) return null
+  
+  // 按圈數排序現有圈數
+  const sortedRounds = [...existingRounds].sort((a, b) => a.roundNumber - b.roundNumber)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-background-secondary rounded-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 safe-area-inset">
+      <div className="bg-background-secondary rounded-xl p-6 w-full max-w-md mx-auto my-auto">
         <h2 className="text-xl font-semibold text-text-primary mb-4">
           新增圈數
         </h2>
@@ -66,6 +79,34 @@ export default function AddRoundForm({
           </div>
         </div>
         
+        {/* 插入位置選擇 */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
+            插入位置
+          </label>
+          <select
+            value={insertAfterRound === undefined ? '' : insertAfterRound.toString()}
+            onChange={(e) => {
+              const value = e.target.value
+              setInsertAfterRound(value === '' ? undefined : parseInt(value))
+            }}
+            className="input"
+          >
+            <option value="">插入到最後</option>
+            {sortedRounds.map((round) => (
+              <option key={round.id} value={round.roundNumber}>
+                插入到第 {round.roundNumber} 圈後面
+              </option>
+            ))}
+          </select>
+          <div className="text-xs text-text-tertiary mt-1">
+            {insertAfterRound === undefined 
+              ? '新增的圈數將插入到最後面'
+              : `新增的圈數將插入到第 ${insertAfterRound} 圈後面`
+            }
+          </div>
+        </div>
+        
         <div className="mb-4">
           <label className="block text-sm font-medium text-text-secondary mb-1">
             備註（選填）
@@ -90,11 +131,15 @@ export default function AddRoundForm({
             取消
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => onConfirm(insertAfterRound)}
             className="btn btn-primary flex-1"
             disabled={isLoading}
           >
-            {isLoading ? '新增中...' : `新增 ${roundCount} 圈`}
+            {isLoading ? '新增中...' : (
+              insertAfterRound === undefined 
+                ? `新增 ${roundCount} 圈到最後`
+                : `插入 ${roundCount} 圈到第 ${insertAfterRound} 圈後`
+            )}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useModalPWAFix } from '../hooks/useModalPWAFix'
 import { StitchType, StitchTypeInfo, Yarn, StitchInfo } from '../types'
 import { getStitchDisplayInfo } from '../utils'
 import { useCustomStitchStore } from '../stores'
@@ -109,26 +110,8 @@ export default function StitchSelectionModal({
   // Debug: 檢查 customStitches
   console.log('StitchSelectionModal customStitches:', customStitches, 'length:', customStitches.length)
 
-  // Body scroll lock for mobile
-  useEffect(() => {
-    if (isOpen) {
-      // Save current scroll position
-      const scrollY = window.scrollY
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${scrollY}px`
-      document.body.style.width = '100%'
-      document.body.style.overflow = 'hidden'
-      
-      return () => {
-        // Restore scroll position
-        document.body.style.position = ''
-        document.body.style.top = ''
-        document.body.style.width = ''
-        document.body.style.overflow = ''
-        window.scrollTo(0, scrollY)
-      }
-    }
-  }, [isOpen])
+  // PWA modal fixes
+  useModalPWAFix(isOpen)
 
   // 當有初始針法時，預填表單
   useEffect(() => {
@@ -216,8 +199,8 @@ export default function StitchSelectionModal({
   const selectedYarn = availableYarns.find(yarn => yarn.id === selectedYarnId)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-[80]">
-      <div className="bg-background-secondary rounded-xl p-6 w-full max-w-lg sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-[80] safe-area-inset">
+      <div className="bg-background-secondary rounded-xl p-6 w-full max-w-lg sm:max-w-4xl max-h-[90vh] overflow-y-auto mx-auto my-auto">
         <h2 className="text-xl font-semibold text-text-primary mb-6">
           {title}
         </h2>

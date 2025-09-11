@@ -102,24 +102,24 @@ export default function RoundCard({
                   {onMoveRoundUp && (
                     <button
                       onClick={() => onMoveRoundUp(round.roundNumber)}
-                      className="text-text-tertiary hover:text-primary p-1 w-3 h-3 flex items-center justify-center"
+                      className="text-text-tertiary hover:text-primary p-2 w-7 h-7 flex items-center justify-center rounded-md hover:bg-background-tertiary transition-colors"
                       title="上移圈數"
                     >
-                      <BsChevronUp className="w-3 h-3" />
+                      <BsChevronUp className="w-4 h-4" />
                     </button>
                   )}
                   {onMoveRoundDown && (
                     <button
                       onClick={() => onMoveRoundDown(round.roundNumber)}
-                      className="text-text-tertiary hover:text-primary p-1 w-3 h-3 flex items-center justify-center"
+                      className="text-text-tertiary hover:text-primary p-2 w-7 h-7 flex items-center justify-center rounded-md hover:bg-background-tertiary transition-colors"
                       title="下移圈數"
                     >
-                      <BsChevronDown className="w-3 h-3" />
+                      <BsChevronDown className="w-4 h-4" />
                     </button>
                   )}
                 </div>
               )}
-              <h3 className="text-lg font-semibold text-text-primary">
+              <h3 className="text-lg font-semibold text-text-primary ml-3">
                 第 {round.roundNumber} 圈
               </h3>
             </div>
