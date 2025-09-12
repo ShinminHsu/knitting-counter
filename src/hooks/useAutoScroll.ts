@@ -41,6 +41,7 @@ export function useAutoScroll({
     if (currentElement) {
       // Get the row container that contains this element
       const rowContainer = currentElement.closest('.grid')?.parentElement as HTMLElement
+      
       if (!rowContainer) return 0
       
       // Scroll to center the current row
@@ -48,30 +49,11 @@ export function useAutoScroll({
       const rowHeight = rowContainer.offsetHeight
       const containerHeight = container.clientHeight
       
-      return Math.max(0, rowTop - (containerHeight / 2) + (rowHeight / 2))
-    }
-    
-    // If direct match fails, find by position in the list
-    // Get all stitch elements sorted by their data-stitch-index
-    const allStitchElements = Array.from(container.querySelectorAll('[data-stitch-index]'))
-      .map(el => ({
-        element: el as HTMLElement,
-        index: parseInt(el.getAttribute('data-stitch-index') || '0')
-      }))
-      .sort((a, b) => a.index - b.index)
-    
-    // Find the element at the current stitch position
-    const targetElement = allStitchElements.find(item => item.index === currentStitch)
-    
-    if (targetElement) {
-      const rowContainer = targetElement.element.closest('.grid')?.parentElement as HTMLElement
-      if (!rowContainer) return 0
+      // Calculate relative position within the scrollable container
+      const relativeRowTop = rowTop - container.offsetTop
+      const scrollPosition = Math.max(0, relativeRowTop - (containerHeight / 2) + (rowHeight / 2))
       
-      const rowTop = rowContainer.offsetTop
-      const rowHeight = rowContainer.offsetHeight
-      const containerHeight = container.clientHeight
-      
-      return Math.max(0, rowTop - (containerHeight / 2) + (rowHeight / 2))
+      return scrollPosition
     }
     
     return 0

@@ -128,9 +128,9 @@ function renderStitchRow(
   const elements: JSX.Element[] = []
 
   for (let i = 0; i < stitch.count; i++) {
-    const stitchIndexInRound = startIndex + i  // 圈內的相對索引
-    const isCompleted = stitchIndexInRound < currentStitchInRound
-    const isCurrent = stitchIndexInRound === currentStitchInRound
+    const stitchIndex = startIndex + i
+    const isCompleted = stitchIndex < currentStitchInRound
+    const isCurrent = stitchIndex === currentStitchInRound
 
     elements.push(
       <StitchElement
@@ -140,7 +140,8 @@ function renderStitchRow(
         isCompleted={isCompleted}
         isCurrent={isCurrent}
         isLightColor={isLightColor(yarnColor)}
-        stitchIndex={stitchIndexInRound}  // 使用圈內相對索引
+        stitchIndex={stitchIndex}
+        debugInfo={`single-stitch-${stitch.id}-${i}`}
       />
     )
   }
@@ -195,6 +196,7 @@ function renderGroupRows(
             isCurrent={isCurrent}
             isLightColor={isLightColor(yarnColor)}
             stitchIndex={currentStitchIndex}
+            debugInfo={`group-${group.id}-repeat-${repeat}-stitch-${stitch.id}-${i}`}
           />
         )
       }
@@ -234,11 +236,13 @@ const StitchElement = memo<{
   isCurrent: boolean
   isLightColor: boolean
   stitchIndex: number
-}>(({ symbol, yarnColor, isCompleted, isCurrent, isLightColor, stitchIndex }) => {
+  debugInfo?: string
+}>(({ symbol, yarnColor, isCompleted, isCurrent, isLightColor, stitchIndex, debugInfo }) => {
   return (
     <div 
       className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
       data-stitch-index={stitchIndex}
+      data-debug-info={debugInfo}
     >
       <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
         isCompleted 
