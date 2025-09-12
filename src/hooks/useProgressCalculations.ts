@@ -13,6 +13,7 @@ import {
   getStitchDisplayInfo,
   getChartProgressPercentage,
   getChartCompletedStitches,
+  describeStitchGroup,
 } from '../utils'
 import { calculateStitchDisplayNumber } from '../utils/chart/singleStitchNavigation'
 
@@ -199,14 +200,7 @@ function generateRoundDescription(round: Round): string {
         descriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
       } else if (item.type === PatternItemType.GROUP) {
         const group = item.data as StitchGroup
-        const groupDescriptions: string[] = []
-        group.stitches.forEach((stitch: StitchInfo) => {
-          const displayInfo = getStitchDisplayInfo(stitch)
-          groupDescriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
-        })
-        if (groupDescriptions.length > 0) {
-          descriptions.push(`[${groupDescriptions.join(', ')}] * ${group.repeatCount}`)
-        }
+        descriptions.push(describeStitchGroup(group))
       }
     })
   } else {
@@ -217,14 +211,7 @@ function generateRoundDescription(round: Round): string {
     })
     
     round.stitchGroups.forEach((group: StitchGroup) => {
-      const groupDescriptions: string[] = []
-      group.stitches.forEach((stitch: StitchInfo) => {
-        const displayInfo = getStitchDisplayInfo(stitch)
-        groupDescriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
-      })
-      if (groupDescriptions.length > 0) {
-        descriptions.push(`[${groupDescriptions.join(', ')}] * ${group.repeatCount}`)
-      }
+      descriptions.push(describeStitchGroup(group))
     })
   }
   

@@ -29,51 +29,52 @@ export function useAutoScroll({
   // Use refs to store previous values to avoid unnecessary re-renders
   const previousStitchRef = useRef<number>(-1)
   
-  // Memoized scroll calculation function
+  // Memoized scroll calculation function for new row-based layout
   const calculateScrollPosition = useCallback((
     currentStitch: number,
-    totalStitches: number,
+    _totalStitches: number,
     container: HTMLElement
   ) => {
-    const gridContainer = container.querySelector('.grid')
-    if (!gridContainer) return 0
+    // Find the element that contains the current stitch by data-stitch-index
+    const currentElement = container.querySelector(`[data-stitch-index="${currentStitch}"]`) as HTMLElement
     
-    const stitchElements = gridContainer.children
-    if (stitchElements.length === 0) return 0
+    if (currentElement) {
+      // Get the row container that contains this element
+      const rowContainer = currentElement.closest('.grid')?.parentElement as HTMLElement
+      if (!rowContainer) return 0
+      
+      // Scroll to center the current row
+      const rowTop = rowContainer.offsetTop
+      const rowHeight = rowContainer.offsetHeight
+      const containerHeight = container.clientHeight
+      
+      return Math.max(0, rowTop - (containerHeight / 2) + (rowHeight / 2))
+    }
     
-    // Get computed style to determine current grid columns
-    const computedStyle = window.getComputedStyle(gridContainer)
-    const gridTemplateColumns = computedStyle.gridTemplateColumns
-    const stitchesPerRow = gridTemplateColumns.split(' ').length
+    // If direct match fails, find by position in the list
+    // Get all stitch elements sorted by their data-stitch-index
+    const allStitchElements = Array.from(container.querySelectorAll('[data-stitch-index]'))
+      .map(el => ({
+        element: el as HTMLElement,
+        index: parseInt(el.getAttribute('data-stitch-index') || '0')
+      }))
+      .sort((a, b) => a.index - b.index)
     
-    if (totalStitches === 0 || stitchesPerRow === 0) return 0
+    // Find the element at the current stitch position
+    const targetElement = allStitchElements.find(item => item.index === currentStitch)
     
-    // Calculate current row (0-based index)
-    const currentRowIndex = Math.floor(currentStitch / stitchesPerRow)
+    if (targetElement) {
+      const rowContainer = targetElement.element.closest('.grid')?.parentElement as HTMLElement
+      if (!rowContainer) return 0
+      
+      const rowTop = rowContainer.offsetTop
+      const rowHeight = rowContainer.offsetHeight
+      const containerHeight = container.clientHeight
+      
+      return Math.max(0, rowTop - (containerHeight / 2) + (rowHeight / 2))
+    }
     
-    // Calculate row height from first stitch element
-    const firstStitch = stitchElements[0] as HTMLElement
-    const computedStyles = window.getComputedStyle(firstStitch)
-    const rowHeight = firstStitch.offsetHeight + parseFloat(computedStyles.marginBottom || '0') + 8
-    
-    // Get container height to determine visible rows
-    const containerHeight = container.clientHeight
-    const visibleRows = Math.floor(containerHeight / rowHeight)
-    
-    // Calculate total rows
-    const totalRows = Math.ceil(totalStitches / stitchesPerRow)
-    
-    // If all rows fit in container, no scrolling needed
-    if (totalRows <= visibleRows) return 0
-    
-    // Keep current row in the middle of visible area if possible
-    const targetMiddleRow = Math.floor(visibleRows / 2)
-    let targetTopRow = currentRowIndex - targetMiddleRow
-    
-    // Ensure we don't scroll past the beginning or end
-    targetTopRow = Math.max(0, Math.min(targetTopRow, totalRows - visibleRows))
-    
-    return targetTopRow * rowHeight
+    return 0
   }, [])
   
   // Simplified scroll function
@@ -105,9 +106,11 @@ export function useAutoScroll({
       const totalStitches = getRoundTotalStitches(displayRound)
       const targetScrollTop = calculateScrollPosition(currentStitch, totalStitches, container)
       
-      // Always scroll to calculated position (removed threshold check)
-      performScroll(targetScrollTop, container)
-    }, 50) // Reduced debounce time
+      // Only scroll if position is different enough to be meaningful
+      if (Math.abs(container.scrollTop - targetScrollTop) > 10) {
+        performScroll(targetScrollTop, container)
+      }
+    }, 100) // Slightly increased delay for new layout
     
     // Cleanup timeout on unmount or dependency change
     return () => {

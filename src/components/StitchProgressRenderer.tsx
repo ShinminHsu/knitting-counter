@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { Round, StitchInfo, StitchGroup, PatternItemType } from '../types'
 import { getSortedPatternItems, getStitchDisplayInfo } from '../utils'
 
@@ -21,13 +21,13 @@ export const StitchProgressRenderer = memo<StitchProgressRendererProps>(({
   getYarnColor,
   isLightColor
 }) => {
-  // Memoized stitch elements generation
-  const stitchElements = useMemo(() => {
+  // Memoized pattern rows generation
+  const patternRows = useMemo(() => {
     if (!displayRound || totalStitchesInCurrentRound === 0) {
-      return null
+      return []
     }
 
-    const elements: JSX.Element[] = []
+    const rows: JSX.Element[] = []
     let stitchIndex = 0
 
     // Use getSortedPatternItems for correct order
@@ -35,59 +35,63 @@ export const StitchProgressRenderer = memo<StitchProgressRendererProps>(({
 
     if (sortedPatternItems.length > 0) {
       // Use new sorted format
-      sortedPatternItems.forEach((item) => {
+      sortedPatternItems.forEach((item, itemIndex) => {
         if (item.type === PatternItemType.STITCH) {
           const stitch = item.data as StitchInfo
-          const stitchElements = renderStitchElements(
+          const stitchRow = renderStitchRow(
             stitch,
             stitchIndex,
             currentStitchInRound,
             getYarnColor,
-            isLightColor
+            isLightColor,
+            `stitch-row-${itemIndex}`
           )
-          elements.push(...stitchElements)
+          rows.push(stitchRow)
           stitchIndex += stitch.count
         } else if (item.type === PatternItemType.GROUP) {
           const group = item.data as StitchGroup
-          const groupElements = renderGroupElements(
+          const groupRows = renderGroupRows(
             group,
             stitchIndex,
             currentStitchInRound,
             getYarnColor,
-            isLightColor
+            isLightColor,
+            `group-${itemIndex}`
           )
-          elements.push(...groupElements.elements)
-          stitchIndex += groupElements.totalStitches
+          rows.push(...groupRows.rows)
+          stitchIndex += groupRows.totalStitches
         }
       })
     } else {
       // Fallback to legacy format for backward compatibility
-      displayRound.stitches.forEach((stitch) => {
-        const stitchElements = renderStitchElements(
+      displayRound.stitches.forEach((stitch, index) => {
+        const stitchRow = renderStitchRow(
           stitch,
           stitchIndex,
           currentStitchInRound,
           getYarnColor,
-          isLightColor
+          isLightColor,
+          `legacy-stitch-${index}`
         )
-        elements.push(...stitchElements)
+        rows.push(stitchRow)
         stitchIndex += stitch.count
       })
 
-      displayRound.stitchGroups.forEach((group) => {
-        const groupElements = renderGroupElements(
+      displayRound.stitchGroups.forEach((group, index) => {
+        const groupRows = renderGroupRows(
           group,
           stitchIndex,
           currentStitchInRound,
           getYarnColor,
-          isLightColor
+          isLightColor,
+          `legacy-group-${index}`
         )
-        elements.push(...groupElements.elements)
-        stitchIndex += groupElements.totalStitches
+        rows.push(...groupRows.rows)
+        stitchIndex += groupRows.totalStitches
       })
     }
 
-    return elements
+    return rows
   }, [displayRound, currentStitchInRound, totalStitchesInCurrentRound, getYarnColor, isLightColor])
 
   if (!displayRound || totalStitchesInCurrentRound === 0) {
@@ -99,10 +103,8 @@ export const StitchProgressRenderer = memo<StitchProgressRendererProps>(({
   }
 
   return (
-    <div className="w-full px-1 sm:px-0">
-      <div className="grid grid-cols-8 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-x-0.5 gap-y-1 sm:gap-2 place-items-center w-full">
-        {stitchElements}
-      </div>
+    <div className="w-full px-1 sm:px-0 space-y-3">
+      {patternRows}
     </div>
   )
 })
@@ -110,24 +112,25 @@ export const StitchProgressRenderer = memo<StitchProgressRendererProps>(({
 StitchProgressRenderer.displayName = 'StitchProgressRenderer'
 
 /**
- * Render individual stitch elements
- * Memoized for performance
+ * Render a row of stitches
+ * Each row contains all stitches of the same type
  */
-function renderStitchElements(
+function renderStitchRow(
   stitch: StitchInfo,
   startIndex: number,
   currentStitchInRound: number,
   getYarnColor: (yarnId: string) => string,
-  isLightColor: (hex: string) => boolean
-): JSX.Element[] {
-  const elements: JSX.Element[] = []
+  isLightColor: (hex: string) => boolean,
+  rowKey: string
+): JSX.Element {
   const yarnColor = getYarnColor(stitch.yarnId)
   const displayInfo = getStitchDisplayInfo(stitch)
+  const elements: JSX.Element[] = []
 
   for (let i = 0; i < stitch.count; i++) {
-    const stitchIndex = startIndex + i
-    const isCompleted = stitchIndex < currentStitchInRound
-    const isCurrent = stitchIndex === currentStitchInRound
+    const stitchIndexInRound = startIndex + i  // 圈內的相對索引
+    const isCompleted = stitchIndexInRound < currentStitchInRound
+    const isCurrent = stitchIndexInRound === currentStitchInRound
 
     elements.push(
       <StitchElement
@@ -137,51 +140,85 @@ function renderStitchElements(
         isCompleted={isCompleted}
         isCurrent={isCurrent}
         isLightColor={isLightColor(yarnColor)}
+        stitchIndex={stitchIndexInRound}  // 使用圈內相對索引
       />
     )
   }
 
-  return elements
+  return (
+    <div key={rowKey} className="w-full">
+      <div className="text-xs text-text-secondary mb-2">
+        {displayInfo.rawValue} × {stitch.count}
+      </div>
+      <div className="grid grid-cols-8 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-x-0.5 gap-y-1 sm:gap-2 place-items-center w-full p-2 bg-background-secondary rounded border border-border">
+        {elements}
+      </div>
+    </div>
+  )
 }
 
 /**
- * Render group elements
- * Memoized for performance
+ * Render group rows
+ * Each repeat of the group gets its own row
  */
-function renderGroupElements(
+function renderGroupRows(
   group: StitchGroup,
   startIndex: number,
   currentStitchInRound: number,
   getYarnColor: (yarnId: string) => string,
-  isLightColor: (hex: string) => boolean
-): { elements: JSX.Element[]; totalStitches: number } {
-  const elements: JSX.Element[] = []
+  isLightColor: (hex: string) => boolean,
+  groupKey: string
+): { rows: JSX.Element[]; totalStitches: number } {
+  const rows: JSX.Element[] = []
   let stitchIndex = startIndex
 
   for (let repeat = 0; repeat < group.repeatCount; repeat++) {
+    const rowElements: JSX.Element[] = []
+    let repeatStitchIndex = stitchIndex
+
     group.stitches.forEach((stitch) => {
-      const stitchElements = renderStitchElements(
-        stitch,
-        stitchIndex,
-        currentStitchInRound,
-        getYarnColor,
-        isLightColor
-      )
+      const stitchElements: JSX.Element[] = []
+      const yarnColor = getYarnColor(stitch.yarnId)
+      const displayInfo = getStitchDisplayInfo(stitch)
+
+      for (let i = 0; i < stitch.count; i++) {
+        const currentStitchIndex = repeatStitchIndex + i
+        const isCompleted = currentStitchIndex < currentStitchInRound
+        const isCurrent = currentStitchIndex === currentStitchInRound
+
+        stitchElements.push(
+          <StitchElement
+            key={`${group.id}-${repeat}-${stitch.id}-${i}`}
+            symbol={displayInfo.symbol}
+            yarnColor={yarnColor}
+            isCompleted={isCompleted}
+            isCurrent={isCurrent}
+            isLightColor={isLightColor(yarnColor)}
+            stitchIndex={currentStitchIndex}
+          />
+        )
+      }
       
-      // Add group context to keys for better React reconciliation
-      const groupedElements = stitchElements.map((element, index) =>
-        React.cloneElement(element, {
-          key: `${group.id}-${repeat}-${stitch.id}-${index}`
-        })
-      )
-      
-      elements.push(...groupedElements)
-      stitchIndex += stitch.count
+      rowElements.push(...stitchElements)
+      repeatStitchIndex += stitch.count
     })
+
+    rows.push(
+      <div key={`${groupKey}-repeat-${repeat}`} className="w-full">
+        <div className="text-xs text-text-secondary mb-2">
+          【{group.name || '針目群組'}】第 {repeat + 1} 次重複
+        </div>
+        <div className="grid grid-cols-8 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-x-0.5 gap-y-1 sm:gap-2 place-items-center w-full p-2 bg-background-secondary rounded border border-border">
+          {rowElements}
+        </div>
+      </div>
+    )
+
+    stitchIndex = repeatStitchIndex
   }
 
   return {
-    elements,
+    rows,
     totalStitches: stitchIndex - startIndex
   }
 }
@@ -196,9 +233,13 @@ const StitchElement = memo<{
   isCompleted: boolean
   isCurrent: boolean
   isLightColor: boolean
-}>(({ symbol, yarnColor, isCompleted, isCurrent, isLightColor }) => {
+  stitchIndex: number
+}>(({ symbol, yarnColor, isCompleted, isCurrent, isLightColor, stitchIndex }) => {
   return (
-    <div className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300">
+    <div 
+      className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
+      data-stitch-index={stitchIndex}
+    >
       <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
         isCompleted 
           ? 'text-text-primary' 
