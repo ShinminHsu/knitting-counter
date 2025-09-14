@@ -149,7 +149,7 @@ function renderStitchRow(
   return (
     <div key={rowKey} className="inline-block">
       <div className="text-xs text-text-secondary mb-2">
-        {displayInfo.rawValue} {displayInfo.symbol} {stitch.count}
+        {displayInfo.rawValue} {stitch.count}
       </div>
       <div className="inline-flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary border-l border-dashed border-border">
         {elements}

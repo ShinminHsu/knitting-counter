@@ -78,9 +78,9 @@ export const StitchRenderer = memo<StitchRendererProps>(({
               )}
             </span>
             {displayRound && roundDescription && (
-              <div className="text-sm text-gray-500 mt-1">
+                <div className="text-xs sm:text-sm text-gray mt-1">
                 {roundDescription}
-              </div>
+                </div>
             )}
           </div>
           {displayRound?.notes && (
