@@ -333,6 +333,7 @@ export interface FirestoreRound {
   roundNumber: number
   stitches: FirestoreStitchInfo[]
   stitchGroups: FirestoreStitchGroup[]
+  patternItems?: PatternItem[]
   notes?: string
 }
 

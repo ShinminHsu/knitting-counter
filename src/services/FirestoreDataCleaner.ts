@@ -101,6 +101,17 @@ export class FirestoreDataCleaner {
       stitchGroups: this.cleanStitchGroups(round.stitchGroups || [])
     }
 
+    // Include patternItems if they exist
+    if (round.patternItems && round.patternItems.length > 0) {
+      cleanedRound.patternItems = round.patternItems.map(item => ({
+        id: item.id,
+        type: item.type,
+        order: item.order,
+        createdAt: item.createdAt,
+        data: item.data
+      }))
+    }
+
     // Only include notes if it's defined and not empty
     if (round.notes !== undefined && round.notes !== null) {
       cleanedRound.notes = round.notes
