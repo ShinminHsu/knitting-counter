@@ -328,12 +328,20 @@ export interface FirestoreStitchGroup {
   completedRepeats?: number
 }
 
+export interface FirestorePatternItem {
+  id: string
+  type: PatternItemType
+  order: number
+  createdAt: any // Firestore Timestamp - handled by conversion utilities
+  data: FirestoreStitchInfo | FirestoreStitchGroup
+}
+
 export interface FirestoreRound {
   id: string
   roundNumber: number
   stitches: FirestoreStitchInfo[]
   stitchGroups: FirestoreStitchGroup[]
-  patternItems?: PatternItem[]
+  patternItems?: FirestorePatternItem[]
   notes?: string
 }
 

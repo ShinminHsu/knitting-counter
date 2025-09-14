@@ -1,7 +1,6 @@
 import { memo, useMemo } from 'react'
 import { Round, StitchInfo, StitchGroup, PatternItemType } from '../types'
 import { getSortedPatternItems, getStitchDisplayInfo } from '../utils'
-import { getStitchActualCount } from '../utils/pattern/operations'
 
 interface StitchProgressRendererProps {
   displayRound: Round | undefined
@@ -137,9 +136,6 @@ function renderStitchRow(
   
   // 計算這個針法區間的結束位置 (用於標記完成 - 使用 count)
   const endIndex = startIndex + stitch.count - 1
-  
-  // 計算實際針數 (用於顯示數字)
-  const actualCount = getStitchActualCount(stitch)
   
   // 檢查是否已完成或正在進行中
   const isBlockCompleted = endIndex < currentStitchInRound

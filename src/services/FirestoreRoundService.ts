@@ -151,9 +151,11 @@ export class FirestoreRoundService {
             id: item.id,
             type: item.type,
             order: item.order,
-            createdAt: item.createdAt && typeof item.createdAt.toDate === 'function' 
+            createdAt: item.createdAt && typeof item.createdAt === 'object' && item.createdAt.toDate && typeof item.createdAt.toDate === 'function' 
               ? item.createdAt.toDate() 
-              : new Date(item.createdAt),
+              : item.createdAt instanceof Date
+                ? item.createdAt
+                : new Date(item.createdAt),
             data: item.data
           }))
         }
