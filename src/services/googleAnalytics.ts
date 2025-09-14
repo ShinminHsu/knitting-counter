@@ -220,13 +220,14 @@ class GoogleAnalyticsService {
   /**
    * Track progress tracking events
    */
-  trackProgressEvent(action: 'start' | 'next_stitch' | 'previous_stitch' | 'complete_round' | 'reset', data?: Record<string, any>) {
+  trackProgressEvent(action: 'start' | 'next_stitch' | 'previous_stitch' | 'complete_round' | 'reset' | 'skip_to_stitch', data?: Record<string, any>) {
     const eventMap = {
       start: ANALYTICS_EVENTS.PROGRESS_START,
       next_stitch: ANALYTICS_EVENTS.PROGRESS_NEXT_STITCH,
       previous_stitch: ANALYTICS_EVENTS.PROGRESS_PREVIOUS_STITCH,
       complete_round: ANALYTICS_EVENTS.PROGRESS_COMPLETE_ROUND,
       reset: ANALYTICS_EVENTS.PROGRESS_RESET,
+      skip_to_stitch: ANALYTICS_EVENTS.PROGRESS_SKIP_TO_STITCH,
     }
 
     this.trackEvent(eventMap[action], data)

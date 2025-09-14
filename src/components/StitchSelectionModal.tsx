@@ -106,9 +106,6 @@ export default function StitchSelectionModal({
   
   // 自定義針法 store
   const { customStitches, createCustomStitch, useCustomStitch } = useCustomStitchStore()
-  
-  // Debug: 檢查 customStitches
-  console.log('StitchSelectionModal customStitches:', customStitches, 'length:', customStitches.length)
 
   // PWA modal fixes
   useModalPWAFix(isOpen)

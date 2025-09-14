@@ -183,9 +183,9 @@ function renderStitchRow(
         }`}
         onClick={handleBlockClick}
       >
-        {displayInfo.rawValue} {actualCount}
+        {displayInfo.englishName} {stitch.count}
       </div>
-      <div className="inline-flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary border-l border-dashed border-border">
+      <div className="inline-flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary">
         {elements}
       </div>
     </div>
@@ -269,7 +269,7 @@ function renderGroupRows(
         >
           【{group.name || '針目群組'}】- {repeat + 1}
         </div>
-        <div className="inline-flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary border-l border-dashed border-border">
+        <div className="inline-flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary">
           {rowElements}
         </div>
       </div>
@@ -299,7 +299,7 @@ const StitchElement = memo<{
 }>(({ symbol, isCompleted, isCurrent, stitchIndex, debugInfo }) => {
   return (
     <div 
-      className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
+      className="flex flex-col items-center justify-center w-12 h-12 sm:w-14 sm:h-14 transition-all duration-300"
       data-stitch-index={stitchIndex}
       data-debug-info={debugInfo}
     >
