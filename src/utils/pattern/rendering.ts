@@ -31,25 +31,35 @@ export function migrateRoundToPatternItems(round: Round): Round {
   // 創建一個基準時間，然後為每個項目分配遞增的時間
   const baseTime = new Date()
 
-  // 將個別針法轉換為 PatternItem
-  round.stitches.forEach(stitch => {
-    patternItems.push({
-      id: generateId(),
-      type: PatternItemType.STITCH,
-      order: order++,
-      createdAt: new Date(baseTime.getTime() + order * 1000), // 每個項目間隔1秒
-      data: stitch
-    })
+  // 嘗試使用 createdDate/id 來推斷原始順序，如果沒有則交錯排列
+  const stitchesWithType = round.stitches.map(stitch => ({ type: 'STITCH' as const, data: stitch }))
+  const groupsWithType = round.stitchGroups.map(group => ({ type: 'GROUP' as const, data: group }))
+  
+  // 合併並嘗試按照可能的時間順序排序
+  const allItems = [...stitchesWithType, ...groupsWithType]
+  
+  // 如果有 createdDate 或其他時間相關屬性，使用它們排序
+  // 否則保持原始順序（這樣比全部針法在前面更合理）
+  allItems.sort((a, b) => {
+    const aTime = (a.data as any).createdDate || (a.data as any).createdAt
+    const bTime = (b.data as any).createdDate || (b.data as any).createdAt
+    
+    if (aTime && bTime) {
+      return new Date(aTime).getTime() - new Date(bTime).getTime()
+    }
+    
+    // 如果沒有時間信息，保持原始相對順序
+    return 0
   })
 
-  // 將群組轉換為 PatternItem
-  round.stitchGroups.forEach(group => {
+  // 將排序後的項目轉換為 PatternItem
+  allItems.forEach(item => {
     patternItems.push({
       id: generateId(),
-      type: PatternItemType.GROUP,
+      type: item.type === 'STITCH' ? PatternItemType.STITCH : PatternItemType.GROUP,
       order: order++,
-      createdAt: new Date(baseTime.getTime() + order * 1000), // 每個項目間隔1秒
-      data: group
+      createdAt: new Date(baseTime.getTime() + order * 1000),
+      data: item.data
     })
   })
 

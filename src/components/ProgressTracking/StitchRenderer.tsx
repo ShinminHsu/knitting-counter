@@ -13,6 +13,7 @@ interface StitchRendererProps {
   isViewMode: boolean
   hasMultipleCharts: boolean
   onJumpToRound: (roundNumber: number) => void
+  onSkipToStitch?: (targetStitch: number) => void
   patternContainerRef: React.RefObject<HTMLDivElement>
 }
 
@@ -31,6 +32,7 @@ export const StitchRenderer = memo<StitchRendererProps>(({
   isViewMode,
   hasMultipleCharts,
   onJumpToRound,
+  onSkipToStitch,
   patternContainerRef
 }) => {
   if (!currentChart) {
@@ -69,19 +71,18 @@ export const StitchRenderer = memo<StitchRendererProps>(({
       <div className="card">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-text-primary mb-3">
-            {hasMultipleCharts ? `${currentChart.name} - 本圈織圖` : '本圈織圖'}
+            {hasMultipleCharts ? `${currentChart.name} - 第 ${displayRoundNumber} 圈` : '本圈織圖'}
           </h2>
           <div className="mb-3">
             <span className="text-base text-text-primary">
-              第 {displayRoundNumber} 圈
               {isViewMode && (
                 <span className="text-sm ml-2" style={{ color: 'rgb(217, 115, 152)' }}>（查看中）</span>
               )}
             </span>
             {displayRound && roundDescription && (
-              <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs sm:text-sm text-gray mt-1">
                 {roundDescription}
-              </div>
+                </div>
             )}
           </div>
           {displayRound?.notes && (
@@ -94,7 +95,7 @@ export const StitchRenderer = memo<StitchRendererProps>(({
         {/* Stitch Progress Visualization */}
         <div
           ref={patternContainerRef}
-          className="mb-6 max-h-80 overflow-y-auto border border-border rounded-lg p-1 sm:p-3 bg-background-secondary"
+          className="mb-6 max-h-80 overflow-y-auto p-1 sm:p-3 bg-background-secondary"
         >
           <StitchProgressRenderer
             displayRound={displayRound}
@@ -112,6 +113,7 @@ export const StitchRenderer = memo<StitchRendererProps>(({
               const brightness = (r * 299 + g * 587 + b * 114) / 1000
               return brightness > 200
             }}
+            onSkipToStitch={onSkipToStitch}
           />
         </div>
       </div>

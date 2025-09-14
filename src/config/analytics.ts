@@ -26,6 +26,7 @@ export const ANALYTICS_EVENTS = {
   PROGRESS_PREVIOUS_STITCH: 'progress_previous_stitch',
   PROGRESS_COMPLETE_ROUND: 'progress_complete_round',
   PROGRESS_RESET: 'progress_reset',
+  PROGRESS_SKIP_TO_STITCH: 'progress_skip_to_stitch',
   
   // Yarn Management Events
   YARN_ADD: 'yarn_add',

@@ -77,7 +77,7 @@ export default function ProgressTrackingView() {
   })
 
   // Auto-scroll functionality
-  useAutoScroll({
+  const { triggerScroll } = useAutoScroll({
     currentProject,
     currentChart,
     displayRound,
@@ -107,6 +107,28 @@ export default function ProgressTrackingView() {
       setViewingRound(roundNumber)
     }
   }, [currentChart])
+
+  // Handle skip to specific stitch
+  const handleSkipToStitch = useCallback(async (targetStitch: number) => {
+    if (!currentProject || !currentChart || isViewMode) {
+      return
+    }
+
+    await updateChartProgress(currentChart.id, {
+      currentStitch: targetStitch
+    })
+    
+    // Trigger auto-scroll after updating progress
+    triggerScroll()
+    
+    // Track skip event
+    googleAnalytics.trackProgressEvent('skip_to_stitch', {
+      project_id: currentProject.id,
+      chart_id: currentChart.id,
+      target_stitch: targetStitch,
+      current_round: currentChart.currentRound
+    })
+  }, [currentProject, currentChart, updateChartProgress, isViewMode, triggerScroll])
 
   // Handle next stitch using direct store operations
   const handleNextStitch = useCallback(async () => {
@@ -153,6 +175,9 @@ export default function ProgressTrackingView() {
       isCompleted
     })
     
+    // Trigger auto-scroll after updating progress
+    triggerScroll()
+    
     // Track progress events
     googleAnalytics.trackProgressEvent('next_stitch', {
       project_id: currentProject.id,
@@ -175,7 +200,7 @@ export default function ProgressTrackingView() {
         project_name: currentProject.name
       })
     }
-  }, [currentProject, currentChart, updateChartProgress])
+  }, [currentProject, currentChart, updateChartProgress, triggerScroll])
 
   // Handle previous stitch using direct store operations
   const handlePreviousStitch = useCallback(async () => {
@@ -215,6 +240,9 @@ export default function ProgressTrackingView() {
       isCompleted: false
     })
     
+    // Trigger auto-scroll after updating progress
+    triggerScroll()
+    
     // Track previous stitch event
     googleAnalytics.trackProgressEvent('previous_stitch', {
       project_id: currentProject.id,
@@ -222,7 +250,7 @@ export default function ProgressTrackingView() {
       round_number: newRound,
       stitch_number: newStitch
     })
-  }, [currentProject, currentChart, updateChartProgress])
+  }, [currentProject, currentChart, updateChartProgress, triggerScroll])
 
   // Handle complete round using direct store operations
   const handleCompleteRound = useCallback(async () => {
@@ -408,6 +436,7 @@ export default function ProgressTrackingView() {
               isViewMode={isViewMode}
               hasMultipleCharts={hasMultipleCharts}
               onJumpToRound={handleJumpToRound}
+              onSkipToStitch={handleSkipToStitch}
               patternContainerRef={patternContainerRef}
             />
 

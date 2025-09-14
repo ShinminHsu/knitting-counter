@@ -106,9 +106,6 @@ export default function StitchSelectionModal({
   
   // 自定義針法 store
   const { customStitches, createCustomStitch, useCustomStitch } = useCustomStitchStore()
-  
-  // Debug: 檢查 customStitches
-  console.log('StitchSelectionModal customStitches:', customStitches, 'length:', customStitches.length)
 
   // PWA modal fixes
   useModalPWAFix(isOpen)
@@ -246,7 +243,7 @@ export default function StitchSelectionModal({
             >
               {/* 我的自定義針法分組 */}
               {true && (
-                <optgroup label={`我的自定義針法 DEBUG (${customStitches.length})`}>
+                <optgroup label={`我的自定義針法`}>
                   {customStitches.slice(0, 10).map((customStitch) => (
                     <option 
                       key={`custom-${customStitch.id}`} 
@@ -282,7 +279,7 @@ export default function StitchSelectionModal({
             {true ? (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-medium text-text-tertiary">我的自定義針法 DEBUG ({customStitches.length})</h4>
+                  <h4 className="text-xs font-medium text-text-tertiary">我的自定義針法</h4>
                   <button 
                     onClick={(e) => {
                       e.preventDefault()
