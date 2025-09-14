@@ -103,7 +103,7 @@ export const StitchProgressRenderer = memo<StitchProgressRendererProps>(({
   }
 
   return (
-    <div className="w-full px-1 sm:px-0 space-y-3">
+    <div className="px-1 sm:px-0 space-y-3">
       {patternRows}
     </div>
   )
@@ -147,11 +147,11 @@ function renderStitchRow(
   }
 
   return (
-    <div key={rowKey} className="w-full">
+    <div key={rowKey} className="inline-block">
       <div className="text-xs text-text-secondary mb-2">
-        {displayInfo.rawValue} × {stitch.count}
+        {displayInfo.rawValue} {displayInfo.symbol} {stitch.count}
       </div>
-      <div className="grid grid-cols-8 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-x-0.5 gap-y-1 sm:gap-2 place-items-center w-full p-2 bg-background-secondary rounded border border-border">
+      <div className="inline-flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary border-l border-dashed border-border">
         {elements}
       </div>
     </div>
@@ -206,11 +206,11 @@ function renderGroupRows(
     })
 
     rows.push(
-      <div key={`${groupKey}-repeat-${repeat}`} className="w-full">
+      <div key={`${groupKey}-repeat-${repeat}`} className="inline-block">
         <div className="text-xs text-text-secondary mb-2">
-          【{group.name || '針目群組'}】第 {repeat + 1} 次重複
+          【{group.name || '針目群組'}】- {repeat + 1}
         </div>
-        <div className="grid grid-cols-8 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-x-0.5 gap-y-1 sm:gap-2 place-items-center w-full p-2 bg-background-secondary rounded border border-border">
+        <div className="inline-flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary border-l border-dashed border-border">
           {rowElements}
         </div>
       </div>
@@ -237,7 +237,7 @@ const StitchElement = memo<{
   isLightColor: boolean
   stitchIndex: number
   debugInfo?: string
-}>(({ symbol, yarnColor, isCompleted, isCurrent, isLightColor, stitchIndex, debugInfo }) => {
+}>(({ symbol, isCompleted, isCurrent, stitchIndex, debugInfo }) => {
   return (
     <div 
       className="flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 transition-all duration-300"
@@ -253,16 +253,6 @@ const StitchElement = memo<{
       }`}>
         {symbol}
       </div>
-      <div 
-        className={`w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
-          isCompleted || isCurrent
-            ? (isLightColor ? 'border border-gray-400' : '')
-            : ''
-        }`}
-        style={{ 
-          backgroundColor: isCompleted || isCurrent ? yarnColor : '#f3f4f6'
-        }}
-      />
     </div>
   )
 })
