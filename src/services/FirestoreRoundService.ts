@@ -137,13 +137,28 @@ export class FirestoreRoundService {
       
       const rounds: Round[] = roundsSnap.docs.map(roundDoc => {
         const roundData = roundDoc.data() as FirestoreRound
-        return {
+        const round: Round = {
           id: roundData.id,
           roundNumber: roundData.roundNumber,
           stitches: roundData.stitches || [],
           stitchGroups: roundData.stitchGroups || [],
           notes: roundData.notes
         }
+
+        // Include patternItems if they exist (for new format)
+        if (roundData.patternItems) {
+          round.patternItems = roundData.patternItems.map(item => ({
+            id: item.id,
+            type: item.type,
+            order: item.order,
+            createdAt: item.createdAt && typeof item.createdAt.toDate === 'function' 
+              ? item.createdAt.toDate() 
+              : new Date(item.createdAt),
+            data: item.data
+          }))
+        }
+
+        return round
       })
 
       logger.debug('Retrieved rounds:', rounds.length)
