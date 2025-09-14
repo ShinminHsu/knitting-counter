@@ -108,6 +108,25 @@ export default function ProgressTrackingView() {
     }
   }, [currentChart])
 
+  // Handle skip to specific stitch
+  const handleSkipToStitch = useCallback(async (targetStitch: number) => {
+    if (!currentProject || !currentChart || isViewMode) {
+      return
+    }
+
+    await updateChartProgress(currentChart.id, {
+      currentStitch: targetStitch
+    })
+    
+    // Track skip event
+    googleAnalytics.trackProgressEvent('skip_to_stitch', {
+      project_id: currentProject.id,
+      chart_id: currentChart.id,
+      target_stitch: targetStitch,
+      current_round: currentChart.currentRound
+    })
+  }, [currentProject, currentChart, updateChartProgress, isViewMode])
+
   // Handle next stitch using direct store operations
   const handleNextStitch = useCallback(async () => {
     if (!currentProject || !currentChart) {
@@ -408,6 +427,7 @@ export default function ProgressTrackingView() {
               isViewMode={isViewMode}
               hasMultipleCharts={hasMultipleCharts}
               onJumpToRound={handleJumpToRound}
+              onSkipToStitch={handleSkipToStitch}
               patternContainerRef={patternContainerRef}
             />
 

@@ -13,6 +13,7 @@ interface StitchRendererProps {
   isViewMode: boolean
   hasMultipleCharts: boolean
   onJumpToRound: (roundNumber: number) => void
+  onSkipToStitch?: (targetStitch: number) => void
   patternContainerRef: React.RefObject<HTMLDivElement>
 }
 
@@ -31,6 +32,7 @@ export const StitchRenderer = memo<StitchRendererProps>(({
   isViewMode,
   hasMultipleCharts,
   onJumpToRound,
+  onSkipToStitch,
   patternContainerRef
 }) => {
   if (!currentChart) {
@@ -111,6 +113,7 @@ export const StitchRenderer = memo<StitchRendererProps>(({
               const brightness = (r * 299 + g * 587 + b * 114) / 1000
               return brightness > 200
             }}
+            onSkipToStitch={onSkipToStitch}
           />
         </div>
       </div>
