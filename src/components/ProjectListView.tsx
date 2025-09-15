@@ -159,7 +159,7 @@ export default function ProjectListView() {
             <div className="flex items-center gap-3">
               <img src={knittingIcon} alt="Stitchie" className="w-12 h-12" />
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">Stitchie</h1>
-              <div className="flex items-center gap-3">
+                <div className="flex items-center" style={{ marginLeft: '1rem' }}>
                 <Link
                   to="/guide"
                   className="text-text-secondary hover:text-text-primary transition-colors text-sm"
@@ -167,14 +167,7 @@ export default function ProjectListView() {
                 >
                   使用說明
                 </Link>
-                <Link
-                  to="/pattern-elements"
-                  className="text-text-secondary hover:text-text-primary transition-colors text-sm"
-                  title="模式管理"
-                >
-                  模式管理
-                </Link>
-              </div>
+                </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
               <UserProfile />
@@ -199,6 +192,15 @@ export default function ProjectListView() {
                   onChange={handleImport}
                   className="hidden"
                 />
+              </div>
+              <div>
+                <Link
+                    to="/pattern-elements"
+                    className="btn btn-secondary text-xs sm:text-sm"
+                    title="自定義針法和範本管理"
+                  >
+                  針法和範本管理
+                </Link>
               </div>
               <SyncStatusIndicator />
             </div>

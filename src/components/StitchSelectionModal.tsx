@@ -291,7 +291,7 @@ export default function StitchSelectionModal({
                     onClick={(e) => {
                       e.preventDefault()
                       onClose() // 先關閉模態框
-                      navigate('/custom-stitches') // 然後導航到管理頁面
+                      navigate('/pattern-elements') // 然後導航到管理頁面
                     }}
                     className="text-xs text-primary hover:text-primary/80 transition-colors"
                   >
@@ -443,7 +443,7 @@ export default function StitchSelectionModal({
                   onClick={(e) => {
                     e.preventDefault()
                     onClose() // 先關閉模態框
-                    navigate('/custom-stitches') // 然後導航到管理頁面
+                    navigate('/pattern-elements') // 然後導航到管理頁面
                   }}
                   className="text-xs text-primary hover:text-primary/80 transition-colors"
                 >
