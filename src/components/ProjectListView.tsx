@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom'
 import { useProjectStore } from '../stores/useProjectStore'
 import UserProfile from './UserProfile'
 import SyncStatusIndicator from './SyncStatusIndicator'
-import { formatDate, getProjectProgressPercentage, getProjectTotalStitchesAllCharts } from '../utils'
-import { useChartStore } from '../stores/useChartStore'
+import { formatDate, getProjectProgressPercentage, getProjectTotalStitchesAllCharts, getProjectChartSummaries } from '../utils'
 import { ImportExportService } from '../services/importExportService'
 import { ImportMode } from '../types'
 import knittingIcon from '../assets/images/kniitingIcon.png'
@@ -26,7 +25,6 @@ export default function ProjectListView() {
   
   logger.debug('ProjectListView 渲染，專案數量:', projects.length)
 
-  const { getChartSummaries } = useChartStore()
 
   // Track page view
   useEffect(() => {
@@ -170,11 +168,11 @@ export default function ProjectListView() {
                   使用說明
                 </Link>
                 <Link
-                  to="/custom-stitches"
+                  to="/pattern-elements"
                   className="text-text-secondary hover:text-text-primary transition-colors text-sm"
-                  title="自定義針法管理"
+                  title="模式管理"
                 >
-                  針法管理
+                  模式管理
                 </Link>
               </div>
             </div>
@@ -275,7 +273,7 @@ export default function ProjectListView() {
                 </div>
 
                 <div className="space-y-1 mb-4 text-xs sm:text-sm text-text-secondary">
-                  <div>織圖數量：{getChartSummaries().length}</div>
+                  <div>織圖數量：{getProjectChartSummaries(project).length}</div>
                   <div>總針數：{getProjectTotalStitchesAllCharts(project)}</div>
                   <div>更新時間：{formatDate(project.lastModified)}</div>
                 </div>

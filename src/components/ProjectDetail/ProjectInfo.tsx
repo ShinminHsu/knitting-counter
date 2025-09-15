@@ -1,6 +1,5 @@
 import { FiEdit3 } from "react-icons/fi"
-import { formatDate, getProjectTotalStitchesAllCharts } from '../../utils'
-import { useChartStore } from '../../stores/useChartStore'
+import { formatDate, getProjectTotalStitchesAllCharts, getProjectChartSummaries } from '../../utils'
 import { Project } from '../../types'
 
 export interface ProjectInfoProps {
@@ -9,7 +8,6 @@ export interface ProjectInfoProps {
 }
 
 export default function ProjectInfo({ project, onEditClick }: ProjectInfoProps) {
-  const { getChartSummaries } = useChartStore()
 
   return (
     <div className="card cursor-pointer hover:shadow-md transition-shadow" onClick={onEditClick}>
@@ -69,7 +67,7 @@ export default function ProjectInfo({ project, onEditClick }: ProjectInfoProps) 
           <div className="text-center">
             <div className="text-sm text-text-secondary">織圖數量</div>
             <div className="text-lg font-semibold text-text-primary">
-              {getChartSummaries().length}
+              {getProjectChartSummaries(project).length}
             </div>
           </div>
           <div className="text-center">
