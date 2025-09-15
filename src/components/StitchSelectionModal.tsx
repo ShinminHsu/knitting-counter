@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useModalPWAFix } from '../hooks/useModalPWAFix'
 import { StitchType, StitchTypeInfo, Yarn, StitchInfo } from '../types'
 import { getStitchDisplayInfo } from '../utils'
@@ -93,6 +94,7 @@ export default function StitchSelectionModal({
   title = "新增針法",
   initialStitch
 }: StitchSelectionModalProps) {
+  const navigate = useNavigate()
   const [selectedStitchType, setSelectedStitchType] = useState<StitchType>(StitchType.SINGLE)
   const [count, setCount] = useState<number>(1)
   const [countText, setCountText] = useState<string>("1")
@@ -183,8 +185,13 @@ export default function StitchSelectionModal({
     if (selectedStitchType === StitchType.CUSTOM && customName.trim() && customSymbol.trim()) {
       const savedStitch = await createCustomStitch(name || customName, customSymbol, englishName)
       if (savedStitch) {
-        // 保存成功後，選中新保存的自定義針法
+        // 保存成功後，選中新保存的自定義針法並更新對應的表單數據
         setSelectedCustomStitchId(savedStitch.id)
+        setCustomName(savedStitch.name)
+        setCustomSymbol(savedStitch.symbol)
+        setCustomEnglishName(savedStitch.englishName)
+        // 確保針法類型保持為 CUSTOM
+        setSelectedStitchType(StitchType.CUSTOM)
       }
       setShowSaveCustomModal(false)
     }
@@ -283,8 +290,8 @@ export default function StitchSelectionModal({
                   <button 
                     onClick={(e) => {
                       e.preventDefault()
-                      // TODO: 導航到自定義針法管理頁面
-                      alert('自定義針法管理功能即將推出！')
+                      onClose() // 先關閉模態框
+                      navigate('/custom-stitches') // 然後導航到管理頁面
                     }}
                     className="text-xs text-primary hover:text-primary/80 transition-colors"
                   >
@@ -435,8 +442,8 @@ export default function StitchSelectionModal({
                 <button 
                   onClick={(e) => {
                     e.preventDefault()
-                    // TODO: 導航到自定義針法管理頁面
-                    alert('自定義針法管理功能即將推出！')
+                    onClose() // 先關閉模態框
+                    navigate('/custom-stitches') // 然後導航到管理頁面
                   }}
                   className="text-xs text-primary hover:text-primary/80 transition-colors"
                 >

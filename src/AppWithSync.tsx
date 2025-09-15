@@ -12,6 +12,7 @@ import PatternEditorView from './components/PatternEditorView'
 import ProgressTrackingView from './components/ProgressTrackingView'
 import YarnManagerView from './components/YarnManagerView'
 import ImportExportView from './components/ImportExportView'
+import CustomStitchManagerView from './components/CustomStitchManagerView'
 import NotFoundView from './components/NotFoundView'
 import UserGuideView from './components/UserGuideView'
 import { GuestModeLogin } from './components/GuestModeLogin'
@@ -204,6 +205,9 @@ function AppWithSync() {
         
         {/* 匯出/匯入 */}
         <Route path="/project/:projectId/import-export" element={<ImportExportView />} />
+        
+        {/* 自定義針法管理 */}
+        <Route path="/custom-stitches" element={<CustomStitchManagerView />} />
         
         {/* 使用說明 */}
         <Route path="/guide" element={<UserGuideView />} />

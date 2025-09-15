@@ -161,13 +161,22 @@ export default function ProjectListView() {
             <div className="flex items-center gap-3">
               <img src={knittingIcon} alt="Stitchie" className="w-12 h-12" />
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">Stitchie</h1>
-              <Link
-                to="/guide"
-                className="text-text-secondary hover:text-text-primary transition-colors text-sm"
-                title="使用說明"
-              >
-                使用說明
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/guide"
+                  className="text-text-secondary hover:text-text-primary transition-colors text-sm"
+                  title="使用說明"
+                >
+                  使用說明
+                </Link>
+                <Link
+                  to="/custom-stitches"
+                  className="text-text-secondary hover:text-text-primary transition-colors text-sm"
+                  title="自定義針法管理"
+                >
+                  針法管理
+                </Link>
+              </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
               <UserProfile />
