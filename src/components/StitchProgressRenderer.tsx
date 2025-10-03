@@ -170,7 +170,7 @@ function renderStitchRow(
   return (
     <div key={rowKey} className="inline-block">
       <div 
-        className={`text-xs mb-2 cursor-pointer transition-colors duration-200 ${
+        className={`text-xs mb-1 cursor-pointer transition-colors duration-200 ${
           isBlockCompleted 
             ? 'text-text-primary' 
             : isBlockInProgress 
@@ -181,7 +181,7 @@ function renderStitchRow(
       >
         {displayInfo.englishName} {stitch.count}
       </div>
-      <div className="inline-flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary">
+      <div className="flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary">
         {elements}
       </div>
     </div>
@@ -254,7 +254,7 @@ function renderGroupRows(
     rows.push(
       <div key={`${groupKey}-repeat-${repeat}`} className="inline-block">
         <div 
-          className={`text-xs mb-2 cursor-pointer transition-colors duration-200 ${
+          className={`text-xs mb-1 cursor-pointer transition-colors duration-200 ${
             isRepeatCompleted 
               ? 'text-text-primary' 
               : isRepeatInProgress 
@@ -265,7 +265,7 @@ function renderGroupRows(
         >
           【{group.name || '針目群組'}】- {repeat + 1}
         </div>
-        <div className="inline-flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary">
+        <div className="flex flex-wrap gap-x-0.5 gap-y-1 sm:gap-2 p-2 bg-background-secondary">
           {rowElements}
         </div>
       </div>
@@ -295,7 +295,7 @@ const StitchElement = memo<{
 }>(({ symbol, isCompleted, isCurrent, stitchIndex, debugInfo }) => {
   return (
     <div 
-      className="flex flex-col items-center justify-center w-12 h-12 sm:w-14 sm:h-14 transition-all duration-300"
+      className="flex flex-col items-center justify-center w-8 h-8 sm:w-12 sm:h-12 transition-all duration-300"
       data-stitch-index={stitchIndex}
       data-debug-info={debugInfo}
     >
