@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { StitchGroupTemplate, StitchInfo, StitchGroup } from '../types'
-import { generateId } from '../utils'
+import { generateId, getStitchDisplayInfo } from '../utils'
 import { handleAsyncError } from './useBaseStore'
 
 import { logger } from '../utils/logger'
@@ -468,7 +468,7 @@ export const getTemplateStitchCount = (template: StitchGroupTemplate): number =>
 
 export const getTemplatePreview = (template: StitchGroupTemplate, maxLength = 50): string => {
   const description = template.stitches
-    .map(stitch => `${stitch.type}×${stitch.count}`)
+    .map(stitch => `${getStitchDisplayInfo(stitch).englishName} ${stitch.count}`)
     .join(', ')
   
   const withRepeat = template.repeatCount > 1 

@@ -42,7 +42,6 @@ export default function PatternElementManagerView() {
   // 狀態管理
   const [activeTab, setActiveTab] = useState<ActiveTab>('custom-stitches')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedSubTab, setSelectedSubTab] = useState<'all' | 'recent' | 'popular'>('all')
   
   // 針法相關狀態
   const [filteredStitches, setFilteredStitches] = useState<CustomStitchPattern[]>([])
@@ -79,42 +78,20 @@ export default function PatternElementManagerView() {
   useEffect(() => {
     if (activeTab !== 'custom-stitches') return
     
-    let result: CustomStitchPattern[] = []
-    
-    switch (selectedSubTab) {
-      case 'recent':
-        result = getRecentlyUsedCustomStitches()
-        break
-      case 'popular':
-        result = getPopularCustomStitches()
-        break
-      default:
-        result = customStitches
-    }
+    let result: CustomStitchPattern[] = customStitches
 
     if (searchQuery.trim()) {
       result = searchCustomStitches(searchQuery)
     }
 
     setFilteredStitches(result)
-  }, [customStitches, searchQuery, selectedSubTab, activeTab, searchCustomStitches, getRecentlyUsedCustomStitches, getPopularCustomStitches])
+  }, [customStitches, searchQuery, activeTab, searchCustomStitches])
 
   // 更新篩選的範本列表
   useEffect(() => {
     if (activeTab !== 'group-templates') return
     
-    let result: StitchGroupTemplate[] = []
-    
-    switch (selectedSubTab) {
-      case 'recent':
-        result = getRecentlyUsedTemplates()
-        break
-      case 'popular':
-        result = getPopularTemplates()
-        break
-      default:
-        result = templates
-    }
+    let result: StitchGroupTemplate[] = templates
 
     if (searchQuery.trim()) {
       result = searchTemplates(searchQuery)
@@ -125,12 +102,11 @@ export default function PatternElementManagerView() {
     }
 
     setFilteredTemplates(result)
-  }, [templates, searchQuery, selectedSubTab, selectedCategory, activeTab, searchTemplates, getRecentlyUsedTemplates, getPopularTemplates])
+  }, [templates, searchQuery, selectedCategory, activeTab, searchTemplates])
 
   // 切換分頁時重置狀態
   useEffect(() => {
     setSearchQuery('')
-    setSelectedSubTab('all')
     setSelectedCategory('')
   }, [activeTab])
 
@@ -479,38 +455,6 @@ export default function PatternElementManagerView() {
           </div>
 
           {/* 子分頁標籤 */}
-          <div className="flex gap-2 border-b border-border">
-            <button
-              onClick={() => setSelectedSubTab('all')}
-              className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-                selectedSubTab === 'all'
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              全部 ({activeTab === 'custom-stitches' ? customStitches.length : templates.length})
-            </button>
-            <button
-              onClick={() => setSelectedSubTab('recent')}
-              className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-                selectedSubTab === 'recent'
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              最近使用 ({activeTab === 'custom-stitches' ? getRecentlyUsedCustomStitches().length : getRecentlyUsedTemplates().length})
-            </button>
-            <button
-              onClick={() => setSelectedSubTab('popular')}
-              className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-                selectedSubTab === 'popular'
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              熱門 ({activeTab === 'custom-stitches' ? getPopularCustomStitches().length : getPopularTemplates().length})
-            </button>
-          </div>
         </div>
 
         {/* 內容區域 */}
@@ -590,8 +534,7 @@ export default function PatternElementManagerView() {
                       <p className="text-sm text-text-secondary mb-3">{stitch.description}</p>
                     )}
 
-                    <div className="flex justify-between text-xs text-text-tertiary">
-                      <span>使用次數: {stitch.useCount}</span>
+                    <div className="flex justify-end text-xs text-text-tertiary">
                       <span>{stitch.createdDate.toLocaleDateString()}</span>
                     </div>
                   </div>
@@ -668,8 +611,7 @@ export default function PatternElementManagerView() {
                       </p>
                     </div>
 
-                    <div className="flex justify-between text-xs text-text-tertiary">
-                      <span>使用次數: {template.useCount}</span>
+                    <div className="flex justify-end text-xs text-text-tertiary">
                       <span>{template.createdDate.toLocaleDateString()}</span>
                     </div>
                   </div>
