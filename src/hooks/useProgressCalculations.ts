@@ -197,7 +197,7 @@ function generateRoundDescription(round: Round): string {
       if (item.type === PatternItemType.STITCH) {
         const stitch = item.data as StitchInfo
         const displayInfo = getStitchDisplayInfo(stitch)
-        descriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+        descriptions.push(`${displayInfo.rawValue} ${stitch.count}`)
       } else if (item.type === PatternItemType.GROUP) {
         const group = item.data as StitchGroup
         descriptions.push(describeStitchGroup(group))
@@ -207,7 +207,7 @@ function generateRoundDescription(round: Round): string {
     // Fallback to legacy format
     round.stitches.forEach((stitch: StitchInfo) => {
       const displayInfo = getStitchDisplayInfo(stitch)
-      descriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+      descriptions.push(`${displayInfo.rawValue} ${stitch.count}`)
     })
     
     round.stitchGroups.forEach((group: StitchGroup) => {

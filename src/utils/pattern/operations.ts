@@ -167,7 +167,7 @@ export function describeStitchGroup(group: StitchGroup): string {
   const stitchDescriptions = group.stitches.map(stitch => {
     const count = stitch.count
     const displayInfo = getStitchDisplayInfo(stitch)
-    return `${displayInfo.rawValue} × ${count}`
+    return `${displayInfo.rawValue} ${count}`
   })
   
   const groupName = group.name || '針目群組'
