@@ -95,7 +95,7 @@ export const StitchRenderer = memo<StitchRendererProps>(({
         {/* Stitch Progress Visualization */}
         <div
           ref={patternContainerRef}
-          className="mb-6 max-h-80 overflow-y-auto p-1 sm:p-3 bg-background-secondary"
+          className="mb-6 max-h-96 sm:max-h-[32rem] overflow-y-auto p-1 sm:p-3 bg-background-secondary"
         >
           <StitchProgressRenderer
             displayRound={displayRound}

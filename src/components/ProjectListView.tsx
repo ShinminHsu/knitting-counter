@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { FaChartBar, FaHashtag } from 'react-icons/fa'
 import { useProjectStore } from '../stores/useProjectStore'
 import UserProfile from './UserProfile'
 import SyncStatusIndicator from './SyncStatusIndicator'
-import { formatDate, getProjectProgressPercentage, getProjectTotalStitchesAllCharts } from '../utils'
-import { useChartStore } from '../stores/useChartStore'
+import { formatDate, getProjectProgressPercentage, getProjectTotalStitchesAllCharts, getProjectChartSummaries } from '../utils'
 import { ImportExportService } from '../services/importExportService'
 import { ImportMode } from '../types'
 import knittingIcon from '../assets/images/kniitingIcon.png'
@@ -26,7 +26,6 @@ export default function ProjectListView() {
   
   logger.debug('ProjectListView 渲染，專案數量:', projects.length)
 
-  const { getChartSummaries } = useChartStore()
 
   // Track page view
   useEffect(() => {
@@ -161,13 +160,15 @@ export default function ProjectListView() {
             <div className="flex items-center gap-3">
               <img src={knittingIcon} alt="Stitchie" className="w-12 h-12" />
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-text-primary">Stitchie</h1>
-              <Link
-                to="/guide"
-                className="text-text-secondary hover:text-text-primary transition-colors text-sm"
-                title="使用說明"
-              >
-                使用說明
-              </Link>
+                <div className="flex items-center" style={{ marginLeft: '1rem' }}>
+                <Link
+                  to="/guide"
+                  className="text-text-secondary hover:text-text-primary transition-colors text-sm"
+                  title="使用說明"
+                >
+                  使用說明
+                </Link>
+                </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
               <UserProfile />
@@ -192,6 +193,15 @@ export default function ProjectListView() {
                   onChange={handleImport}
                   className="hidden"
                 />
+              </div>
+              <div>
+                <Link
+                    to="/pattern-elements"
+                    className="btn btn-secondary text-xs sm:text-sm"
+                    title="自定義針法和範本管理"
+                  >
+                  針法和範本管理
+                </Link>
               </div>
               <SyncStatusIndicator />
             </div>
@@ -244,9 +254,12 @@ export default function ProjectListView() {
                   </div>
                   <button
                     onClick={() => handleDeleteProject(project.id, project.name)}
-                    className="text-text-tertiary hover:text-red-500 transition-colors text-sm sm:text-base ml-2"
+                    className="text-text-tertiary hover:text-red-500 transition-colors ml-2 p-1"
+                    title="刪除"
                   >
-                    刪除
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                 </div>
                 
@@ -265,10 +278,21 @@ export default function ProjectListView() {
                   </div>
                 </div>
 
-                <div className="space-y-1 mb-4 text-xs sm:text-sm text-text-secondary">
-                  <div>織圖數量：{getChartSummaries().length}</div>
-                  <div>總針數：{getProjectTotalStitchesAllCharts(project)}</div>
-                  <div>更新時間：{formatDate(project.lastModified)}</div>
+                {/* New section for chart count and total stitches */}
+                <div className="flex items-center gap-4 mb-4 text-xs sm:text-sm text-text-secondary">
+                  <div className="flex items-center gap-1">
+                    <FaChartBar className="w-3 h-3" />
+                    <span>{getProjectChartSummaries(project).length}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FaHashtag className="w-3 h-3" /> {/* Using FaHashtag as a generic stitch count icon */}
+                    <span>{getProjectTotalStitchesAllCharts(project)}</span>
+                  </div>
+                    <div className="flex-1 flex right-0 justify-end">
+                    <span className="text-xs text-text-tertiary">
+                      {formatDate(project.lastModified)}
+                    </span>
+                    </div>
                 </div>
 
                 <div className="flex gap-2">
@@ -289,7 +313,7 @@ export default function ProjectListView() {
                   </Link>
                   <Link
                     to={`/project/${project.id}`}
-                    className="btn btn-secondary"
+                    className="btn btn-ghost"
                     onClick={() => {
                       googleAnalytics.trackProjectEvent('view', {
                         project_id: project.id,
