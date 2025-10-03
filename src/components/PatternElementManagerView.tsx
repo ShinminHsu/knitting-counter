@@ -20,9 +20,7 @@ export default function PatternElementManagerView() {
     updateCustomStitch,
     deleteCustomStitch,
     duplicateCustomStitch,
-    searchCustomStitches,
-    getRecentlyUsedCustomStitches,
-    getPopularCustomStitches
+    searchCustomStitches
   } = useCustomStitchStore()
 
   // Templates Store
@@ -34,8 +32,6 @@ export default function PatternElementManagerView() {
     deleteTemplate,
     duplicateTemplate,
     searchTemplates,
-    getRecentlyUsedTemplates,
-    getPopularTemplates,
     getCategories
   } = useTemplateStore()
 

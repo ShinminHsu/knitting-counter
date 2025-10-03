@@ -1,5 +1,3 @@
-import { useCustomStitchStore } from '../stores/useCustomStitchStore'
-import { useTemplateStore } from '../stores/useTemplateStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { logger } from '../utils/logger'
 
@@ -34,12 +32,8 @@ export class StorageInitializer {
     logger.info('Initializing storage systems...')
 
     try {
-      // Initialize both stores in parallel
-      await Promise.all([
-        useCustomStitchStore.getState().initializeStorage(),
-        useTemplateStore.getState().initializeStorage()
-      ])
-
+      // Storage systems are automatically initialized through zustand persistence
+      // No manual initialization needed for custom stitch and template stores
       logger.info('Storage systems initialized successfully')
     } catch (error) {
       logger.error('Failed to initialize storage systems:', error)
