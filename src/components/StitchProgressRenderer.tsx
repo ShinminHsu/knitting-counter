@@ -170,12 +170,12 @@ function renderStitchRow(
   return (
     <div key={rowKey} className="inline-block">
       <div 
-        className={`text-xs mb-1 cursor-pointer transition-colors duration-200 ${
+        className={`text-xs mb-1 cursor-pointer transition-colors duration-200 text-left px-2 ${
           isBlockCompleted 
-            ? 'text-text-primary' 
+            ? 'text-gray-400 line-through' 
             : isBlockInProgress 
             ? 'text-primary font-medium' 
-            : 'text-text-secondary hover:text-primary'
+            : 'text-gray-700 hover:text-primary'
         }`}
         onClick={handleBlockClick}
       >
@@ -254,12 +254,12 @@ function renderGroupRows(
     rows.push(
       <div key={`${groupKey}-repeat-${repeat}`} className="inline-block">
         <div 
-          className={`text-xs mb-1 cursor-pointer transition-colors duration-200 ${
+          className={`text-xs mb-1 cursor-pointer transition-colors duration-200 text-left px-2 ${
             isRepeatCompleted 
-              ? 'text-text-primary' 
+              ? 'text-gray-400 line-through' 
               : isRepeatInProgress 
               ? 'text-primary font-medium' 
-              : 'text-text-secondary hover:text-primary'
+              : 'text-gray-700 hover:text-primary'
           }`}
           onClick={handleRepeatClick}
         >
@@ -301,10 +301,10 @@ const StitchElement = memo<{
     >
       <div className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
         isCompleted 
-          ? 'text-text-primary' 
+          ? 'text-gray-400' 
           : isCurrent 
           ? 'text-primary' 
-          : 'text-text-tertiary/50'
+          : 'text-gray-700'
       }`}>
         {symbol}
       </div>
