@@ -8,6 +8,7 @@ import { useYarnStore } from './useYarnStore'
 import { useTemplateStore } from './useTemplateStore'
 import { useProgressStore } from './useProgressStore'
 import { useAuthStore } from './useAuthStore'
+import { useCustomStitchStore } from './useCustomStitchStore'
 import { StitchInfo } from '../types'
 
 import { logger } from '../utils/logger'
@@ -21,7 +22,8 @@ export {
   useYarnStore,
   useTemplateStore,
   useProgressStore,
-  useAuthStore
+  useAuthStore,
+  useCustomStitchStore
 }
 
 // Export utility functions from template store
@@ -51,6 +53,12 @@ export {
   isProjectCompleted 
 } from './useProgressStore'
 
+// Export utility functions from custom stitch store
+export { 
+  validateCustomStitch, 
+  getCustomStitchPreview 
+} from './useCustomStitchStore'
+
 // Hook for accessing all stores with type safety
 export const useAppState = () => {
   const base = useBaseStore()
@@ -62,6 +70,7 @@ export const useAppState = () => {
   const template = useTemplateStore()
   const progress = useProgressStore()
   const auth = useAuthStore()
+  const customStitch = useCustomStitchStore()
 
   return {
     base,
@@ -73,9 +82,10 @@ export const useAppState = () => {
     template,
     progress,
     auth,
+    customStitch,
     
     // Computed values - only use properties that exist
-    isLoading: base.isLoading || template.isLoading || auth.isLoading,
+    isLoading: base.isLoading || template.isLoading || auth.isLoading || customStitch.isLoading,
     hasError: !!base.error || !!auth.error,
     error: base.error || auth.error,
     
@@ -83,6 +93,7 @@ export const useAppState = () => {
     currentProject: project.currentProject,
     projects: project.projects,
     templates: template.templates,
+    customStitches: customStitch.customStitches,
     user: auth.user,
     isAuthenticated: !!auth.user
   }

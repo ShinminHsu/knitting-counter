@@ -328,11 +328,20 @@ export interface FirestoreStitchGroup {
   completedRepeats?: number
 }
 
+export interface FirestorePatternItem {
+  id: string
+  type: PatternItemType
+  order: number
+  createdAt: any // Firestore Timestamp - handled by conversion utilities
+  data: FirestoreStitchInfo | FirestoreStitchGroup
+}
+
 export interface FirestoreRound {
   id: string
   roundNumber: number
   stitches: FirestoreStitchInfo[]
   stitchGroups: FirestoreStitchGroup[]
+  patternItems?: FirestorePatternItem[]
   notes?: string
 }
 
@@ -397,6 +406,18 @@ export interface DateSerializationHelpers {
 }
 
 // Timestamp conversion utilities type
+// 自定義針法類型
+export interface CustomStitchPattern {
+  id: string
+  name: string
+  symbol: string
+  englishName: string
+  description?: string
+  createdDate: Date
+  lastUsed?: Date
+  useCount: number
+}
+
 export interface TimestampConvertible {
   createdDate?: any
   lastModified?: any

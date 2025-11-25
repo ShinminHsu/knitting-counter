@@ -449,7 +449,9 @@ export const useProjectStore = create<ProjectStore>()(
                         customName: stitch.customName || undefined,
                         customSymbol: stitch.customSymbol || undefined
                       })) || []
-                    })) || []
+                    })) || [],
+                    // 保留 patternItems 以維持正確的排序
+                    patternItems: (round as any).patternItems || undefined
                   })) || []
                 }))
                 

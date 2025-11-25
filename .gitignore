@@ -82,3 +82,5 @@ admin/service-account-key.json
 admin/node_modules/
 
 scripts
+WARP.md
+CLAUDE.md

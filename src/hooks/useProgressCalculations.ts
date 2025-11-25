@@ -13,6 +13,7 @@ import {
   getStitchDisplayInfo,
   getChartProgressPercentage,
   getChartCompletedStitches,
+  describeStitchGroup,
 } from '../utils'
 import { calculateStitchDisplayNumber } from '../utils/chart/singleStitchNavigation'
 
@@ -196,35 +197,21 @@ function generateRoundDescription(round: Round): string {
       if (item.type === PatternItemType.STITCH) {
         const stitch = item.data as StitchInfo
         const displayInfo = getStitchDisplayInfo(stitch)
-        descriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+        descriptions.push(`${displayInfo.rawValue} ${stitch.count}`)
       } else if (item.type === PatternItemType.GROUP) {
         const group = item.data as StitchGroup
-        const groupDescriptions: string[] = []
-        group.stitches.forEach((stitch: StitchInfo) => {
-          const displayInfo = getStitchDisplayInfo(stitch)
-          groupDescriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
-        })
-        if (groupDescriptions.length > 0) {
-          descriptions.push(`[${groupDescriptions.join(', ')}] * ${group.repeatCount}`)
-        }
+        descriptions.push(describeStitchGroup(group))
       }
     })
   } else {
     // Fallback to legacy format
     round.stitches.forEach((stitch: StitchInfo) => {
       const displayInfo = getStitchDisplayInfo(stitch)
-      descriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
+      descriptions.push(`${displayInfo.rawValue} ${stitch.count}`)
     })
     
     round.stitchGroups.forEach((group: StitchGroup) => {
-      const groupDescriptions: string[] = []
-      group.stitches.forEach((stitch: StitchInfo) => {
-        const displayInfo = getStitchDisplayInfo(stitch)
-        groupDescriptions.push(`${displayInfo.rawValue} ${displayInfo.symbol} ${stitch.count}`)
-      })
-      if (groupDescriptions.length > 0) {
-        descriptions.push(`[${groupDescriptions.join(', ')}] * ${group.repeatCount}`)
-      }
+      descriptions.push(describeStitchGroup(group))
     })
   }
   

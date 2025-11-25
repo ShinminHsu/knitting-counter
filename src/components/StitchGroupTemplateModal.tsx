@@ -108,7 +108,7 @@ export default function StitchGroupTemplateModal({
                   const displayInfo = getStitchDisplayInfo(stitch)
                   return (
                     <span key={index} className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
-                      {displayInfo.symbol} {displayInfo.rawValue} ×{stitch.count}
+                      {displayInfo.englishName} {stitch.count}
                     </span>
                   )
                 })}
@@ -235,7 +235,7 @@ export default function StitchGroupTemplateModal({
                         const displayInfo = getStitchDisplayInfo(stitch)
                         return (
                           <span key={index} className="px-2 py-1 bg-background-tertiary text-text-primary rounded text-xs">
-                            {displayInfo.symbol} {displayInfo.rawValue} ×{stitch.count}
+                            {displayInfo.englishName} {stitch.count}
                           </span>
                         )
                       })}

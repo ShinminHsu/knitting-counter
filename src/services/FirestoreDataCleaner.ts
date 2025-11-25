@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore'
+import { PatternItemType } from '../types'
 import { logger } from '../utils/logger'
 import {
   Project, Round, StitchInfo, StitchGroup, Yarn, WorkSession, Chart,
@@ -99,6 +100,21 @@ export class FirestoreDataCleaner {
       roundNumber: round.roundNumber,
       stitches: this.cleanStitches(round.stitches || []),
       stitchGroups: this.cleanStitchGroups(round.stitchGroups || [])
+    }
+
+    // Include patternItems if they exist
+    if (round.patternItems && round.patternItems.length > 0) {
+      cleanedRound.patternItems = round.patternItems.map(item => ({
+        id: item.id,
+        type: item.type,
+        order: item.order,
+        createdAt: item.createdAt instanceof Date 
+          ? Timestamp.fromDate(item.createdAt)
+          : item.createdAt, // Already a Firestore Timestamp
+        data: item.type === PatternItemType.STITCH 
+          ? this.cleanStitches([item.data as any])[0]
+          : this.cleanStitchGroups([item.data as any])[0]
+      }))
     }
 
     // Only include notes if it's defined and not empty
